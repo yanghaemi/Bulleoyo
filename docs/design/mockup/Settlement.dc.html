@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <style>
+    :root{--ink:#17141f;--ink2:#3a3548;--muted:#6f6880;--line:#e3dfe9;--ground:#f5f3f7;--surface:#fff;
+      --amber:#e39b2b;--amber-soft:#fbf1de;--amber-line:#efdcb8;--amber-deep:#8a5510;
+      --ok:#2e7d5b;--ok-soft:#e4f1ea;--crit:#b3243c;--crit-soft:#fbe7ea;
+      --ease-out:cubic-bezier(.23,1,.32,1);}
+    *{box-sizing:border-box;}
+    body{margin:0;background:var(--ground);color:var(--ink);
+      font-family:Archivo,"Noto Sans KR",system-ui,sans-serif;font-size:14px;line-height:1.5;
+      -webkit-font-smoothing:antialiased;}
+    a{color:var(--amber-deep);text-decoration:none;} a:hover{color:#6b4009;}
+    h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:balance;}
+    .mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;}
+    .eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;}
+    .tap{transition:transform 160ms var(--ease-out);}
+    .tap:active{transform:scale(.985);}
+    .btn{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:8px;
+      border:1px solid var(--ink);background:var(--ink);color:#fff;
+      font:600 15px Archivo,"Noto Sans KR",sans-serif;transition:transform 160ms var(--ease-out);}
+    .btn:active{transform:scale(.97);}
+    .btn.ghost{background:var(--surface);color:var(--ink);}
+    .btn.amber{background:var(--amber);border-color:var(--amber);color:#2a1b04;}
+    .btn.off{background:var(--line);border-color:var(--line);color:#9b95a6;}
+    .btn.off:active{transform:none;}
+    @media (hover:hover) and (pointer:fine){
+      .btn.ghost:hover{background:var(--ground);}
+      .card.tap:hover{border-color:#cfc8da;}
+    }
+    @media (prefers-reduced-motion:reduce){ .tap,.btn{transition:none;} .tap:active,.btn:active{transform:none;} }
+    .badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:600;
+      background:var(--amber-soft);color:var(--amber-deep);}
+    .badge.ok{background:var(--ok-soft);color:var(--ok);}
+    .badge.crit{background:var(--crit-soft);color:var(--crit);}
+    .badge.plain{background:var(--ground);color:var(--muted);}
+    .sub{color:var(--muted);font-size:12px;}
+    .rule{height:1px;background:var(--line);}
+    .poster{background:linear-gradient(160deg,#2c2540,#5d4a2e 70%,#8a6a2c);border-radius:8px;}
+  </style>
+</helmet>
+<div style="min-height:100%;background:var(--ground);">
+  <div style="background:var(--surface);border-bottom:1px solid var(--line);">
+    <div style="max-width:1200px;margin:0 auto;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;">
+      <div><div class="eyebrow">Settlement</div><h1 style="font-size:21px;margin-top:3px;">Hongdae Night Vol.7</h1></div>
+      <span class="badge">Dispute window · 31h left</span></div>
+  </div>
+  <div style="max-width:1200px;margin:0 auto;padding:24px;display:flex;flex-direction:column;gap:22px;">
+    <div class="card" style="padding:18px 22px;display:flex;align-items:center;gap:14px;"><div style="display:flex;align-items:center;gap:9px;"><div class="mono" style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;background:var(--ok);color:#fff;">1</div><span style="font-weight:400;color:var(--ink);">Aggregated</span></div><div style="flex:1;height:1px;background:var(--line);"></div><div style="display:flex;align-items:center;gap:9px;"><div class="mono" style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;background:var(--ok);color:#fff;">2</div><span style="font-weight:400;color:var(--ink);">Locked</span></div><div style="flex:1;height:1px;background:var(--line);"></div><div style="display:flex;align-items:center;gap:9px;"><div class="mono" style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;background:var(--amber);color:#2a1b04;">3</div><span style="font-weight:600;color:var(--ink);">Dispute 48h</span></div><div style="flex:1;height:1px;background:var(--line);"></div><div style="display:flex;align-items:center;gap:9px;"><div class="mono" style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;background:var(--line);color:#9b95a6;">4</div><span style="font-weight:400;color:var(--muted);">Released</span></div></div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:22px;align-items:start;">
+      <div style="display:flex;flex-direction:column;gap:22px;">
+        <div class="card" style="padding:20px 22px;">
+          <h2 style="font-size:16px;margin-bottom:6px;">Payout by band</h2>
+          <table style="width:100%;border-collapse:collapse;">
+            <tr style="border-bottom:1px solid var(--line);">
+              <th class="eyebrow" style="text-align:left;padding-bottom:9px;">Band</th>
+              <th class="eyebrow" style="text-align:right;padding-bottom:9px;">Amount</th>
+              <th class="eyebrow" style="text-align:right;padding-bottom:9px;">Wallet</th>
+              <th class="eyebrow" style="text-align:right;padding-bottom:9px;">Status</th></tr>
+            <tr><td style="padding:13px 0;font-weight:600;">Salt &amp; Static</td><td class="mono" style="padding:13px 0;text-align:right;">₩833,400</td><td class="mono sub" style="padding:13px 0;text-align:right;">0x7a41…9c2e</td><td style="padding:13px 0;text-align:right;"><span class='badge plain'>Pending</span></td></tr><tr><td style="padding:13px 0;font-weight:600;">Room 302</td><td class="mono" style="padding:13px 0;text-align:right;">₩633,300</td><td class="mono sub" style="padding:13px 0;text-align:right;">0x2b90…41af</td><td style="padding:13px 0;text-align:right;"><span class='badge plain'>Pending</span></td></tr><tr><td style="padding:13px 0;font-weight:600;">Neon Alley</td><td class="mono" style="padding:13px 0;text-align:right;">₩533,300</td><td class="mono sub" style="padding:13px 0;text-align:right;">0xd10c…77b5</td><td style="padding:13px 0;text-align:right;"><span class='badge plain'>Pending</span></td></tr>
+          </table>
+          <div class="rule" style="margin:6px 0 14px;"></div>
+          <div style="display:flex;justify-content:space-between;"><span style="font-weight:600;">Total</span><span class="mono" style="font-weight:600;">₩2,000,000</span></div>
+          <p class="sub" style="margin:14px 0 0;line-height:1.6;">release가 확정되면 정산금이 각 팀 리더 지갑에 그대로 들어옵니다. 이후 별도 절차는 없습니다.</p>
+        </div>
+        <div class="card" style="padding:20px 22px;">
+          <h2 style="font-size:16px;margin-bottom:10px;">Disputes</h2>
+          <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line);">
+            <div><div style="font-weight:600;">Room 302</div><div class="sub">집계 수치 확인 요청</div></div><span class="badge">Open</span></div>
+          <div class="sub" style="padding-top:11px;">Release stays on hold while a dispute is open.</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <div class="card" style="padding:18px;display:flex;flex-direction:column;gap:9px;">
+          <div class="eyebrow">Actions</div>
+          <div class="btn off">Aggregate</div><div class="btn off">Lock</div><div class="btn off">Release</div>
+          <div class="sub">Release opens when the dispute window closes and no dispute is open.</div></div>
+        <div class="card" style="padding:18px;display:flex;flex-direction:column;gap:7px;">
+          <div class="eyebrow">Deposit</div>
+          <div><span class="mono" style="font-weight:600;">₩50,000</span> <span class="badge plain">Held</span></div>
+          <div class="sub">Returned after release completes.</div></div>
+        <div class="card" style="padding:18px;display:flex;flex-direction:column;gap:7px;">
+          <div class="eyebrow">Verification</div><a href="#" style="font-weight:600;">Open settlement check →</a>
+          <div class="sub">Participating band leaders only.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

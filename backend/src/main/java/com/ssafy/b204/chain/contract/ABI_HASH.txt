@@ -1,0 +1,27 @@
+# 컨트랙트 래퍼 생성 출처 (integration-qa가 blockchain/deployments/abi/index.json 과 대조한다)
+#
+# abiHash = sha256(JSON.stringify(abi))  — index.json 이 쓰는 것과 같은 정의
+# 생성일  = 2026-09-08
+# 원본    = origin/feat/bc/contract @ fdf49ef (코인 rename KRWS → YoYo, 2026-09-08 17:40)
+#           blockchain/deployments/abi/{YoYo,RevenueSplitter}.json (npx hardhat build, solc 0.8.28)
+# 생성기  = org.web3j:codegen:4.9.8 · SolidityFunctionWrapperGenerator
+# 재생성  = bash gradlew generateContractWrappers -PabiDir=../blockchain/deployments/abi
+#           (ABI가 develop에 머지되기 전에는 -PabiDir로 다른 경로를 준다)
+
+name              abiHash                                                            wrapper
+YoYo              457b40a46d89b7041282f3ecee5ee99a721d6a3015242aacf7b0afae762d6b89   YoYo.java
+RevenueSplitter   26ca7d05bd23030a7817fee93e1a49bc43e8778a4506800a1a63b19e8815eea1   RevenueSplitter.java
+
+# 코인 rename(KRWS → YoYo, 2026-09-08 · S15P21B204-41)
+# - YoYo 는 구 KRWS 와 abiHash 가 같다(457b40a4…). 이름·심볼만 바뀌고 함수·이벤트·error·
+#   selector 가 전부 같아서 ABI 바이트열이 동일하다. 래퍼도 클래스 이름 외에는 구 KRWS.java 와
+#   문자 단위로 동일하다.
+# - RevenueSplitter 는 abiHash 가 1a509813… → 26ca7d05… 로 바뀌었다. 생성자 인자 이름이
+#   krws → yoyo 로 바뀐 것뿐이고 타입·순서·시그니처는 그대로다. 그래서 재생성된
+#   RevenueSplitter.java 는 이전 커밋과 diff 가 0 이다(web3j 래퍼는 생성자 인자 이름을 쓰지 않는다).
+#
+# ContractErrors.java 도 같은 ABI에서 뽑았다 — error 57건(YoYo 16 + RevenueSplitter 41),
+# 그중 6건이 두 컨트랙트 공통이라 고유 selector 51개. rename 으로 selector 는 바뀌지 않았다
+# (error 이름·인자 타입이 그대로라 keccak256 4바이트가 같다).
+# 확인: purchaseOf 5번째 반환 = uint256 refundedAmount (문서 13 §6 · H-02) ✔
+#       이벤트 인자에 tuple 없음, indexed ≤ 3 ✔ (Purchased·Refunded·RoleGranted 등이 정확히 3)

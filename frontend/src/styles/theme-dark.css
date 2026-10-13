@@ -1,0 +1,61 @@
+/* WEB dark + loading refresh. Blue ink and solid fill have separate contrast roles. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-primary: #4864d8;
+  --color-primary-bright: #4f6bdb;
+  --color-focus: #8ba2ff;
+  --color-sel: #8ba2ff;
+  --color-sel-soft: #202e50;
+  --color-ink: #f2f4fa;
+  --color-muted: #9aa6b8;
+  --color-faint: #778498;
+  --color-line: #273142;
+  --color-surface: #101622;
+  --color-ground: #080b12;
+  --color-ground-2: #1a2333;
+  --color-fill: #263247;
+  --color-danger: #ff827a;
+  --color-ok: #68d6a1;
+  --color-warning: #f0bc6a;
+  --radius-card: 18px;
+  --radius-control: 12px;
+  --radius-chip: 7px;
+  --dark-primary-ink: #8ba2ff;
+  --dark-primary-ink-hover: #b0bfff;
+  --effect-primary-bright: #5d7bff;
+}
+:root[data-theme='dark'] .text-primary {
+  color: var(--dark-primary-ink);
+}
+:root[data-theme='dark'] .border-primary,
+:root[data-theme='dark'] .focus\:border-primary:focus,
+:root[data-theme='dark'] .enabled\:focus\:border-primary:enabled:focus {
+  border-color: var(--dark-primary-ink);
+}
+:root[data-theme='dark'] .bg-sel.text-white {
+  color: var(--color-ground);
+}
+:root[data-theme='dark'] .bg-primary\/10 {
+  background-color: color-mix(in srgb, var(--effect-primary-bright) 12%, transparent);
+}
+:root[data-theme='dark'] .active\:bg-primary\/15:active {
+  background-color: color-mix(in srgb, var(--effect-primary-bright) 18%, transparent);
+}
+@media (hover: hover) {
+  :root[data-theme='dark'] .hover\:text-primary:hover {
+    color: var(--dark-primary-ink);
+  }
+  :root[data-theme='dark'] .hover\:text-primary-bright:hover {
+    color: var(--dark-primary-ink-hover);
+  }
+  :root[data-theme='dark'] .hover\:bg-primary\/10:hover {
+    background-color: color-mix(in srgb, var(--effect-primary-bright) 12%, transparent);
+  }
+}
+@media (prefers-contrast: more) {
+  :root[data-theme='dark'] {
+    --color-line: #65748c;
+    --color-muted: #c9d1df;
+    --color-faint: #aab6c9;
+  }
+}

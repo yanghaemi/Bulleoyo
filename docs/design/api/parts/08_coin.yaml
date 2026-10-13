@@ -1,0 +1,1000 @@
+# 2026-09-08: 코인 개명 KRWS -> YoYo (name·symbol "YoYo", 로직 불변)
+paths:
+  /api/v1/coin/supply:
+    get:
+      operationId: coin_01
+      tags: [coin]
+      x-priority: P0
+      x-screens: [V-02]
+      x-features: [F-coin-02, F-verify-02]
+      x-role: GUEST
+      summary: "YoYo 발행량·에스크로 공시"
+      description: >-
+        발행량 요약(총 발행량·에스크로·지갑 보유 합계·지급 건수)과 불변식 4개 대사 결과를 한 응답으로 준다.
+        [v5] v4의 유통량 요약(구 API-coin-01)과 상세 공시(구 API-verify-02)가 통합된 공개 API다. 1분 캐시.
+        불변식 1 또는 4가 깨지면 supplyMatched: false와 함께 mint·release를 중단(mintHalted·releaseHalted)하고,
+        불변식 3(정산 재계산)이 깨지면 releaseHalted만 true가 되며,
+        운영자 알림을 보내되, 조회 자체는 200으로 성공시킨다. 관객 화면에는 노출하지 않는 발행 주체 라벨과
+        고지 문구(disclosure)를 Accept-Language에 맞춰 함께 내린다.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      responses:
+        '200':
+          description: 발행량·에스크로 공시 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CoinSupply'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      totalSupply: 5290000
+                      escrowTotal: 1275000
+                      walletTotal: 4015000
+                      grantCount: 53
+                      supplyMatched: true
+                      currency: KRW
+                      display: { currency: USD, approx: 3918.52, rate: 1350.0, asOf: "2026-09-02T09:00:00+09:00" }
+                      issuer: { type: MOCK, label: "Platform (demo grant)", replaceable: true }
+                      mintHalted: false
+                      releaseHalted: false
+                      network: kaia-kairos
+                      chainId: 1001
+                      tokenAddress: "0x5f1e2d3c4b5a69788796a5b4c3d2e1f009182736"
+                      tokenSymbol: YoYo
+                      tokenDecimals: 0
+                      explorerUrl: "https://kairos.kaiascan.io/address/0x5f1e2d3c4b5a69788796a5b4c3d2e1f009182736"
+                      invariants:
+                        - { no: 1, name: SUPPLY_EQUALS_MINTED, expected: 5290000, actual: 5290000, matched: true, note: "totalSupply = Σ Minted — mint 만 있어 발행량은 줄지 않는다" }
+                        - { no: 2, name: ESCROW_PER_SHOW, checkedShows: 2, mismatchedShows: 0, matched: true, note: "공연별 escrowOf = Σpurchase − Σrefund − Σrelease (보증금 별도)" }
+                        - { no: 3, name: RELEASED_EQUALS_RULE_RECALC, checkedShows: 1, maxDiff: 0, matched: true, note: "Σ Released = 잠긴 규칙 × 카운터 재계산(dust 포함, 1원 오차 없음); 온체인 choiceCountsOf 카운터로 평가 1건" }
+                        - { no: 4, name: SUPPLY_EQUALS_WALLETS_PLUS_ESCROW, expected: 5290000, actual: 5290000, matched: true, note: "totalSupply = Σ등록 지갑 잔액 + Σ에스크로·보증금 — 정확히 일치 (등록 지갑 3개 노드 조회)" }
+                      perPerformanceEscrow:
+                        - { performanceId: 12, escrowAmount: 1225000, depositAmount: 50000 }
+                        - { performanceId: 14, escrowAmount: 0, depositAmount: 0 }
+                      asOf: "2026-09-22T18:12:00+09:00"
+                      nextRefreshAt: "2026-09-22T18:13:00+09:00"
+                      stale: false
+                      disclosure: "A testnet demo set in a future where money is a coin. No real assets or currency. Coins are granted by the platform for the demo; balance figures are read through the platform server."
+                      grantNotice: "Every coin in circulation came from a demo grant: 100,000 on sign-up, plus manual admin grants."
+                    msg: ""
+        '429':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_TOO_MANY_REQUESTS — 호출 한도 초과"
+        '502':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_EXTERNAL_SERVICE_ERROR — 체인 조회 실패하고 캐시도 없음"
+
+  /api/v1/coin/rates:
+    get:
+      operationId: coin_02
+      tags: [coin]
+      x-priority: P0
+      x-screens: [공통]
+      x-features: [F-coin-06]
+      x-role: GUEST
+      summary: 표시 환율 조회
+      description: >-
+        현재 유효한 표시 환율을 pair별로 준다. 표시 전용이며 결제·정산·컨트랙트 계산에는 쓰이지 않는다(usageNotice로 명시).
+        1 base = rate KRW 방향이다. pair 쿼리로 하나만 조회할 수 있고 미지정 시 등록된 전부를 준다. 1분 캐시.
+        등록된 환율이 없으면 빈 배열을 준다(404가 아니다) — 환율 미등록은 오류가 아니다.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: pair
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[A-Z]{3}_KRW$'
+          description: "예: USD_KRW·JPY_KRW·EUR_KRW. 미지정 시 전체"
+      responses:
+        '200':
+          description: 표시 환율 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          rates:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/ExchangeRate'
+                          usageNotice:
+                            type: string
+                          refreshedAt:
+                            type: string
+                            format: date-time
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      rates:
+                        - { pair: USD_KRW, base: USD, quote: KRW, rate: 1350.0, effectiveFrom: "2026-09-02T09:00:00+09:00", source: MANUAL }
+                        - { pair: JPY_KRW, base: JPY, quote: KRW, rate: 9.12, effectiveFrom: "2026-09-02T09:00:00+09:00", source: MANUAL }
+                        - { pair: EUR_KRW, base: EUR, quote: KRW, rate: 1462.5, effectiveFrom: "2026-09-02T09:00:00+09:00", source: MANUAL }
+                      usageNotice: "Rates are for display only. All payments, refunds and settlements are calculated in Korean won."
+                      refreshedAt: "2026-09-02T14:00:00+09:00"
+                    msg: ""
+        '400':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_VALIDATION_FAILED — pair 형식 위반({3자}_{3자} 아님)"
+        '429':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_TOO_MANY_REQUESTS — 호출 한도 초과"
+
+  /api/v1/admin/coin/rates:
+    put:
+      operationId: coin_03
+      tags: [coin]
+      x-priority: P0
+      x-screens: [M-03]
+      x-features: [F-coin-07]
+      x-role: ADMIN
+      summary: 표시 환율 등록
+      description: >-
+        관리자가 pair별 표시 환율을 등록한다. 하루 1회 시연 고정을 전제로 한 최소 기능이다. 등록은 append-only다 —
+        기존 레코드를 수정하지 않고 새 exchange_rate 행을 만든다. effectiveFrom은 미래 시각도 허용하고 과거 시각은
+        기존 표시값을 소급 변경하므로 거부한다. 여러 pair를 한 번에 등록할 수 있고 부분 실패 없이 전량 롤백한다.
+        이 값이 자금 계산에 쓰이지 않음을 usageNotice로 다시 명시한다. 감사 로그 action_type=RATE_CHANGE로 남긴다.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExchangeRateRegisterRequest'
+            examples:
+              default:
+                value:
+                  rates:
+                    - { pair: USD_KRW, rate: 1350.0, source: MANUAL }
+                    - { pair: JPY_KRW, rate: 9.12, source: MANUAL }
+      responses:
+        '200':
+          description: 표시 환율 등록 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ExchangeRateRegisterResult'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      registered:
+                        - { rateId: 56, pair: USD_KRW, rate: 1350.0, effectiveFrom: "2026-09-02T09:00:00+09:00", source: MANUAL }
+                        - { rateId: 57, pair: JPY_KRW, rate: 9.12, effectiveFrom: "2026-09-02T09:00:00+09:00", source: MANUAL }
+                      publishedBy: 1
+                      cacheInvalidated: true
+                      usageNotice: "표시 환산에만 사용됩니다. 정산·분배·티켓 가격·지급 금액은 YoYo(=₩) 정수로 계산됩니다."
+                    msg: "표시 환율이 등록되었습니다."
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — pair 형식·quote 위반, rate ≤ 0, effectiveFrom 과거, 배열 내 pair 중복, 배열 크기 위반(예: "적용 시각은 현재 이후여야 합니다")
+        '401':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_UNAUTHORIZED — 인증 헤더 없음"
+        '403':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_FORBIDDEN — ADMIN이 아님"
+
+  /api/v1/coin/config:
+    get:
+      operationId: coin_04
+      tags: [coin]
+      x-priority: P1
+      x-screens: ["공통(프론트 초기화)"]
+      x-features: [F-coin-09]
+      x-role: GUEST
+      summary: 체인·컨트랙트 설정 조회
+      description: >-
+        [P1] 프론트가 Web3Auth SDK와 지갑 연결을 초기화하는 데 필요한 값(chainNamespace·chainId·rpcTarget·
+        컨트랙트 주소 등)을 준다. 비인증 공개이며 여기 담기는 값은 모두 공개 정보다. 서버 보관 키(OPERATOR·
+        MINTER)의 주소는 담지 않는다. 5분 캐시하며 컨트랙트 재배포 시 즉시 무효화한다. contracts.abiVersion으로
+        프론트 번들 ABI와 서버가 가리키는 컨트랙트 세대를 맞춘다.
+      security: []
+      responses:
+        '200':
+          description: 체인·컨트랙트 설정 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ChainConfig'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      network: kaia-kairos
+                      chainNamespace: eip155
+                      chainId: 1001
+                      chainIdHex: "0x3e9"
+                      displayName: "Kaia Kairos"
+                      ticker: KAIA
+                      tickerName: Kaia
+                      rpcTarget: "https://public-en-kairos.node.kaia.io"
+                      explorerBaseUrl: "https://kairos.kaiascan.io"
+                      contracts:
+                        tokenAddress: "0x5f1e2d3c4b5a69788796a5b4c3d2e1f009182736"
+                        tokenSymbol: YoYo
+                        tokenDecimals: 0
+                        splitterAddress: "0xa1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
+                        abiVersion: v5.0.0
+                      web3auth: { clientIdPublic: "BJ8xk...public", loginProviders: [google, facebook, kakao] }
+                      feePolicy: { feeDelegation: true, feePayerAddress: "0x9f8e7d6c5b4a39281706f5e4d3c2b1a098765432", userNativeBalanceRequired: false }
+                      refreshedAt: "2026-09-02T14:00:00+09:00"
+                    msg: ""
+        '429':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_TOO_MANY_REQUESTS — 호출 한도 초과"
+        '500':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_INTERNAL_ERROR — 컨트랙트 주소 설정 누락(배포 전 상태) — 관리자 알림 대상"
+
+  /api/v1/admin/coin/grants:
+    put:
+      operationId: coin_07
+      tags: [coin]
+      x-priority: P0
+      x-screens: [M-03]
+      x-features: [F-coin-10, F-coin-01, F-coin-08]
+      x-role: ADMIN
+      summary: 시연용 코인 지급
+      description: >-
+        관리자가 특정 회원 지갑에 YoYo를 지급한다. v4의 법정화폐 유입 도메인을 대체하는 유일한 유입 경로이며
+        관객 화면에는 진입점이 없다. 대상은 memberId 또는 address 중 하나다. 1회 최대 1,000,000 YoYo, 최소 1.
+        Idempotency-Key가 필수이며 그 UUID 해시가 온체인 YoYo.mint의 grantRef가 되어 같은 키 재호출은 두 번
+        발행하지 않는다. 발행량 대사가 깨진 상태(mintHalted)에서는 지급을 거부한다(COIN_RESERVE_MISMATCH).
+        메서드가 PUT인 것은 결정 문서 v2 §9 인벤토리 표기를 그대로 따른 것이며, 멱등키 필수라 PUT 의미와도
+        어긋나지 않는다. 202 Accepted + jobId(tx_type=MINT, signer_type=OPERATOR)를 준다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CoinGrantRequest'
+            examples:
+              default:
+                value: { memberId: 1024, amount: 200000, memo: "Rehearsal top-up for demo audience" }
+      responses:
+        '202':
+          description: >
+            지급 tx(MINT) 접수. jobId 로 GET /api/v1/chain/jobs/{jobId} 를 폴링한다.
+            [2026-09-16 — S15P21B204-92] 공용 ChainJobAccepted 를 참조하던 것을 GrantCoinResponse
+            실제 14필드로 바꿨다.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [jobId, status, signerType, pollAfterMs, memberId, address, amount, currency, grantRef, requestedAt]
+                        properties:
+                          jobId: { type: string }
+                          status: { type: string, enum: [PENDING, SUBMITTED, CONFIRMED, FAILED] }
+                          signerType: { type: string, enum: [OPERATOR, USER] }
+                          pollAfterMs: { type: integer, default: 1500 }
+                          memberId: { type: integer, format: int64, description: 요청이 address 로 왔어도 지갑 주인의 memberId 를 채워 돌려준다 }
+                          address: { $ref: '#/components/schemas/Address' }
+                          amount: { $ref: '#/components/schemas/Money' }
+                          currency: { type: string, enum: [KRW] }
+                          display:
+                            allOf: [{ $ref: '#/components/schemas/Display' }]
+                            description: 표시 환율이 없으면 서버가 null 을 담고 키가 사라진다(§0.5).
+                          memo: { type: string, description: 요청 본문의 memo 그대로. 생략하면 키가 없다 }
+                          grantRef: { type: string, description: 'bytes32 hex. 멱등키의 sha3 이며 V-02·익스플로러 대조 키다' }
+                          balanceBefore:
+                            allOf: [{ $ref: '#/components/schemas/Money' }]
+                            description: >
+                              Redis 캐시 잔액. 캐시가 비어 있으면 키가 없다 — 0 과 구분해야 한다(M-03 표시용).
+                          expectedBalanceAfter:
+                            allOf: [{ $ref: '#/components/schemas/Money' }]
+                            description: balanceBefore 가 없으면 이 키도 없다(그 값에서 파생한다).
+                          requestedAt: { type: string, format: date-time }
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      jobId: chain_01J9H2K3L4
+                      status: PENDING
+                      signerType: OPERATOR
+                      pollAfterMs: 1500
+                      memberId: 1024
+                      address: '0x6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a'
+                      amount: 200000
+                      currency: KRW
+                      display: { currency: USD, approx: 148.15, rate: 1350.0, asOf: '2026-09-02T09:00:00+09:00' }
+                      memo: Rehearsal top-up for demo audience
+                      grantRef: '0x8f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8'
+                      balanceBefore: 35000
+                      expectedBalanceAfter: 235000
+                      requestedAt: '2026-09-22T18:20:00+09:00'
+                    msg: 지급 트랜잭션을 전송했습니다.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — memberId·address 둘 다 또는 둘 다 없음, 주소 형식 위반, amount 범위 위반(1회 한도 초과 — 전용 코드 COIN_GRANT_LIMIT_EXCEEDED는 §16.1, 예: "1회 지급 한도(₩1,000,000)를 초과했습니다"), Idempotency-Key 없음
+        '401':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_UNAUTHORIZED — 인증 헤더 없음"
+        '403':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_FORBIDDEN — ADMIN 권한 아님"
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_NOT_FOUND — 존재하지 않는 memberId
+            WALLET_NOT_FOUND — 대상 회원의 지갑 미연결, 또는 등록되지 않은 address
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_CONFLICT — 같은 멱등키에 다른 본문, 대상 지갑이 SUSPENDED
+            COIN_RESERVE_MISMATCH — [v5] 발행량 대사 불일치로 mint 중단 상태(전용 코드 COIN_SUPPLY_MISMATCH는 §16.1)
+        '429':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_TOO_MANY_REQUESTS — 관리자당 30회/분 초과"
+        '500':
+          $ref: '#/components/responses/Error'
+          description: "COIN_MINT_FAILED — mint tx 최종 실패 — 운영자 알림, 재시도는 새 멱등키로"
+
+    get:
+      operationId: coin_08
+      tags: [coin]
+      x-priority: P0
+      x-screens: [M-03]
+      x-features: [F-coin-10]
+      x-role: ADMIN
+      summary: 시연용 코인 지급 이력
+      description: >-
+        지급 이력을 최신순으로 준다. 원본은 chain_job WHERE tx_type='MINT'이며 별도 이력 테이블이 없다.
+        가입 자동 지급(requester_member_id IS NULL → SIGNUP)과 관리자 수동 지급(ADMIN)이 한 목록에 섞여 나온다.
+        합계 요약(summary)을 함께 주며 V-02의 totalSupply와 이 합계(grantedTotal)가 일치해야 한다(불변식 1).
+        대상 회원의 지갑 주소는 관리자 화면이므로 노출한다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: source
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [SIGNUP, ADMIN]
+          description: 미지정 시 전체
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, SUBMITTED, CONFIRMED, FAILED]
+        - name: memberId
+          in: query
+          required: false
+          schema: { type: integer }
+          description: 특정 회원의 지급만
+        - name: address
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/Address'
+          description: "memberId와 함께 오면 AND"
+        - name: from
+          in: query
+          required: false
+          schema: { type: string, format: date }
+          description: "requestedAt 기준"
+        - name: to
+          in: query
+          required: false
+          schema: { type: string, format: date }
+          description: "requestedAt 기준"
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['requestedAt,desc', 'requestedAt,asc', 'amount,desc']
+            default: 'requestedAt,desc'
+      responses:
+        '200':
+          description: 지급 이력 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CoinGrantHistoryListResult'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      rate: { currency: USD, rate: 1350.0, asOf: "2026-09-02T09:00:00+09:00" }
+                      summary: { grantCount: 53, grantedTotal: 5290000, signupCount: 48, signupTotal: 4800000, adminCount: 5, adminTotal: 490000, currency: KRW }
+                      items:
+                        - jobId: "chain_01J9H2K3L4"
+                          source: ADMIN
+                          status: CONFIRMED
+                          memberId: 1024
+                          memberName: "Alex Kim"
+                          address: "0x6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a"
+                          amount: 200000
+                          memo: "Rehearsal top-up for demo audience"
+                          requesterId: 1
+                          requesterName: admin
+                          grantRef: "0x8f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8"
+                          txHash: "0x7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d"
+                          explorerUrl: "https://kairos.kaiascan.io/tx/0x7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d"
+                          requestedAt: "2026-09-22T18:20:00+09:00"
+                          confirmedAt: "2026-09-22T18:20:04+09:00"
+                        - jobId: "chain_01J9G1A2B3"
+                          source: SIGNUP
+                          status: CONFIRMED
+                          memberId: 1031
+                          memberName: "Yuki Sato"
+                          address: "0x8b7c6d5e4f30211f2e3d4c5b6a7988071625344a"
+                          amount: 100000
+                          memo: "Welcome balance"
+                          requesterId: null
+                          requesterName: null
+                          grantRef: "0x1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a"
+                          txHash: "0x90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f"
+                          explorerUrl: "https://kairos.kaiascan.io/tx/0x90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f"
+                          requestedAt: "2026-09-22T17:05:00+09:00"
+                          confirmedAt: "2026-09-22T17:05:03+09:00"
+                      pageInfo: { page: 0, size: 20, totalElements: 53, hasNext: true }
+                    msg: ""
+        '400':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_VALIDATION_FAILED — 허용되지 않는 source·status·sort, 주소 형식 위반, size 100 초과"
+        '401':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_UNAUTHORIZED — 인증 헤더 없음"
+        '403':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_FORBIDDEN — ADMIN 권한 아님"
+
+  /api/v1/chain/jobs/{jobId}:
+    get:
+      operationId: chain_01
+      tags: [chain]
+      x-priority: P0
+      x-screens: ["공통(202 폴링)"]
+      x-features: [F-coin-03]
+      x-role: "요청자(작업을 만든 회원) 또는 ADMIN"
+      summary: 비동기 tx 작업 상태 조회
+      description: >-
+        모든 202 응답(운영자 tx + 사용자 서명 tx)의 단일 폴링 엔드포인트다. 상태값은 PENDING/SUBMITTED/
+        CONFIRMED/FAILED이며, 확정 시 txHash·explorerUrl, 실패 시 failureReason·retryable을 채운다.
+        signerType=USER인 job은 feeDelegated가 항상 true이고 retryable은 항상 false다(서버가 발신자 서명을
+        다시 만들 수 없어 사용자가 다시 서명해야 한다). verification 블록으로 receipt 검증 결과(to·from·event·args)를
+        알려준다. 작업을 만든 회원 또는 ADMIN만 조회하며, 남의 작업은 존재를 숨겨 COMMON_NOT_FOUND로 응답한다.
+        부분 성공이 있는 작업(공연 취소 일괄 환불, release)은 results 배열로 건별 상태를 함께 준다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string }
+          description: "202 응답에서 받은 작업 식별자(chain_*)"
+      responses:
+        '200':
+          description: "작업 상태 조회 성공(사용자 서명 tx 확정 / 운영자 tx 최종 실패 / 사용자 서명 tx 검증 실패)"
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ChainJob'
+              examples:
+                userTxConfirmed:
+                  summary: 사용자 서명 tx 확정
+                  value:
+                    code: SUCCESS
+                    data:
+                      jobId: "chain_01J9GC5D6F"
+                      txType: PURCHASE
+                      signerType: USER
+                      issuerType: MOCK
+                      feeDelegated: true
+                      feePayerAddress: "0x9f8e7d6c5b4a39281706f5e4d3c2b1a098765432"
+                      status: CONFIRMED
+                      walletAddress: "0x6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a"
+                      performanceId: 12
+                      orderId: 5501
+                      amount: 50000
+                      currency: KRW
+                      txHash: "0x5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182934a"
+                      explorerUrl: "https://kairos.kaiascan.io/tx/0x5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182934a"
+                      blockNumber: 184920311
+                      verification: { verified: true, expectedEvent: Purchased, checks: { receiptStatus: true, to: true, from: true, event: true, args: true }, mismatchFields: [] }
+                      retryCount: 0
+                      failureReason: null
+                      retryable: false
+                      results: null
+                      pollAfterMs: null
+                      submittedAt: "2026-09-10T20:03:04+09:00"
+                      confirmedAt: "2026-09-10T20:03:11+09:00"
+                    msg: ""
+                operatorTxFailed:
+                  summary: 운영자 tx 최종 실패
+                  value:
+                    code: SUCCESS
+                    data:
+                      jobId: "chain_01J9GD7E8F"
+                      txType: MINT
+                      grantSource: ADMIN
+                      signerType: OPERATOR
+                      issuerType: MOCK
+                      feeDelegated: false
+                      status: FAILED
+                      txHash: null
+                      verification: null
+                      retryCount: 3
+                      failureReason: CHAIN_NONCE_CONFLICT
+                      retryable: true
+                      pollAfterMs: null
+                    msg: "처리에 실패했습니다. 확인 후 순차적으로 재처리됩니다."
+                userTxVerificationFailed:
+                  summary: 사용자 서명 tx 검증 실패
+                  value:
+                    code: SUCCESS
+                    data:
+                      jobId: "chain_01J9GA1B2C"
+                      txType: DEPOSIT
+                      signerType: USER
+                      status: FAILED
+                      txHash: "0x6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5"
+                      verification: { verified: false, expectedEvent: DepositPaid, checks: { receiptStatus: true, to: true, from: true, event: true, args: false }, mismatchFields: [amount] }
+                      retryCount: 0
+                      failureReason: PAYMENT_AMOUNT_MISMATCH
+                      retryable: false
+                      pollAfterMs: null
+                    msg: "트랜잭션 내용이 요청과 일치하지 않습니다. 처음부터 다시 시도해 주세요."
+        '401':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_UNAUTHORIZED — 비로그인"
+        '404':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_NOT_FOUND — 존재하지 않는 jobId 또는 타인의 작업"
+        '504':
+          $ref: '#/components/responses/Error'
+          description: "CHAIN_TX_TIMEOUT — 제출은 됐으나 확정이 임계(기본 120초)를 넘김 — 계속 폴링 가능"
+
+components:
+  schemas:
+    CoinSupplyInvariant:
+      type: object
+      description: "발행량 대사 불변식 4개(결정 v2 §3.8) 중 1건의 검사 결과"
+      required: [matched]
+      properties:
+        # YAML 1.1 은 따옴표 없는 no 를 boolean false 로 읽어 필드 이름이 `false` 가 되고,
+        # 생성 타입이 `false?: 1|2|3|4` 로 나온다. build.py 는 1.2 식 로더로 읽고 불리언 키를 실패로 막는다.
+        # 백엔드는 `no` 를 보낸다(CoinDtos.Invariant record 의 Integer no).
+        no:
+          type: integer
+          enum: [1, 2, 3, 4]
+        name:
+          type: string
+          enum: [SUPPLY_EQUALS_MINTED, ESCROW_PER_SHOW, RELEASED_EQUALS_RULE_RECALC, SUPPLY_EQUALS_WALLETS_PLUS_ESCROW]
+        expected:
+          type: integer
+          nullable: true
+          description: >
+            no 별 뜻이 고정돼 있다(프론트 라벨이 이 순서를 그대로 쓴다 — MR !87 · D-47).
+            no 1: Σ Minted(확정 MINT job 합) · no 4: Σ등록 지갑 온체인 잔액(노드 balanceOf) + Σ에스크로·보증금.
+            no 2·3 은 쓰지 않는다(checkedShows/mismatchedShows·maxDiff 로 판정).
+            **못 읽은 값이 하나라도 있으면 expected·actual 둘 다 null** 이고 matched 는 true 로 남는다
+            (판정 불가 — 화면은 "확인 중"으로 그린다. 불일치가 아니므로 halt 하지 않는다).
+        actual:
+          type: integer
+          nullable: true
+          description: >
+            no 1·4 모두 온체인 YoYo.totalSupply(). 차액 = actual − expected. no 4 에서 **양수 = 등록 지갑 밖 주소가 든 코인**
+            (등록 지갑은 전부 노드에서 읽었으므로 이제 이 뜻으로 확정 — 2026-09-15 S15P21B204-88). 음수(expected > actual)는
+            장부 과대계상(에스크로 이중 계상 또는 스캔 도중 확정된 이동이 양쪽에 세어짐)이고 미등록 보유로는 음수가 될 수 없다.
+        checkedShows:
+          type: integer
+          nullable: true
+        mismatchedShows:
+          type: integer
+          nullable: true
+        maxDiff:
+          type: integer
+          nullable: true
+        matched:
+          type: boolean
+        note:
+          type: string
+          description: >
+            사람이 읽는 판정 사유 한 줄. **서버가 한국어로 고정한다** — §0.6 의 Accept-Language 로케일은 이 필드에
+            적용되지 않는다(MessageSource 배선은 W5 이후 별건, 2026-09-15 S15P21B204-90 D-37). 화면은 이 문자열을
+            파싱하지 않고 그대로 출력만 한다 — 행의 상태는 expected/actual/checkedShows/maxDiff 의 null 여부로 정한다.
+            미평가 문구는 행마다 다르다 — 불변식 1·2·4 는 "… 조회 불가 — …(미평가)" 로 끝나고,
+            불변식 3 은 평가 못 한 건수를 적는다("평가한 정산 없음(미평가 N건); …").
+
+    CoinSupply:
+      type: object
+      description: "GET /coin/supply 공시 데이터. v4 유통량 요약 + 구 API-verify-02 상세 공시 통합([v5])"
+      required: [supplyMatched, mintHalted, releaseHalted, stale]
+      properties:
+        totalSupply:
+          type: integer
+          description: "YoYo.totalSupply(). 소각이 없어 단조 증가"
+        escrowTotal:
+          type: integer
+          description: "전 공연 escrowOf 합 + 보증금 합"
+        walletTotal:
+          type: integer
+          description: >
+            등록(LINKED) 지갑 보유 합계 — 노드 YoYo.balanceOf 를 지갑별로 읽어 합산(2026-09-15, S15P21B204-88).
+            등록 지갑 밖(미등록·SUSPENDED) 주소 보유분만큼 totalSupply − escrowTotal 보다 작을 수 있고 그것은 정상이다(양의 차액 = 미등록 보유).
+            불변식 4 가 미평가(지갑 하나라도 못 읽음)면 0 으로 오지만 사실이 아니다 — invariants[no=4].expected 가 null 이면
+            이 값을 표시하지 않는다.
+        grantCount:
+          type: integer
+          description: "[v5] 확정된 MINT job 건수(= 지급 횟수)"
+        supplyMatched:
+          type: boolean
+          description: |
+            불변식 1·4 모두 통과 여부(발행량 대사). false면 mintHalted·releaseHalted가 모두 true가 된다.
+            **releaseHalted는 이 값만으로 결정되지 않는다** — 불변식 3(정산 재계산) 불일치도 releaseHalted를 켠다(supplyMatched는 그대로).
+            조회 맥락별 기준(2026-09-10): **공시 화면(V-02, 이 API)** 에서 "정산 release 가능 여부"를 표시할 때는 releaseHalted를 참조한다.
+            **정산 상세 화면(P-08, API-settlement-01)** 의 release 버튼 활성은 `actions.release.available`·`blockedReason`을 따른다 —
+            서버 게이트가 releaseHalted를 이미 접어 넣어(`COIN_RESERVE_MISMATCH`) 두 값이 어긋나지 않는다. 화면이 두 필드를 따로 조합하지 않는다.
+        currency:
+          type: string
+          enum: [KRW]
+        display:
+          $ref: '#/components/schemas/Display'
+        issuer:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [MOCK, EXTERNAL]
+            label:
+              type: string
+            replaceable:
+              type: boolean
+        mintHalted:
+          type: boolean
+          description: 지급(mint) 중단 — 불변식 1 또는 4 불일치
+        releaseHalted:
+          type: boolean
+          description: 정산 release 중단 — 불변식 1 또는 4 불일치 **또는 불변식 3(정산 재계산) 불일치**. 노드 조회 불가는 중단 사유가 아니다(미평가). 공시 화면(V-02) 표시용 — 정산 상세(P-08)의 버튼은 API-settlement-01 `actions.release`가 정본이며 이 값을 이미 포함한다
+        network:
+          type: string
+        chainId:
+          type: integer
+        tokenAddress:
+          $ref: '#/components/schemas/Address'
+        tokenSymbol:
+          type: string
+          enum: [YoYo]
+        tokenDecimals:
+          type: integer
+          enum: [0]
+        explorerUrl:
+          type: string
+          format: uri
+        invariants:
+          type: array
+          items:
+            $ref: '#/components/schemas/CoinSupplyInvariant'
+        perPerformanceEscrow:
+          type: array
+          items:
+            type: object
+            properties:
+              performanceId: { type: integer }
+              escrowAmount: { type: integer }
+              depositAmount: { type: integer }
+        asOf:
+          type: string
+          format: date-time
+        nextRefreshAt:
+          type: string
+          format: date-time
+        stale:
+          type: boolean
+          description: "totalSupply·에스크로 중 하나라도 노드에서 읽지 못했으면 true. 등록 지갑 잔액을 못 읽은 것은 켜지 않는다 — 켜면 불변식 1·2·3 행까지 판정 불가로 덮여 실제 불일치가 가려진다. 그때 walletTotal은 0, 불변식 4는 미평가(값 null)이고 화면은 지갑 합계를 —로 그린다. 사유는 구분하지 않는다 — 불변식 note가 말한다"
+        disclosure:
+          type: string
+          description: "Accept-Language에 맞춘 고지 문구(CON-03)"
+        grantNotice:
+          type: string
+
+    ExchangeRate:
+      type: object
+      properties:
+        pair:
+          type: string
+          example: USD_KRW
+        base:
+          type: string
+        quote:
+          type: string
+          enum: [KRW]
+        rate:
+          type: number
+          description: "1 base = rate KRW"
+        effectiveFrom:
+          type: string
+          format: date-time
+        source:
+          type: string
+          default: MANUAL
+
+    ExchangeRateRegisterItem:
+      type: object
+      required: [pair, rate]
+      properties:
+        pair:
+          type: string
+          pattern: '^[A-Z]{3}_KRW$'
+        rate:
+          type: number
+          exclusiveMinimum: 0
+          description: "소수 6자리까지"
+        effectiveFrom:
+          type: string
+          format: date-time
+          description: "현재 이후. 미지정 시 now"
+        source:
+          type: string
+          default: MANUAL
+          maxLength: 100
+
+    ExchangeRateRegisterRequest:
+      type: object
+      required: [rates]
+      properties:
+        rates:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/ExchangeRateRegisterItem'
+
+    ExchangeRateRegisterResult:
+      type: object
+      required: [cacheInvalidated]
+      properties:
+        registered:
+          type: array
+          items:
+            type: object
+            properties:
+              rateId: { type: integer }
+              pair: { type: string }
+              rate: { type: number }
+              effectiveFrom: { type: string, format: date-time }
+              source: { type: string }
+        publishedBy:
+          type: integer
+          description: "등록한 관리자 memberId"
+        cacheInvalidated:
+          type: boolean
+        usageNotice:
+          type: string
+
+    ChainConfig:
+      type: object
+      description: "[P1] Web3Auth SDK·지갑 연결 초기화용 공개 설정"
+      properties:
+        network:
+          type: string
+        chainNamespace:
+          type: string
+          enum: [eip155]
+        chainId:
+          type: integer
+        chainIdHex:
+          type: string
+        displayName:
+          type: string
+        ticker:
+          type: string
+          enum: [KAIA]
+        tickerName:
+          type: string
+        rpcTarget:
+          type: string
+          format: uri
+        explorerBaseUrl:
+          type: string
+          format: uri
+        contracts:
+          type: object
+          properties:
+            tokenAddress:
+              $ref: '#/components/schemas/Address'
+            tokenSymbol:
+              type: string
+              enum: [YoYo]
+            tokenDecimals:
+              type: integer
+              enum: [0]
+            splitterAddress:
+              $ref: '#/components/schemas/Address'
+            abiVersion:
+              type: string
+        web3auth:
+          type: object
+          properties:
+            clientIdPublic:
+              type: string
+              description: "SDK 초기화용 공개 클라이언트 ID. 비밀키·verifier 시크릿은 담지 않는다"
+            loginProviders:
+              type: array
+              items:
+                type: string
+        feePolicy:
+          type: object
+          properties:
+            feeDelegation:
+              type: boolean
+              enum: [true]
+            feePayerAddress:
+              $ref: '#/components/schemas/Address'
+            userNativeBalanceRequired:
+              type: boolean
+              enum: [false]
+        refreshedAt:
+          type: string
+          format: date-time
+
+    CoinGrantRequest:
+      type: object
+      required: [amount]
+      description: "memberId·address는 택일(둘 다 오면 COMMON_VALIDATION_FAILED)"
+      properties:
+        memberId:
+          type: integer
+          nullable: true
+          description: "지급 대상 회원 PK. address와 택일"
+        address:
+          oneOf:
+            - $ref: '#/components/schemas/Address'
+            - type: "null"
+          description: "지급 대상 지갑 주소. 등록된 wallet.address여야 한다"
+        amount:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+          description: "지급 금액(YoYo 정수)"
+        memo:
+          type: string
+          maxLength: 100
+          description: "지급 사유. 지갑 이력의 title로 노출된다"
+
+    CoinGrantHistoryItem:
+      type: object
+      properties:
+        jobId:
+          type: string
+        source:
+          type: string
+          enum: [SIGNUP, ADMIN]
+          description: "[v5] SIGNUP(requester_member_id IS NULL, 지갑 등록 시 자동) / ADMIN(관리자 수동)"
+        status:
+          type: string
+          enum: [PENDING, SUBMITTED, CONFIRMED, FAILED]
+        memberId:
+          type: integer
+        memberName:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+        amount:
+          type: integer
+        memo:
+          type: string
+          description: "SIGNUP은 서버가 Welcome balance로 채운다"
+        requesterId:
+          type: integer
+          nullable: true
+        requesterName:
+          type: string
+          nullable: true
+        grantRef:
+          $ref: '#/components/schemas/TxHash'
+        txHash:
+          $ref: '#/components/schemas/TxHash'
+        explorerUrl:
+          type: string
+          format: uri
+        requestedAt:
+          type: string
+          format: date-time
+        confirmedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    CoinGrantHistorySummary:
+      type: object
+      properties:
+        grantCount: { type: integer }
+        grantedTotal:
+          type: integer
+          description: "확정된 지급 금액 합. V-02의 totalSupply와 같아야 한다(불변식 1)"
+        signupCount: { type: integer }
+        signupTotal: { type: integer }
+        adminCount: { type: integer }
+        adminTotal: { type: integer }
+        currency:
+          type: string
+          enum: [KRW]
+
+    CoinGrantHistoryListResult:
+      type: object
+      properties:
+        rate:
+          type: object
+          description: "§0.5 목록 축약형 환율"
+          properties:
+            currency: { type: string }
+            rate: { type: number }
+            asOf: { type: string, format: date-time }
+        summary:
+          $ref: '#/components/schemas/CoinGrantHistorySummary'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CoinGrantHistoryItem'
+        pageInfo:
+          $ref: '#/components/schemas/PageMeta'

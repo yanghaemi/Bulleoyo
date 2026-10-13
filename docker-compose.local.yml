@@ -1,0 +1,149 @@
+# B204 로컬 개발용 compose — MySQL·Redis, 그리고 선택적으로 백엔드까지.
+#
+#   인프라만(기본, 백엔드는 호스트에서 ./gradlew bootRun)
+#     docker compose -f docker-compose.local.yml up -d
+#   백엔드까지 한 번에(컨테이너 빌드, 첫 빌드 3~5분)
+#     docker compose -f docker-compose.local.yml --profile backend up -d --build
+#   중지   docker compose -f docker-compose.local.yml --profile backend down
+#   초기화 docker compose -f docker-compose.local.yml down -v   (볼륨 삭제 = DB 전체 삭제)
+#
+# 호스트 MySQL(SSAFY 노트북 기본 설치)과 충돌하지 않도록 기본 공개 포트는 3307이다.
+# 3307도 쓰고 있으면 MYSQL_LOCAL_PORT=3308 처럼 비켜 준다.
+# 컨테이너끼리는 내부 네트워크 mysql:3306 을 쓰므로 --profile backend 경로는 이 값과 무관하다.
+# 호스트에서 bootRun 할 때는 application.yml local 프로파일의 DB_URL 기본값(3307)과 맞아야 한다.
+#
+# 여기 적힌 계정(b204/b204, root/root)은 127.0.0.1에만 바인딩된 로컬 전용 값이라 비밀이 아니다.
+# 운영 compose(docker-compose.yml)를 로컬에서 띄우지 말 것 — 빌드된 이미지 태그와 서버 .env를 전제한다.
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: b204-mysql-local
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+09:00
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: b204
+      MYSQL_USER: b204
+      MYSQL_PASSWORD: b204
+      TZ: Asia/Seoul
+    ports:
+      # 이 파일에서 ${} 를 쓰는 **유일한 자리**다. 이 이름은 .env.example 에 없어서 루트 .env 에서
+      # 운영 값을 물려받을 경로가 없다. 나머지는 전부 고정값이다.
+      - "127.0.0.1:${MYSQL_LOCAL_PORT:-3307}:3306"
+    volumes:
+      - mysql_local_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: b204-redis-local
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # 프로파일 backend 를 켤 때만 뜬다. 이미지는 여기서 직접 빌드한다(운영 compose 는 CI 가 만든 태그를 쓴다).
+  backend:
+    profiles: ["backend"]
+    build: ./backend
+    container_name: b204-backend-local
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      # 컨테이너 안에서는 호스트 포트가 아니라 compose 네트워크 이름으로 붙는다.
+      DB_URL: jdbc:mysql://mysql:3306/b204?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      DB_USERNAME: b204
+      DB_PASSWORD: b204
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # 고정값이다. `${APP_BASE_URL:-...}` 로 두면 루트 .env 의 값이 이긴다 —
+      # .env.example 의 APP_BASE_URL 은 **운영 도메인**(https://j15b204.p.ssafy.io)이라,
+      # 그 파일을 가진 사람의 로컬 백엔드가 검증 페이지·검표 링크를 운영 도메인으로 찍는다.
+      # 로컬에서 만든 링크가 운영을 가리키면 따라간 사람이 운영 데이터를 보게 된다.
+      # 키 두 줄과 같은 구조라 여기서 함께 끊는다 — 이 블록은 루트 .env 를 한 줄도 참조하지 않는다.
+      APP_BASE_URL: http://localhost:8080
+      # ── 체인: 조회만 붙인다. 서명 키는 이 컨테이너에 넣지 않는다 ────────────────────
+      #
+      # ⚠️ 2026-09-13 22:59 사고. 이 블록에 `MINTER_PRIVATE_KEY: ${MINTER_PRIVATE_KEY:-}` 가
+      #    있었다. compose 는 프로젝트 루트의 .env 를 자동으로 읽는데 그 파일이 하필
+      #    **운영 Jenkins 시크릿 원본**이라, 로컬 컨테이너가 운영 minter 키를 그대로 받았다.
+      #    22:37 에 큐잉돼 대기 중이던 MINT job 을 워커가 기동 14초 뒤 집어 운영 Kairos 에
+      #    100,000 을 발행했다(tx 0xd9957630…ef1307). 발행량 대사가 어긋나 운영이 halt 됐다.
+      #    사용자가 그 시각에 뭘 눌러서가 아니다 — 설정이 채워지자 밀린 job 이 나간 것이다.
+      #
+      # 백엔드는 "조회 설정"과 "서명 설정"을 나눠서 본다(chain/config/ChainConditions):
+      #   · 조회 빈  = RPC + 컨트랙트 주소 2개  → 이것만 있으면 GET /wallets/me·정산·공시가 산다
+      #   · 서명 빈  = OPERATOR/MINTER 개인키    → 로컬에 있을 이유가 없다
+      # 이 MR 이 풀려던 문제(체인 값이 비어 조회 API 가 전부 502)는 **앞의 셋으로 끝난다.**
+      # 그래서 키 두 줄을 지웠다. 되돌리지 마라 — 로컬에서 서명까지 필요하면 Kairos 가 아니라
+      # 별도 로컬 배포를 띄워 그 주소를 넣는다.
+      #
+      # application.yml 기본값이 빈 문자열이라(rpc-url: ${KAIA_RPC_URL:}) 여기서 주지 않으면 조회 빈이 안 뜬다.
+      #
+      # 아래는 전부 **고정값이다. `${VAR:-기본값}` 을 쓰지 않는다.** 그 형태는 루트 .env 에 같은
+      # 이름이 있으면 그 값이 이기는데, 루트 .env 는 운영 Jenkins 시크릿 원본이라 로컬 파일이
+      # 운영 값을 조용히 물려받는 통로가 된다 — 이번 사고가 정확히 그 구조였다(키 두 줄).
+      # 지금은 .env.example 의 값과 같아서 실害가 없지만, 컨트랙트를 재배포하면 값이 갈리고
+      # 루트 .env 를 가진 사람만 옛 주소를 보게 된다. 그때 원인을 찾기 어렵다.
+      #
+      # 주소 정본은 blockchain/deployments/kairos.json(공개값)이다. 재배포하면 그 파일과 함께
+      # 아래 두 줄도 고친다.
+      #
+      # 로컬에서 다른 배포(예: 자기 hardhat 노드)를 보려면 이 파일을 고치지 말고 덮어쓰기 파일을
+      # 따로 만들어 **-f 로 함께 넘긴다.**
+      #
+      #   docker compose -f docker-compose.local.yml -f docker-compose.override.yml       #     --profile backend up -d
+      #
+      # ⚠ `-f` 를 명시하면 docker-compose.override.yml 이 **자동으로 붙지 않는다.** 자동 병합은
+      #   기본 이름(docker-compose.yml)으로 띄울 때만이다. 파일만 만들어 두고 값이 안 바뀐다며
+      #   여기를 고치러 오는 일이 없도록 적어 둔다. 그 이름은 .gitignore 에 있어 커밋되지 않는다.
+      KAIA_RPC_URL: https://public-en-kairos.node.kaia.io
+      KAIA_CHAIN_ID: "1001"
+      CONTRACT_YOYO_ADDRESS: '0xA5d7031D70DAab33EACDfC912baC0668D5776e5b'
+      CONTRACT_SPLITTER_ADDRESS: '0xa1ca24ECD6adCd29a8998031fd52Cf17F9541738'
+      # §0.4 signRequests[].feePayer 로 응답에 나가는 주소. 개인키가 아니다(roles.operator).
+      OPERATOR_ADDRESS: '0xfbB324CC674dD2FF21Dff670404391e78F4a199f'
+      # 두 번째 잠금. 키가 없으면 서명 빈이 없어 어차피 tx 를 못 보내지만, 워커까지 꺼서
+      # "설정이 잘못 채워지면 밀려 있던 job 이 발사된다"는 경로 자체를 없앤다 — 이번 사고의 방아쇠다.
+      # 로컬에서 job 상태 전이를 봐야 하면 이 값만 켜되, 위의 키 두 줄은 그대로 둔 채로 켠다.
+      CHAIN_WORKER_ENABLED: "false"
+      # 업로드 저장 루트. 컨테이너 경로는 운영과 같게 두고 호스트 쪽만 저장소 안으로 돌린다.
+      UPLOAD_DIR: /app/uploads
+      TZ: Asia/Seoul
+    # 로컬엔 호스트 Nginx 가 없다. 저장 경로만 맞춰 두고 /uploads/** 서빙은 Spring 이 한다(local 프로파일).
+    # ./uploads 는 .gitignore 에 있다 — 올려 본 이미지가 커밋되지 않는다.
+    # 리눅스에서 쓰는 사람만: 도커가 만든 ./uploads 는 root 소유라 컨테이너 유저(uid 10001)가 못 쓴다.
+    #   mkdir -p uploads && sudo chown 10001 uploads   (Docker Desktop(mac·win)은 필요 없다)
+    volumes:
+      - ./uploads:/app/uploads
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+volumes:
+  mysql_local_data:
+    name: mysql_local_data

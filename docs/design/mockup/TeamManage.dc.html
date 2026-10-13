@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <style>
+    :root{--ink:#17141f;--ink2:#3a3548;--muted:#6f6880;--line:#e3dfe9;--ground:#f5f3f7;--surface:#fff;
+      --amber:#e39b2b;--amber-soft:#fbf1de;--amber-line:#efdcb8;--amber-deep:#8a5510;
+      --ok:#2e7d5b;--ok-soft:#e4f1ea;--crit:#b3243c;--crit-soft:#fbe7ea;
+      --ease-out:cubic-bezier(.23,1,.32,1);}
+    *{box-sizing:border-box;}
+    body{margin:0;background:var(--ground);color:var(--ink);
+      font-family:Archivo,"Noto Sans KR",system-ui,sans-serif;font-size:14px;line-height:1.5;
+      -webkit-font-smoothing:antialiased;}
+    a{color:var(--amber-deep);text-decoration:none;} a:hover{color:#6b4009;}
+    h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:balance;}
+    .mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;}
+    .eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;}
+    .tap{transition:transform 160ms var(--ease-out);}
+    .tap:active{transform:scale(.985);}
+    .btn{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:8px;
+      border:1px solid var(--ink);background:var(--ink);color:#fff;
+      font:600 15px Archivo,"Noto Sans KR",sans-serif;transition:transform 160ms var(--ease-out);}
+    .btn:active{transform:scale(.97);}
+    .btn.ghost{background:var(--surface);color:var(--ink);}
+    .btn.amber{background:var(--amber);border-color:var(--amber);color:#2a1b04;}
+    .btn.off{background:var(--line);border-color:var(--line);color:#9b95a6;}
+    .btn.off:active{transform:none;}
+    @media (hover:hover) and (pointer:fine){
+      .btn.ghost:hover{background:var(--ground);}
+      .card.tap:hover{border-color:#cfc8da;}
+    }
+    @media (prefers-reduced-motion:reduce){ .tap,.btn{transition:none;} .tap:active,.btn:active{transform:none;} }
+    .badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:600;
+      background:var(--amber-soft);color:var(--amber-deep);}
+    .badge.ok{background:var(--ok-soft);color:var(--ok);}
+    .badge.crit{background:var(--crit-soft);color:var(--crit);}
+    .badge.plain{background:var(--ground);color:var(--muted);}
+    .sub{color:var(--muted);font-size:12px;}
+    .rule{height:1px;background:var(--line);}
+    .poster{background:linear-gradient(160deg,#2c2540,#5d4a2e 70%,#8a6a2c);border-radius:8px;}
+  </style>
+</helmet>
+<div style="min-height:100%;background:var(--ground);"><div style="background:var(--surface);border-bottom:1px solid var(--line);"><div style="max-width:1200px;margin:0 auto;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;"><div><div class="eyebrow">Team</div><h1 style="font-size:20px;margin-top:3px;">Salt &amp; Static</h1></div></div></div><div style="max-width:1200px;margin:0 auto;padding:24px;display:flex;gap:28px;"><div style="width:240px;flex:none;display:flex;flex-direction:column;gap:4px;"><div class="tap" style="padding:10px 12px;border-radius:7px;font-weight:400;background:transparent;color:var(--ink2);">Dashboard</div><div class="tap" style="padding:10px 12px;border-radius:7px;font-weight:600;background:var(--amber-soft);color:var(--amber-deep);">Teams</div><div class="tap" style="padding:10px 12px;border-radius:7px;font-weight:400;background:transparent;color:var(--ink2);">Shows</div><div class="tap" style="padding:10px 12px;border-radius:7px;font-weight:400;background:transparent;color:var(--ink2);">Settlement</div></div><div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;"><div class="card" style="padding:15px;display:flex;flex-direction:column;gap:8px;"><div class="eyebrow">Team</div><div style="font-weight:600;font-size:17px;">Salt &amp; Static</div><div class="sub" style="line-height:1.6;">서울을 기반으로 활동하는 3인조 밴드. 2023년 결성.</div></div><div class="card" style="padding:15px;display:flex;flex-direction:column;gap:8px;"><div class="eyebrow">Leader wallet</div><div><span class="badge">Created for me</span></div><div class="mono" style="font-size:15px;">0x7a41…9c2e</div><div><span class="mono" style="font-size:20px;font-weight:600;">₩412,300</span></div><div class="sub">이 지갑이 팀 지갑입니다.</div></div><div class="card" style="grid-column:1/-1;padding:20px 22px;"><h2 style="font-size:16px;margin-bottom:8px;">Wallet activity</h2><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);"><div><div style="font-weight:600;">Payout received</div><div class="sub">Summer Static · Aug 30, 21:04 KST</div></div><div style="text-align:right;white-space:nowrap;"><span class="mono" style="font-weight:600;color:var(--ok);">+₩412,300</span></div></div><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);"><div><div style="font-weight:600;">Deposit</div><div class="sub">Hongdae Night Vol.7 · Sep 10, 14:22 KST</div></div><div style="text-align:right;white-space:nowrap;"><span class="mono" style="font-weight:600;">−₩50,000</span></div></div></div></div></div></div>
+</x-dc>
+</body>
+</html>

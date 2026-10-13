@@ -1,0 +1,9 @@
+# pnpm 12 — 의존성 빌드 스크립트 허용 목록. 없으면 CI(비대화형)에서 ERR_PNPM_IGNORED_BUILDS 로 install 이 실패한다.
+# (2026-09-08 develop 빌드 #, frontend 이미지). package.json#pnpm 은 pnpm 12 가 읽지 않는다.
+allowBuilds:
+  esbuild: true # 바이너리 검증 postinstall — 있어야 vite 가 정상
+  bufferutil: false # ws 네이티브 가속, JS 폴백 있음
+  utf-8-validate: false # 같음
+  tiny-secp256k1: false # 네이티브 가속, JS 폴백 있음
+  '@vgpu/adapter-node': false # vgpu의 Node 전용 어댑터 — 브라우저 앱엔 불필요
+  webgpu: false # 같음(Node WebGPU 폴리필)

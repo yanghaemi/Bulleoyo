@@ -1,0 +1,239 @@
+# 2026-09-08: 코인 개명 KRWS -> YoYo (name·symbol "YoYo", 로직 불변)
+paths:
+  /api/v1/tickets/{ticketId}/refund-quote:
+    get:
+      operationId: refund_01
+      tags: [refund]
+      summary: 환불액 미리보기
+      description: >
+        지금 취소하면 돌려받을 금액을 수수료 구간(D-7 이전 전액 / D-3 이전 50% / D-3 00:00 이후 취소 불가)과 함께
+        보여준다. 환불 대상은 항상 관객 지갑 잔액(refundTarget=WALLET_BALANCE)이며 다른 수신 수단은 없다.
+        조회만 하고 상태를 바꾸지 않으며, 취소 마감 이후·정산 잠금(LOCKED 이상) 이후에는 각각 전용 코드로 막는다.
+      x-priority: P0
+      x-role: 소유자
+      x-screens: [A-11]
+      x-features: [F-refund-01]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: ticketId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: 티켓 PK
+      responses:
+        '200':
+          description: 환불액 미리보기 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RefundPreview'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      ticketId: 90211
+                      paidAmount: 25000
+                      feeRatePercent: 50
+                      feeAmount: 12500
+                      refundAmount: 12500
+                      currency: KRW
+                      display: { currency: USD, approx: 9.26, rate: 1350.0, asOf: '2026-09-02T09:00:00+09:00' }
+                      feeStage: D-3_BEFORE
+                      fullRefundUntil: '2026-09-12T00:00:00+09:00'
+                      cancelDeadlineAt: '2026-09-16T00:00:00+09:00'
+                      refundTarget: WALLET_BALANCE
+                      refundWalletAddress: '0x6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a'
+                      walletBalanceAfter: 12500
+                      refundNotice: Refunded to your balance in Korean won. You can use it for another show.
+                    msg: ''
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 비로그인
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            TICKET_NOT_OWNED — 현재 소유자가 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_NOT_FOUND — 존재하지 않는 ticketId
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            TICKET_ALREADY_USED — 이미 입장 처리됨
+            TICKET_CANCELED — 이미 취소된 티켓
+            REFUND_DEADLINE_PASSED — 취소 마감(D-3 00:00) 경과
+            REFUND_AFTER_SETTLEMENT_LOCK — 정산이 LOCKED 이상
+
+  /api/v1/tickets/{ticketId}/cancel:
+    post:
+      operationId: refund_02
+      tags: [refund]
+      summary: 티켓 개별 취소·환불
+      description: >
+        티켓 1매를 취소하고 운영자의 RevenueSplitter.refund(showId, orderRef, refundAmount) tx 1건으로
+        에스크로 → 관객 지갑 YoYo를 되돌린다. 같은 tx에서 선택 카운터가 −1 되어 별도 tx가 없다. 클라이언트가 보낸
+        expectedRefundAmount(직전 미리보기 값)와 서버 재계산이 다르면 400이며, orderRef당 누적 환불은 구매액을
+        넘을 수 없다. tx 실패 시 코인은 이동하지 않고 티켓 상태만 원복한다(중간 상태 없음).
+      x-priority: P0
+      x-role: 소유자
+      x-screens: [A-11]
+      x-features: [F-refund-02]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: ticketId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: 티켓 PK
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundCancelRequest'
+            examples:
+              default:
+                value: { expectedRefundAmount: 12500, reason: 일정 변경 }
+      responses:
+        '202':
+          description: >
+            취소·환불 접수(운영자 tx, signerType=OPERATOR). Idempotency-Key 필수 — 같은 키 재호출은 최초 jobId를
+            재생한다. 확정 시 refund PROCESSING→COMPLETED, 티켓 ISSUED→CANCELLED(주문 전량 취소 시 주문도
+            REFUNDED)로 전이한다.
+            [2026-09-16 — S15P21B204-92] 공용 ChainJobAccepted 를 참조하던 것을 CancelTicketResponse
+            실제 12필드로 바꿨다.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [jobId, status, signerType, pollAfterMs, ticketId, refundId, refundAmount, feeAmount, currency, refundTarget, refundWalletAddress]
+                        properties:
+                          jobId: { type: string }
+                          status:
+                            type: string
+                            enum: [PENDING, SUBMITTED, CONFIRMED, FAILED]
+                            description: 접수 응답은 언제나 PENDING 이다(재생 응답도 같다). 진행 상태는 API-chain-01 로 본다.
+                          signerType: { type: string, enum: [OPERATOR, USER] }
+                          pollAfterMs: { type: integer, default: 1500 }
+                          ticketId: { type: integer, format: int64 }
+                          refundId: { type: integer, format: int64 }
+                          refundAmount: { $ref: '#/components/schemas/Money' }
+                          feeAmount: { $ref: '#/components/schemas/Money' }
+                          currency: { type: string, enum: [KRW] }
+                          display:
+                            allOf: [{ $ref: '#/components/schemas/Display' }]
+                            description: 표시 환율이 없으면 키가 사라진다(§0.5).
+                          refundTarget: { type: string, enum: [WALLET_BALANCE] }
+                          refundWalletAddress: { $ref: '#/components/schemas/Address' }
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      jobId: chain_01J9D8H9J0
+                      status: PENDING
+                      signerType: OPERATOR
+                      pollAfterMs: 1500
+                      ticketId: 90211
+                      refundId: 6101
+                      refundAmount: 12500
+                      feeAmount: 12500
+                      currency: KRW
+                      display: { currency: USD, approx: 9.26, rate: 1350.0, asOf: '2026-09-02T09:00:00+09:00' }
+                      refundTarget: WALLET_BALANCE
+                      refundWalletAddress: '0x6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a'
+                    msg: 취소를 접수했습니다. 환불 금액은 잔액으로 돌아갑니다.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — expectedRefundAmount 불일치, Idempotency-Key 헤더 없음
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            TICKET_NOT_OWNED — 현재 소유자가 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_NOT_FOUND — 존재하지 않는 ticketId
+            WALLET_NOT_FOUND — 소유자 지갑이 없음(환불 수신 주소 부재)
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            TICKET_ALREADY_USED — 이미 입장 처리됨
+            TICKET_CANCELED — 이미 취소됨
+            REFUND_DEADLINE_PASSED — 취소 마감(D-3 00:00) 경과
+            REFUND_ALREADY_REQUESTED — 같은 티켓에 PENDING·PROCESSING·COMPLETED 환불이 있음(FAILED 만 남은 티켓은 재요청 가능)
+            REFUND_AFTER_SETTLEMENT_LOCK — 정산이 LOCKED 이상
+            COMMON_CONFLICT — 같은 멱등키에 다른 본문, orderRef 누적 환불 한도 초과
+            COIN_ESCROW_INSUFFICIENT — 에스크로 잔액 < 환불액(대사 점검 대상)
+        '500':
+          $ref: '#/components/responses/Error'
+          description: |
+            CHAIN_GAS_INSUFFICIENT — 운영지갑 가스 부족 — 관리자 알림 대상
+        '502':
+          $ref: '#/components/responses/Error'
+          description: |
+            REFUND_TRANSFER_FAILED — refund tx 최종 실패 — 코인은 이동하지 않았고 재시도 대기
+
+components:
+  schemas:
+    RefundPreview:
+      type: object
+      description: 환불액 미리보기(API-refund-01). 조회 전용, 상태를 바꾸지 않는다.
+      required: [ticketId, paidAmount, feeRatePercent, feeAmount, refundAmount, currency, feeStage, fullRefundUntil, cancelDeadlineAt, refundTarget, refundWalletAddress]
+      properties:
+        ticketId: { type: integer, format: int64 }
+        paidAmount: { type: integer, description: '결제 금액(YoYo 정수)' }
+        feeRatePercent: { type: integer, description: '취소 수수료율(%). D-7 이전 0 / D-3 이전 50' }
+        feeAmount: { type: integer, description: '수수료액(YoYo 정수)' }
+        refundAmount: { type: integer, description: '환불 예정액(YoYo 정수) = paidAmount − feeAmount' }
+        currency: { type: string, enum: [KRW] }
+        display:
+          $ref: '#/components/schemas/Display'
+        feeStage:
+          type: string
+          description: '수수료 구간 식별자. 문서 예시값은 D-3_BEFORE — 정확한 전체 enum은 결정 문서 P-8 참조'
+          example: D-3_BEFORE
+        fullRefundUntil: { type: string, format: date-time, description: '전액 환불 마감(D-7 00:00)' }
+        cancelDeadlineAt: { type: string, format: date-time, description: '취소 마감(D-3 00:00)' }
+        refundTarget:
+          type: string
+          enum: [WALLET_BALANCE]
+          description: '환불 수신 수단. 관객 지갑 잔액 하나뿐 — 다른 수단을 지정하는 필드는 없다'
+        refundWalletAddress:
+          $ref: '#/components/schemas/Address'
+        walletBalanceAfter:
+          type: integer
+          nullable: true
+          description: '환불 후 예상 지갑 잔액. 노드 조회 실패 시 null'
+        refundNotice: { type: string }
+
+    RefundCancelRequest:
+      type: object
+      required: [expectedRefundAmount]
+      properties:
+        expectedRefundAmount:
+          type: integer
+          description: 'API-refund-01의 refundAmount. 서버 재계산과 다르면 400'
+        reason:
+          type: string
+          maxLength: 200
+          description: 취소 사유(통계용)

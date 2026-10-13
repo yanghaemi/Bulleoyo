@@ -1,0 +1,92 @@
+.member-login-layout {
+  width: min(100%, 480px);
+  margin: 0 auto;
+  padding: 48px 20px 24px;
+}
+
+.member-login-layout .auth-form {
+  min-width: 0;
+  padding: 28px 24px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+
+.member-login-layout .auth-form h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.035em;
+}
+
+.member-login-layout .auth-intro {
+  margin: 10px 0 24px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.member-login-layout .auth-registration {
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.member-login-layout .auth-registration legend {
+  padding: 0;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--color-ink);
+}
+
+.member-login-layout .auth-registration .auth-note {
+  margin: 10px 0 20px;
+}
+
+.member-login-layout .auth-consent {
+  min-height: 44px;
+  align-items: flex-start;
+  padding: 10px 0;
+}
+
+.member-login-layout .auth-consent input {
+  margin-top: 2px;
+}
+.member-login-layout .auth-note {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.member-login-layout .auth-wallet-preparing {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.member-login-layout .auth-feedback p {
+  margin: 0;
+}
+.member-login-explore {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 16px;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.member-login-layout :is(a, button, input, select):focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+@media (min-width: 48rem) {
+  .member-login-layout {
+    padding-top: 64px;
+  }
+  .member-login-layout .auth-form {
+    padding: 32px;
+  }
+}

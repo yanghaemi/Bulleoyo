@@ -1,0 +1,607 @@
+# 2026-09-08: 코인 개명 KRWS -> YoYo (name·symbol "YoYo", 로직 불변)
+paths:
+  /api/v1/wallets/me:
+    get:
+      operationId: wallet_01
+      tags: [wallet]
+      summary: 내 지갑 조회
+      description: >-
+        내 지갑의 provider·주소·YoYo 잔액(원 값 + display)·상태·익스플로러 링크를 준다. 잔액은 체인
+        YoYo.balanceOf(address)가 원장이며, 조회 결과는 Redis 해시 wallet:balance(TTL 없음)에
+        두고 checkedAt이 10초보다 낡으면 노드를 다시 읽는다. 노드 장애 시 마지막 캐시값과 stale:true를
+        함께 준다. 가스 상태 필드는 없다(수수료는 운영지갑이 대납). pendingGrantJobId는 지갑 등록 시
+        걸린 기본 지급 MINT job이 아직 CONFIRMED가 아니면 그 jobId를 담는다. 팀 리더가 호출하면 이 응답이
+        곧 팀 지갑 조회다.
+      x-priority: P0
+      x-role: MEMBER
+      x-screens: [A-13, P-02, C-03]
+      x-features: [F-wallet-02]
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WalletMe'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      walletId: 4401
+                      provider: WEB3AUTH
+                      address: '0x6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a'
+                      status: LINKED
+                      verifiedAt: '2026-09-02T13:00:00+09:00'
+                      balance:
+                        amount: 85000
+                        currency: KRW
+                        display:
+                          currency: USD
+                          approx: 62.96
+                          rate: 1350.0
+                          asOf: '2026-09-02T09:00:00+09:00'
+                      pendingGrantJobId: null
+                      network: kaia-kairos
+                      chainId: 1001
+                      tokenAddress: '0x5f1e2d3c4b5a69788796a5b4c3d2e1f009182736'
+                      explorerUrl: https://kairos.kaiascan.io/address/0x6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a
+                      cachedAt: '2026-09-02T14:00:00+09:00'
+                      stale: false
+                    msg: ''
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 인증 헤더 없음
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_FORBIDDEN — 지갑 상태가 SUSPENDED
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            WALLET_NOT_FOUND — 아직 지갑을 등록하지 않은 회원(클라이언트는 C-05 온보딩으로 이동)
+        '502':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_EXTERNAL_SERVICE_ERROR — 체인 노드 조회 실패이며 캐시도 없음
+
+  /api/v1/wallets/me/transactions:
+    get:
+      operationId: wallet_02
+      tags: [wallet]
+      summary: 내 지갑 거래 이력
+      description: >-
+        내 지갑이 관여한 거래를 최신순으로 준다. 필터는 GRANT/PURCHASE/REFUND/RELEASE/DEPOSIT/
+        DEPOSIT_RETURN 6종이며 모든 행은 YoYo(=₩) 단위다. 각 행에 부호 있는 금액(direction)·상태·
+        txHash·익스플로러 링크·signerType·feeDelegated를 담는다. 서버가 인덱싱한 chain_job·refund·
+        settlement_share를 원본으로 삼고 노드를 직접 페이징하지 않는다. RELEASE 는 settlement_share
+        (수령 지갑 주소 일치·released), DEPOSIT_RETURN 은 performance(주최팀 리더 지갑 주소 일치·
+        deposit_status=RETURNED)가 원본이다 — 운영자 tx 하나가 여러 지갑으로 보내므로
+        chain_job.wallet_id 로는 수령자를 찾을 수 없다.
+      x-priority: P0
+      x-role: MEMBER
+      x-screens: [A-13]
+      x-features: [F-wallet-03]
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [GRANT, PURCHASE, REFUND, RELEASE, DEPOSIT, DEPOSIT_RETURN]
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, SUBMITTED, CONFIRMED, FAILED]
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['occurredAt,desc', 'occurredAt,asc']
+            default: 'occurredAt,desc'
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WalletTransactionListResponse'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      rate:
+                        currency: USD
+                        rate: 1350.0
+                        asOf: '2026-09-02T09:00:00+09:00'
+                      items:
+                        - walletTxId: job_9901
+                          type: GRANT
+                          direction: IN
+                          amount: 100000
+                          currency: KRW
+                          status: CONFIRMED
+                          refType: CHAIN_JOB
+                          refId: 9901
+                          title: Welcome balance
+                          signerType: OPERATOR
+                          feeDelegated: false
+                          txHash: '0x4a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293'
+                          explorerUrl: https://kairos.kaiascan.io/tx/0x4a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293
+                          occurredAt: '2026-09-10T19:58:12+09:00'
+                        - walletTxId: share_7701
+                          type: RELEASE
+                          direction: IN
+                          amount: 3000
+                          currency: KRW
+                          status: CONFIRMED
+                          refType: SETTLEMENT_SHARE
+                          refId: 7701
+                          title: 합정 3밴드 합동공연
+                          signerType: OPERATOR
+                          feeDelegated: false
+                          txHash: '0x6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182934a5b'
+                          explorerUrl: https://kairos.kaiascan.io/tx/0x6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182934a5b
+                          occurredAt: '2026-09-21T11:20:44+09:00'
+                        - walletTxId: pay_8801
+                          type: PURCHASE
+                          direction: OUT
+                          amount: 50000
+                          currency: KRW
+                          status: CONFIRMED
+                          refType: ORDER
+                          refId: 5501
+                          title: 합정 3밴드 합동공연 · 일반 2매
+                          signerType: USER
+                          feeDelegated: true
+                          txHash: '0x5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182934a'
+                          explorerUrl: https://kairos.kaiascan.io/tx/0x5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182934a
+                          occurredAt: '2026-09-10T20:03:11+09:00'
+                      pageInfo:
+                        page: 0
+                        size: 20
+                        totalElements: 9
+                        hasNext: false
+                    msg: ''
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 허용되지 않는 type·status·sort, size 100 초과
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 인증 헤더 없음
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            WALLET_NOT_FOUND — 지갑 미연결 회원
+
+  /api/v1/wallets/challenge:
+    post:
+      operationId: wallet_03
+      tags: [wallet]
+      summary: 외부 지갑 등록 챌린지 발급
+      description: >-
+        "이미 지갑이 있다"를 고른 회원이 그 지갑의 소유를 증명하도록 서명할 메시지를 발급한다(자체 소유 증명
+        경로, Web3Auth 모달 어댑터에 의존하지 않음). 서버 난수 nonce + 도메인 바인딩을 포함하며 5분 유효·
+        1회용이다. 챌린지는 테이블이 아닌 Redis wallet:challenge:{memberId}(TTL 300초)에 저장하고
+        같은 회원이 재호출하면 이전 챌린지를 덮어써 무효화한다. 이미 지갑이 LINKED인 회원은 막는다. 검증·
+        등록은 POST /api/v1/wallets(wallet_04)가 이어받는다.
+      x-priority: P0
+      x-role: MEMBER
+      x-screens: [C-05]
+      x-features: [F-wallet-01]
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WalletChallengeRequest'
+            examples:
+              default:
+                value:
+                  address: '0x7a3f9c1d2e4b5a6c8d0e1f2a3b4c5d6e7f809a1b'
+      responses:
+        '200':
+          description: 챌린지 발급 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WalletChallengeResponse'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      nonce: 3f9c1d2e4b5a6c8d
+                      message: |-
+                        B204 Stage wants you to link this wallet.
+
+                        Address: 0x7a3f9c1d2e4b5a6c8d0e1f2a3b4c5d6e7f809a1b
+                        Member: 1024
+                        Chain: Kaia Kairos (1001)
+                        Domain: b204.ssafy.io
+                        Nonce: 3f9c1d2e4b5a6c8d
+                        Issued At: 2026-09-02T15:20:00+09:00
+
+                        This signature does not authorize any transfer.
+                      signMethod: personal_sign
+                      chainId: 1001
+                      expiresAt: '2026-09-02T15:25:00+09:00'
+                    msg: ''
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 주소 형식 위반
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 인증 헤더 없음
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_CONFLICT — 요청자에게 이미 LINKED 지갑이 있음, 또는 그 주소가 다른 회원에 등록됨(전용 코드 WALLET_ALREADY_LINKED는 §16.1)
+        '429':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_TOO_MANY_REQUESTS — 회원당 10회/분 초과
+
+  /api/v1/wallets:
+    post:
+      operationId: wallet_04
+      tags: [wallet]
+      summary: 지갑 등록(첫 1회 선택)
+      description: >-
+        요청 본문 provider가 WEB3AUTH면 소셜 로그인으로 만들어진 MPC 지갑을, EXTERNAL이면 사용자가
+        이미 쓰는 지갑(MVP는 Kaia Wallet)을 한 엔드포인트로 등록한다. 회원당 첫 1회만 성공하며 이미
+        지갑이 있으면 409다. WEB3AUTH는 idToken wallets 클레임 주소 대조로, EXTERNAL은
+        wallet_03이 발급한 nonce·signature를 ecrecover로 검증(성공 시 챌린지 1회용 삭제)한다.
+        등록 성공 즉시 기본 지급 MINT job(100000 YoYo, 멱등키 grant:signup:{memberId})을 걸며
+        온체인 확정을 기다리지 않으므로 202를 반환한다. 지급 실패해도 지갑 등록 자체는 성공으로 남고
+        관리자 재지급(coin_07)으로 복구한다. Idempotency-Key 헤더는 요구하지 않는다("회원당 1개"
+        제약과 회원 단위 지급 멱등키가 중복을 막는다).
+      x-priority: P0
+      x-role: MEMBER
+      x-screens: [C-05]
+      x-features: [F-wallet-01]
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WalletLinkRequest'
+            examples:
+              external:
+                summary: EXTERNAL(Kaia Wallet) 등록
+                value:
+                  provider: EXTERNAL
+                  address: '0x7a3f9c1d2e4b5a6c8d0e1f2a3b4c5d6e7f809a1b'
+                  nonce: 3f9c1d2e4b5a6c8d
+                  signature: '0x9f1c...1b'
+                  walletLabel: KAIA_WALLET
+              web3auth:
+                summary: WEB3AUTH(MPC) 등록
+                value:
+                  provider: WEB3AUTH
+                  address: '0x6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a'
+      responses:
+        '202':
+          description: 등록 접수 — 기본 지급 job이 비동기로 진행됨
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WalletLinkResponse'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      wallet:
+                        walletId: 4402
+                        provider: EXTERNAL
+                        walletLabel: KAIA_WALLET
+                        address: '0x7a3f9c1d2e4b5a6c8d0e1f2a3b4c5d6e7f809a1b'
+                        status: LINKED
+                        verifiedAt: '2026-09-19T14:02:11+09:00'
+                        explorerUrl: https://kairos.kaiascan.io/address/0x7a3f9c1d2e4b5a6c8d0e1f2a3b4c5d6e7f809a1b
+                      grantJobId: chain_01J9G1A2B3
+                      signupGrant:
+                        amount: 100000
+                        currency: KRW
+                        display:
+                          currency: USD
+                          approx: 74.07
+                          rate: 1350.0
+                          asOf: '2026-09-19T09:00:00+09:00'
+                      pollAfterMs: 1500
+                    msg: 지갑을 연결했습니다. 기본 잔액을 지급하고 있습니다.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 주소·서명 형식 위반, EXTERNAL인데 nonce·signature 누락, ecrecover 복원 주소 ≠ address, nonce 불일치(전용 코드 WALLET_SIGNATURE_INVALID는 §16.1)
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 인증 헤더 없음
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_CONFLICT — 요청자에게 이미 지갑이 있음, 그 주소가 다른 회원에 등록됨, 챌린지 만료(5분)·재사용·발급 이력 없음(전용 코드 WALLET_ALREADY_LINKED·WALLET_CHALLENGE_EXPIRED는 §16.1)
+        '502':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_EXTERNAL_SERVICE_ERROR — WEB3AUTH 경로에서 JWKS 조회 실패이며 캐시도 없음
+
+components:
+  schemas:
+    WalletBalance:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          $ref: '#/components/schemas/Money'
+        currency:
+          type: string
+          enum: [KRW]
+        display:
+          $ref: '#/components/schemas/Display'
+
+    WalletMe:
+      type: object
+      required: [stale]
+      properties:
+        walletId:
+          type: integer
+          format: int64
+        provider:
+          type: string
+          enum: [WEB3AUTH, EXTERNAL]
+        address:
+          $ref: '#/components/schemas/Address'
+        status:
+          type: string
+          enum: [LINKED, SUSPENDED]
+        verifiedAt:
+          type: string
+          format: date-time
+        balance:
+          $ref: '#/components/schemas/WalletBalance'
+        pendingGrantJobId:
+          type: string
+          nullable: true
+          description: 지갑 등록 시 걸린 기본 지급 MINT job이 아직 CONFIRMED가 아니면 그 jobId. 확정 후 null.
+        network:
+          type: string
+          enum: [kaia-kairos, besu-private]
+        chainId:
+          type: integer
+        tokenAddress:
+          $ref: '#/components/schemas/Address'
+        explorerUrl:
+          type: string
+          format: uri
+        cachedAt:
+          type: string
+          format: date-time
+        stale:
+          type: boolean
+
+    WalletRateInfo:
+      type: object
+      properties:
+        currency:
+          type: string
+        rate:
+          type: number
+        asOf:
+          type: string
+          format: date-time
+
+    WalletTransactionItem:
+      type: object
+      properties:
+        walletTxId:
+          type: string
+        type:
+          type: string
+          enum: [GRANT, PURCHASE, REFUND, RELEASE, DEPOSIT, DEPOSIT_RETURN]
+        direction:
+          type: string
+          enum: [IN, OUT]
+        amount:
+          $ref: '#/components/schemas/Money'
+        currency:
+          type: string
+          enum: [KRW]
+        status:
+          type: string
+          enum: [PENDING, SUBMITTED, CONFIRMED, FAILED]
+        refType:
+          type: string
+          description: >-
+            참조 원본 종류 — ORDER(PURCHASE, refId 는 주문) /
+            SETTLEMENT_SHARE(RELEASE) / PERFORMANCE(DEPOSIT_RETURN) /
+            CHAIN_JOB(GRANT·REFUND·DEPOSIT, 그리고 결제 링크가 없는 이전 PURCHASE).
+            walletTxId 접두도 원본을 따른다(job_·pay_·share_·deposit_return_).
+            문서에 고정 ENUM으로 명시되지 않는다.
+        refId:
+          type: integer
+          format: int64
+        title:
+          type: string
+        signerType:
+          type: string
+          enum: [OPERATOR, USER]
+        feeDelegated:
+          type: boolean
+          description: signerType=USER 행은 항상 true. OPERATOR 행은 false.
+        txHash:
+          $ref: '#/components/schemas/TxHash'
+        explorerUrl:
+          type: string
+          format: uri
+        occurredAt:
+          type: string
+          format: date-time
+
+    WalletTransactionListResponse:
+      type: object
+      properties:
+        rate:
+          $ref: '#/components/schemas/WalletRateInfo'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WalletTransactionItem'
+        pageInfo:
+          $ref: '#/components/schemas/PageMeta'
+
+    WalletChallengeRequest:
+      type: object
+      required: [address]
+      properties:
+        address:
+          $ref: '#/components/schemas/Address'
+
+    WalletChallengeResponse:
+      type: object
+      properties:
+        nonce:
+          type: string
+          description: 16 hex.
+        message:
+          type: string
+          description: EIP-191 personal_sign 대상 평문. 한 글자도 바꾸지 않고 지갑에 그대로 넘겨야 한다.
+        signMethod:
+          type: string
+          enum: [personal_sign]
+        chainId:
+          type: integer
+        expiresAt:
+          type: string
+          format: date-time
+
+    WalletLinkRequest:
+      type: object
+      required: [provider, address]
+      description: >-
+        provider=EXTERNAL이면 nonce·signature가 필수다(wallet_03이 발급한 챌린지 검증용).
+        provider=WEB3AUTH는 address만으로 끝난다.
+      properties:
+        provider:
+          type: string
+          enum: [WEB3AUTH, EXTERNAL]
+        address:
+          $ref: '#/components/schemas/Address'
+        nonce:
+          type: string
+          description: 16 hex. EXTERNAL만 필수.
+        signature:
+          type: string
+          description: 0x + 130 hex(132자). EXTERNAL만 필수.
+        walletLabel:
+          type: string
+          maxLength: 20
+          description: 'KAIA_WALLET / METAMASK 등 표시용 라벨.'
+
+    WalletLinkedSummary:
+      type: object
+      properties:
+        walletId:
+          type: integer
+          format: int64
+        provider:
+          type: string
+          enum: [WEB3AUTH, EXTERNAL]
+        walletLabel:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+        status:
+          type: string
+          enum: [LINKED, SUSPENDED]
+        verifiedAt:
+          type: string
+          format: date-time
+        explorerUrl:
+          type: string
+          format: uri
+
+    WalletSignupGrant:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          $ref: '#/components/schemas/Money'
+        currency:
+          type: string
+          enum: [KRW]
+        display:
+          $ref: '#/components/schemas/Display'
+
+    WalletLinkResponse:
+      type: object
+      description: >-
+        §0.3 표준 ChainJobAccepted(jobId/status/pollAfterMs)보다 넓은, 지갑 등록 전용 202
+        응답 바디. wallet·grantJobId·signupGrant를 함께 담는다.
+      properties:
+        wallet:
+          $ref: '#/components/schemas/WalletLinkedSummary'
+        grantJobId:
+          type: string
+          description: 기본 지급 MINT job 식별자. API-chain-01로 폴링한다.
+        signupGrant:
+          $ref: '#/components/schemas/WalletSignupGrant'
+        pollAfterMs:
+          type: integer

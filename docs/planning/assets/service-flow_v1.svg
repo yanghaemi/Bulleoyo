@@ -1,0 +1,496 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <!-- Dark Background Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080C16" />
+      <stop offset="50%" stop-color="#0D1322" />
+      <stop offset="100%" stop-color="#060911" />
+    </linearGradient>
+
+    <!-- Top Banner Gradient -->
+    <linearGradient id="bannerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1E293B" stop-opacity="0.9" />
+      <stop offset="50%" stop-color="#0F172A" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#1E293B" stop-opacity="0.9" />
+    </linearGradient>
+
+    <!-- Phase Gradients -->
+    <linearGradient id="phase1Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F2847" />
+      <stop offset="100%" stop-color="#0B1C33" />
+    </linearGradient>
+    <linearGradient id="phase2Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#241442" />
+      <stop offset="100%" stop-color="#160C2B" />
+    </linearGradient>
+    <linearGradient id="phase3Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A2E28" />
+      <stop offset="100%" stop-color="#061F1B" />
+    </linearGradient>
+
+    <!-- Branch Card Gradients -->
+    <linearGradient id="branchMdGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2D1B06" />
+      <stop offset="100%" stop-color="#1C1104" />
+    </linearGradient>
+    <linearGradient id="branchTradeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2E0E1F" />
+      <stop offset="100%" stop-color="#1A0812" />
+    </linearGradient>
+
+    <!-- Core Step 8 Highlight Gradient -->
+    <linearGradient id="step8Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0D3B34" />
+      <stop offset="50%" stop-color="#134E48" />
+      <stop offset="100%" stop-color="#0A2A25" />
+    </linearGradient>
+
+    <!-- Footer Bar Gradient -->
+    <linearGradient id="footerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#111827" stop-opacity="0.95" />
+      <stop offset="50%" stop-color="#1F2937" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#111827" stop-opacity="0.95" />
+    </linearGradient>
+
+    <!-- Arrow Markers -->
+    <marker id="arrowPhase1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#38BDF8" />
+    </marker>
+    <marker id="arrowPhase2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#A855F7" />
+    </marker>
+    <marker id="arrowPhase3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#34D399" />
+    </marker>
+    <marker id="arrowBranchMd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#FBBF24" />
+    </marker>
+    <marker id="arrowBranchTrade" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#F43F5E" />
+    </marker>
+    <marker id="arrowLoop" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#818CF8" />
+    </marker>
+
+    <!-- Glow & Shadow Filters -->
+    <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.5" />
+    </filter>
+    <filter id="coreGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#10B981" flood-opacity="0.35" />
+    </filter>
+
+    <!-- Background Pattern -->
+    <pattern id="gridPattern" width="40" height="40" patternUnits="userSpaceOnUse">
+      <circle cx="20" cy="20" r="1" fill="#1E293B" opacity="0.6" />
+    </pattern>
+  </defs>
+
+  <style>
+    text {
+      font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Malgun Gothic', sans-serif;
+    }
+    .phase-label {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+    .card-title {
+      font-size: 17px;
+      font-weight: 700;
+      fill: #FFFFFF;
+    }
+    .card-sub {
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+    .card-desc {
+      font-size: 12px;
+      font-weight: 400;
+      fill: #94A3B8;
+      line-height: 1.5;
+    }
+    .card-tag {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .badge-text {
+      font-size: 13px;
+      font-weight: 800;
+    }
+  </style>
+
+  <!-- Background Layer -->
+  <rect width="1920" height="1080" fill="url(#bgGrad)" />
+  <rect width="1920" height="1080" fill="url(#gridPattern)" />
+
+  <!-- ========================================================================= -->
+  <!-- HEADER BANNER                                                             -->
+  <!-- ========================================================================= -->
+  <g transform="translate(40, 25)">
+    <rect width="1840" height="90" rx="14" fill="url(#bannerGrad)" stroke="#334155" stroke-width="1.2" filter="url(#cardShadow)" />
+    
+    <!-- Title and Subtitle -->
+    <text x="35" y="40" font-size="23" font-weight="800" fill="#F8FAFC" letter-spacing="-0.3px">
+      인디밴드 / 소규모 공연 통합 플랫폼 서비스 흐름도 (End-to-End Service Flow)
+    </text>
+    <text x="35" y="66" font-size="13.5" font-weight="500" fill="#94A3B8">
+      스마트 컨트랙트 기반 사전 정산 합의 · 금융망 API 결제 및 실시간 자동 이체 · 동적 NFT 티켓 라이프사이클
+    </text>
+
+    <!-- Header Badges -->
+    <g transform="translate(1330, 28)">
+      <!-- SSAFY Badge -->
+      <rect x="0" y="0" width="185" height="34" rx="8" fill="#0369A1" fill-opacity="0.35" stroke="#0284C7" stroke-width="1.2" />
+      <circle cx="16" cy="17" r="4.5" fill="#38BDF8" />
+      <text x="28" y="22" font-size="12.5" font-weight="700" fill="#E0F2FE">SSAFY 특화 프로젝트</text>
+      
+      <!-- Tech Badge -->
+      <rect x="198" y="0" width="280" height="34" rx="8" fill="#4C1D95" fill-opacity="0.35" stroke="#7C3AED" stroke-width="1.2" />
+      <circle cx="214" cy="17" r="4.5" fill="#C084FC" />
+      <text x="226" y="22" font-size="12.5" font-weight="700" fill="#F3E8FF">Web3 · FinTech · Live Music</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- PHASE 01: 기획, 스마트컨트랙트 잠금, 예매 & 결제                          -->
+  <!-- ========================================================================= -->
+  <g transform="translate(40, 130)">
+    <!-- Phase Indicator Pill -->
+    <rect x="0" y="0" width="530" height="26" rx="6" fill="#0C4A6E" fill-opacity="0.5" stroke="#0284C7" stroke-width="1" />
+    <text x="14" y="17" class="phase-label" fill="#38BDF8">PHASE 01 | 공연 기획 · 스마트 컨트랙트 합의 · 예매 &amp; 금융망 결제</text>
+
+    <!-- STEP 01: 공연장 탐색 · 대관 -->
+    <g transform="translate(0, 38)">
+      <rect width="420" height="180" rx="14" fill="url(#phase1Grad)" stroke="#0284C7" stroke-width="1.5" filter="url(#cardShadow)" />
+      <!-- Step Badge -->
+      <rect x="16" y="16" width="38" height="24" rx="6" fill="#0284C7" />
+      <text x="35" y="33" text-anchor="middle" class="badge-text" fill="#FFFFFF">01</text>
+      <text x="64" y="34" class="card-title">공연장 탐색 · 대관</text>
+      <text x="16" y="65" class="card-sub" fill="#38BDF8">인디 공연장 인프라 탐색 &amp; 일정 대관</text>
+      
+      <text x="16" y="93" class="card-desc">• 공간 규모 / 음향·조명 장비 / 수용인원별 필터링 검색</text>
+      <text x="16" y="113" class="card-desc">• 대관 가능 스케줄 실시간 확인 및 플랫폼 내 대관 예약</text>
+      <text x="16" y="133" class="card-desc">• 공연장-호스트 간 대관 조건 확인 및 계약 체결</text>
+
+      <rect x="16" y="146" width="130" height="20" rx="4" fill="#0369A1" fill-opacity="0.4" />
+      <text x="81" y="160" text-anchor="middle" class="card-tag" fill="#7DD3FC">공연 인프라 매칭</text>
+    </g>
+
+    <!-- Arrow 1 -> 2 -->
+    <g transform="translate(420, 128)">
+      <line x1="12" y1="0" x2="63" y2="0" stroke="#38BDF8" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#arrowPhase1)" />
+    </g>
+
+    <!-- STEP 02: 공연 생성 · 참여팀 등록 -->
+    <g transform="translate(495, 38)">
+      <rect width="420" height="180" rx="14" fill="url(#phase1Grad)" stroke="#38BDF8" stroke-width="1.5" filter="url(#cardShadow)" />
+      <!-- Step Badge -->
+      <rect x="16" y="16" width="38" height="24" rx="6" fill="#0284C7" />
+      <text x="35" y="33" text-anchor="middle" class="badge-text" fill="#FFFFFF">02</text>
+      <text x="64" y="34" class="card-title">공연 생성 · 참여팀 등록</text>
+      <text x="16" y="65" class="card-sub" fill="#7DD3FC">정산 규칙 합의 → 스마트 컨트랙트 잠금</text>
+      
+      <text x="16" y="93" class="card-desc">• 참여 인디밴드 라인업 편성 및 티켓 판매 조건 설정</text>
+      <text x="16" y="113" class="card-desc">• 정산 비율(기본 배분율 + 관객 선택 가중치) 상호 합의</text>
+      <text x="16" y="133" class="card-desc">• 합의된 분배 룰을 Solidity 스마트 컨트랙트에 온체인 Lock</text>
+
+      <rect x="16" y="146" width="155" height="20" rx="4" fill="#075985" fill-opacity="0.6" stroke="#38BDF8" stroke-width="0.8" />
+      <text x="93.5" y="160" text-anchor="middle" class="card-tag" fill="#BAE6FD">Smart Contract Lock</text>
+    </g>
+
+    <!-- Arrow 2 -> 3 -->
+    <g transform="translate(915, 128)">
+      <line x1="12" y1="0" x2="63" y2="0" stroke="#38BDF8" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#arrowPhase1)" />
+    </g>
+
+    <!-- STEP 03: 티켓 예매 -->
+    <g transform="translate(990, 38)">
+      <rect width="420" height="180" rx="14" fill="url(#phase1Grad)" stroke="#0284C7" stroke-width="1.5" filter="url(#cardShadow)" />
+      <!-- Step Badge -->
+      <rect x="16" y="16" width="38" height="24" rx="6" fill="#0284C7" />
+      <text x="35" y="33" text-anchor="middle" class="badge-text" fill="#FFFFFF">03</text>
+      <text x="64" y="34" class="card-title">티켓 예매 (관람 목적 팀 선택)</text>
+      <text x="16" y="65" class="card-sub" fill="#38BDF8">응원/관람 목적 아티스트 팀 1Pick 투표</text>
+      
+      <text x="16" y="93" class="card-desc">• 관객이 티켓 예매 시 '주 관람 목적 밴드' 직접 선택</text>
+      <text x="16" y="113" class="card-desc">• 티켓 옵션(스탠딩/좌석) 및 매수 지정</text>
+      <text x="16" y="133" class="card-desc">• 선택 데이터는 사후 아티스트 정산 가중치에 직접 반영</text>
+
+      <rect x="16" y="146" width="145" height="20" rx="4" fill="#0369A1" fill-opacity="0.4" />
+      <text x="88.5" y="160" text-anchor="middle" class="card-tag" fill="#7DD3FC">관객 기여 데이터 수집</text>
+    </g>
+
+    <!-- Arrow 3 -> 4 -->
+    <g transform="translate(1410, 128)">
+      <line x1="12" y1="0" x2="63" y2="0" stroke="#38BDF8" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#arrowPhase1)" />
+    </g>
+
+    <!-- STEP 04: 금융망 API 결제 -->
+    <g transform="translate(1485, 38)">
+      <rect width="355" height="180" rx="14" fill="url(#phase1Grad)" stroke="#0284C7" stroke-width="1.5" filter="url(#cardShadow)" />
+      <!-- Step Badge -->
+      <rect x="16" y="16" width="38" height="24" rx="6" fill="#0284C7" />
+      <text x="35" y="33" text-anchor="middle" class="badge-text" fill="#FFFFFF">04</text>
+      <text x="64" y="34" class="card-title">금융망 API 결제</text>
+      <text x="16" y="65" class="card-sub" fill="#38BDF8">SSAFY 교육용 금융망 API 연동</text>
+      
+      <text x="16" y="93" class="card-desc">• SSAFY 교육용 금융망 API 계좌이체·간편결제</text>
+      <text x="16" y="113" class="card-desc">• 결제 대금 플랫폼 정산 에스크로 안전 예치</text>
+      <text x="16" y="133" class="card-desc">• 결제 승인 Webhook → NFT 티켓 민팅 트리거</text>
+
+      <rect x="16" y="146" width="140" height="20" rx="4" fill="#0369A1" fill-opacity="0.4" />
+      <text x="86" y="160" text-anchor="middle" class="card-tag" fill="#7DD3FC">금융망 API</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- TRANSITION: PHASE 01 -> PHASE 02 (Connector Pipe)                         -->
+  <!-- ========================================================================= -->
+  <g>
+    <!-- Connecting Path from Card 04 to Card 05 -->
+    <path d="M 1662 348 L 1662 375 Q 1662 395 1642 395 L 80 395 Q 60 395 60 415 L 60 440" 
+          fill="none" stroke="#818CF8" stroke-width="2.5" stroke-dasharray="6,4" marker-end="url(#arrowLoop)" />
+    <!-- Mini Flow Tag on Connector -->
+    <rect x="800" y="384" width="240" height="22" rx="5" fill="#1E1B4B" stroke="#6366F1" stroke-width="1" />
+    <text x="920" y="399" text-anchor="middle" font-size="11.5" font-weight="700" fill="#C7D2FE">
+      결제 승인 완료 ➔ NFT 티켓 발행 단계 진입
+    </text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- PHASE 02: NFT 발행, 부가 분기(MD/양도), QR 입장                           -->
+  <!-- ========================================================================= -->
+  <g transform="translate(40, 415)">
+    <!-- Phase Indicator Pill -->
+    <rect x="0" y="0" width="620" height="26" rx="6" fill="#3B0764" fill-opacity="0.5" stroke="#A855F7" stroke-width="1" />
+    <text x="14" y="17" class="phase-label" fill="#C084FC">PHASE 02 | NFT 티켓 발행 · 부가 서비스 분기(MD 선구매 / P2P 거래) &amp; QR 입장</text>
+
+    <!-- STEP 05: NFT 티켓 발급 + 월렛 패스 발급 -->
+    <g transform="translate(0, 38)">
+      <rect width="420" height="210" rx="14" fill="url(#phase2Grad)" stroke="#A855F7" stroke-width="1.8" filter="url(#cardShadow)" />
+      <!-- Step Badge -->
+      <rect x="16" y="16" width="38" height="24" rx="6" fill="#9333EA" />
+      <text x="35" y="33" text-anchor="middle" class="badge-text" fill="#FFFFFF">05</text>
+      <text x="64" y="34" class="card-title">NFT 티켓 · 월렛 패스 발급</text>
+      <text x="16" y="65" class="card-sub" fill="#C084FC">온체인 소유권 민팅 &amp; 스마트폰 월렛 연동</text>
+      
+      <text x="16" y="93" class="card-desc">• ERC-721 스마트 컨트랙트 기반 티켓 온체인 민팅</text>
+      <text x="16" y="113" class="card-desc">• 화면 캡처 및 위변조 방지 동적 암호화(Dynamic) QR 생성</text>
+      <text x="16" y="133" class="card-desc">• Apple Wallet / Google Wallet 패스 원클릭 자동 추가</text>
+      <text x="16" y="153" class="card-desc">• 블록체인 기반 소유권 증명 및 양도/거래 권한 부여</text>
+
+      <rect x="16" y="174" width="165" height="20" rx="4" fill="#581C87" fill-opacity="0.6" stroke="#C084FC" stroke-width="0.8" />
+      <text x="98.5" y="188" text-anchor="middle" class="card-tag" fill="#F3E8FF">On-chain Minting + Pass</text>
+    </g>
+
+    <!-- BRANCHING ZONE: 5번에서 분기하여 6번으로 합류 -->
+    <!-- Branching Background Box -->
+    <g transform="translate(450, 38)">
+      <rect width="905" height="210" rx="14" fill="#0F172A" fill-opacity="0.4" stroke="#334155" stroke-dasharray="4,4" stroke-width="1.2" />
+      <text x="20" y="24" font-size="11.5" font-weight="700" fill="#64748B" letter-spacing="0.5px">
+        [5번 발급 후 선택형 부가 분기 경로]
+      </text>
+
+      <!-- Branch A: 예매자 전용 굿즈(MD) 구매 -->
+      <g transform="translate(60, 22)">
+        <rect width="400" height="76" rx="10" fill="url(#branchMdGrad)" stroke="#F59E0B" stroke-width="1.4" filter="url(#cardShadow)" />
+        <rect x="12" y="10" width="54" height="20" rx="4" fill="#B45309" />
+        <text x="39" y="24" text-anchor="middle" font-size="11" font-weight="800" fill="#FEF3C7">분기 A</text>
+        <text x="74" y="25" font-size="14.5" font-weight="700" fill="#FDE68A">예매자 전용 굿즈(MD) 구매</text>
+        <text x="12" y="47" class="card-desc">• 티켓 소유자 인증 기반 한정판 공식 굿즈 사전 선구매</text>
+        <text x="12" y="64" class="card-desc">• 공연 당일 현장 수령 연계 전용 QR/바코드 발급</text>
+      </g>
+
+      <!-- Central Direct Fast Path -->
+      <g transform="translate(60, 102)">
+        <rect width="400" height="24" rx="6" fill="#1E293B" stroke="#475569" stroke-width="1" />
+        <text x="200" y="16" text-anchor="middle" font-size="11.5" font-weight="600" fill="#94A3B8">
+          ⎯⎯  일반 예매자: 직행 입장 경로 (Direct Pass)  ⎯⎯
+        </text>
+      </g>
+
+      <!-- Branch B: 티켓 취소 · 양도 · 교환 · 거래 -->
+      <g transform="translate(60, 130)">
+        <rect width="400" height="72" rx="10" fill="url(#branchTradeGrad)" stroke="#F43F5E" stroke-width="1.4" filter="url(#cardShadow)" />
+        <rect x="12" y="9" width="54" height="20" rx="4" fill="#BE123C" />
+        <text x="39" y="23" text-anchor="middle" font-size="11" font-weight="800" fill="#FFE4E6">분기 B</text>
+        <text x="74" y="24" font-size="14.5" font-weight="700" fill="#FECDD3">티켓 취소 · 양도 · 교환 · 거래</text>
+        <text x="12" y="45" class="card-desc">• 스마트 컨트랙트 기반 암표 방지 안전 P2P 소유권 이전</text>
+        <text x="12" y="62" class="card-desc">• 취소 규정별 자동 환불 및 신규 구매자 월렛으로 티켓 전송</text>
+      </g>
+
+      <!-- Intermediate Convergence Box (소유권 및 수령 검증) -->
+      <g transform="translate(560, 22)">
+        <rect width="320" height="180" rx="12" fill="#1E1B4B" fill-opacity="0.7" stroke="#6366F1" stroke-width="1.2" />
+        <text x="16" y="28" font-size="14" font-weight="700" fill="#E0E7FF">통합 상태 검증 (Re-convergence)</text>
+        <text x="16" y="50" font-size="12" font-weight="600" fill="#A5B4FC">분기 완료 후 최종 티켓 상태 동기화</text>
+        
+        <text x="16" y="78" class="card-desc">• 최종 소유자 지갑 주소 온체인 확정</text>
+        <text x="16" y="98" class="card-desc">• 취소/양도된 구 티켓 실시간 파기(Revoke)</text>
+        <text x="16" y="118" class="card-desc">• MD 구매 내역 및 현장 수령권 연동 확인</text>
+        <text x="16" y="138" class="card-desc">• 입장 대기열 최신 유효 QR 활성화</text>
+
+        <rect x="16" y="150" width="130" height="20" rx="4" fill="#312E81" />
+        <text x="81" y="164" text-anchor="middle" class="card-tag" fill="#C7D2FE">상태 무결성 검증</text>
+      </g>
+
+      <!-- Arrows within Branching Zone -->
+      <!-- From Left into Branch A -->
+      <path d="M 0 105 Q 30 105 30 60 L 53 60" fill="none" stroke="#F59E0B" stroke-width="2" marker-end="url(#arrowBranchMd)" />
+      <!-- From Left Direct -->
+      <line x1="0" y1="114" x2="53" y2="114" stroke="#818CF8" stroke-width="2" marker-end="url(#arrowLoop)" />
+      <!-- From Left into Branch B -->
+      <path d="M 0 120 Q 30 120 30 166 L 53 166" fill="none" stroke="#F43F5E" stroke-width="2" marker-end="url(#arrowBranchTrade)" />
+
+      <!-- From Branches into Intermediate Box -->
+      <path d="M 460 60 Q 510 60 510 100 L 553 100" fill="none" stroke="#F59E0B" stroke-width="1.8" marker-end="url(#arrowBranchMd)" />
+      <line x1="460" y1="114" x2="553" y2="114" stroke="#818CF8" stroke-width="1.8" marker-end="url(#arrowLoop)" />
+      <path d="M 460 166 Q 510 166 510 125 L 553 125" fill="none" stroke="#F43F5E" stroke-width="1.8" marker-end="url(#arrowBranchTrade)" />
+    </g>
+
+    <!-- Arrow from Branch Zone to Step 06 -->
+    <g transform="translate(1355, 143)">
+      <line x1="0" y1="0" x2="43" y2="0" stroke="#A855F7" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#arrowPhase2)" />
+    </g>
+
+    <!-- STEP 06: QR 입장 -->
+    <g transform="translate(1405, 38)">
+      <rect width="435" height="210" rx="14" fill="url(#phase2Grad)" stroke="#A855F7" stroke-width="1.8" filter="url(#cardShadow)" />
+      <!-- Step Badge -->
+      <rect x="16" y="16" width="38" height="24" rx="6" fill="#9333EA" />
+      <text x="35" y="33" text-anchor="middle" class="badge-text" fill="#FFFFFF">06</text>
+      <text x="64" y="34" class="card-title">QR 현장 입장 검증</text>
+      <text x="16" y="65" class="card-sub" fill="#C084FC">동적 QR 스캔 &amp; 티켓 상태 전이 (Check-in)</text>
+      
+      <text x="16" y="93" class="card-desc">• 오프라인 게이트 리더기로 동적 QR 유효성 즉시 검증</text>
+      <text x="16" y="113" class="card-desc">• 온체인 티켓 상태를 '사용 완료(Used)'로 실시간 전환</text>
+      <text x="16" y="133" class="card-desc">• 중복 입장 100% 원천 차단 및 실시간 입장 관객수 집계</text>
+      <text x="16" y="153" class="card-desc">• 현장 부스 MD 수령 바코드 스캔 및 지급 완료 처리</text>
+
+      <rect x="16" y="174" width="150" height="20" rx="4" fill="#581C87" fill-opacity="0.6" stroke="#C084FC" stroke-width="0.8" />
+      <text x="91" y="188" text-anchor="middle" class="card-tag" fill="#F3E8FF">Gate Scanner Check-in</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- TRANSITION: PHASE 02 -> PHASE 03 (Connector Pipe)                         -->
+  <!-- ========================================================================= -->
+  <g>
+    <!-- Connecting Path from Card 06 to Card 07 -->
+    <path d="M 1622 663 L 1622 690 Q 1622 710 1602 710 L 80 710 Q 60 710 60 730 L 60 755" 
+          fill="none" stroke="#34D399" stroke-width="2.5" stroke-dasharray="6,4" marker-end="url(#arrowPhase3)" />
+    <!-- Mini Flow Tag on Connector -->
+    <rect x="790" y="699" width="260" height="22" rx="5" fill="#064E3B" stroke="#10B981" stroke-width="1" />
+    <text x="920" y="714" text-anchor="middle" font-size="11.5" font-weight="700" fill="#A7F3D0">
+      공연 마감 ➔ 매출·선택 집계 및 자동 정산 진입
+    </text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- PHASE 03: 집계, 스마트 컨트랙트 자동 정산 & 디지털 콘텐츠 아카이빙        -->
+  <!-- ========================================================================= -->
+  <g transform="translate(40, 730)">
+    <!-- Phase Indicator Pill -->
+    <rect x="0" y="0" width="670" height="26" rx="6" fill="#064E3B" fill-opacity="0.5" stroke="#10B981" stroke-width="1" />
+    <text x="14" y="17" class="phase-label" fill="#34D399">PHASE 03 | 데이터 집계 · 스마트 컨트랙트 자동 정산(금융망 이체) &amp; 팬덤 아카이빙</text>
+
+    <!-- STEP 07: 매출 · 관객 선택 집계 -->
+    <g transform="translate(0, 38)">
+      <rect width="520" height="195" rx="14" fill="url(#phase3Grad)" stroke="#10B981" stroke-width="1.5" filter="url(#cardShadow)" />
+      <!-- Step Badge -->
+      <rect x="16" y="16" width="38" height="24" rx="6" fill="#059669" />
+      <text x="35" y="33" text-anchor="middle" class="badge-text" fill="#FFFFFF">07</text>
+      <text x="64" y="34" class="card-title">매출 · 관객 선택 집계</text>
+      <text x="16" y="65" class="card-sub" fill="#34D399">입장 마감 후 정산 데이터 및 득표 산출</text>
+      
+      <text x="16" y="93" class="card-desc">• 총 티켓 판매금액 + MD 매출 데이터 최종 정산액 합산</text>
+      <text x="16" y="113" class="card-desc">• 대관료 및 플랫폼 수수료 사전 공제 항목 자동 산출</text>
+      <text x="16" y="133" class="card-desc">• 3번 단계에서 수집된 '팀별 관람 목적 관객 선택 비율' 최종 집계</text>
+      <text x="16" y="153" class="card-desc">• 스마트 컨트랙트 정산 함수 호출용 오라클(Oracle) 데이터 피드 생성</text>
+
+      <rect x="16" y="164" width="150" height="20" rx="4" fill="#065F46" />
+      <text x="91" y="178" text-anchor="middle" class="card-tag" fill="#A7F3D0">Data Oracle Aggregation</text>
+    </g>
+
+    <!-- Arrow 7 -> 8 -->
+    <g transform="translate(520, 135)">
+      <line x1="12" y1="0" x2="68" y2="0" stroke="#34D399" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#arrowPhase3)" />
+    </g>
+
+    <!-- STEP 08: 스마트 컨트랙트 분배 산출 + 금융망 이체 (핵심 차별점) -->
+    <g transform="translate(605, 38)">
+      <rect width="660" height="195" rx="14" fill="url(#step8Grad)" stroke="#34D399" stroke-width="2.2" filter="url(#coreGlow)" />
+      <!-- Step Badge -->
+      <rect x="16" y="16" width="38" height="24" rx="6" fill="#10B981" />
+      <text x="35" y="33" text-anchor="middle" class="badge-text" fill="#FFFFFF">08</text>
+      <text x="64" y="34" class="card-title">스마트 컨트랙트 분배 산출 + 금융망 자동 이체</text>
+      <text x="16" y="65" class="card-sub" fill="#6EE7B7">2번 합의 규칙 자동 실행 ➔ 금융망 API 즉시 송금 (자동 정산)</text>
+      
+      <text x="16" y="93" class="card-desc">• 스마트 컨트랙트가 온체인 정산 룰(기본배분 + 득표가중치)에 따라 팀별 정산금 확정</text>
+      <text x="16" y="113" class="card-desc">• 금융망 API 호출로 각 밴드 및 공연장 계좌로 즉시 자동 입금</text>
+      <text x="16" y="133" class="card-desc">• 수작업 정산 지연·정산 누락·분쟁 리스크 0% 실현 (Trustless Settlement)</text>
+      <text x="16" y="153" class="card-desc">• 전 정산 내역 온체인 트랜잭션 기록으로 100% 투명한 회계 감사 지원</text>
+
+      <rect x="16" y="164" width="285" height="20" rx="4" fill="#047857" stroke="#34D399" stroke-width="1" />
+      <text x="158.5" y="178" text-anchor="middle" class="card-tag" fill="#ECFDF5">Smart Settlement &amp; 금융망 API</text>
+    </g>
+
+    <!-- Arrow 8 -> 9 -->
+    <g transform="translate(1265, 135)">
+      <line x1="12" y1="0" x2="68" y2="0" stroke="#34D399" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#arrowPhase3)" />
+    </g>
+
+    <!-- STEP 09: 공연 기록 · 디지털 콘텐츠 (포토 티켓) -->
+    <g transform="translate(1350, 38)">
+      <rect width="490" height="195" rx="14" fill="url(#phase3Grad)" stroke="#10B981" stroke-width="1.5" filter="url(#cardShadow)" />
+      <!-- Step Badge -->
+      <rect x="16" y="16" width="38" height="24" rx="6" fill="#059669" />
+      <text x="35" y="33" text-anchor="middle" class="badge-text" fill="#FFFFFF">09</text>
+      <text x="64" y="34" class="card-title">공연 기록 · 디지털 콘텐츠 (포토 티켓)</text>
+      <text x="16" y="65" class="card-sub" fill="#34D399">영구 소장용 디지털 아카이브 &amp; 지속적 팬덤 연계</text>
+      
+      <text x="16" y="93" class="card-desc">• 입장 완료된 NFT 티켓이 현장 사진·셋리스트 탑재 '포토 티켓'으로 진화</text>
+      <text x="16" y="113" class="card-desc">• 아티스트 공연 이력 온체인 증명(Proof of Performance) 영구 아카이빙</text>
+      <text x="16" y="133" class="card-desc">• 참여 관객 대상 차기 공연 우선 예매권 및 팬덤 커뮤니티 전용 혜택 제공</text>
+      <text x="16" y="153" class="card-desc">• 인디밴드와 팬 간의 지속 가능한 후원 및 팬덤 생태계 형성</text>
+
+      <rect x="16" y="164" width="180" height="20" rx="4" fill="#065F46" />
+      <text x="106" y="178" text-anchor="middle" class="card-tag" fill="#A7F3D0">Dynamic NFT &amp; Fandom Archive</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- FOOTER VALUE PROPOSITION BAR                                              -->
+  <!-- ========================================================================= -->
+  <g transform="translate(40, 985)">
+    <rect width="1840" height="68" rx="12" fill="url(#footerGrad)" stroke="#334155" stroke-width="1.2" filter="url(#cardShadow)" />
+    
+    <!-- Pillar 1: Smart Contract Trust -->
+    <g transform="translate(30, 16)">
+      <circle cx="16" cy="18" r="14" fill="#0284C7" fill-opacity="0.3" stroke="#38BDF8" stroke-width="1.2" />
+      <text x="16" y="23" text-anchor="middle" font-size="14">🔒</text>
+      <text x="40" y="17" font-size="13.5" font-weight="700" fill="#F8FAFC">스마트 컨트랙트 사전 합의</text>
+      <text x="40" y="33" font-size="11.5" font-weight="400" fill="#94A3B8">공연 전 정산 규칙 온체인 잠금으로 사후 정산 분쟁 원천 차단</text>
+    </g>
+
+    <!-- Pillar 2: Dynamic NFT & Fandom MD -->
+    <g transform="translate(640, 16)">
+      <circle cx="16" cy="18" r="14" fill="#7C3AED" fill-opacity="0.3" stroke="#C084FC" stroke-width="1.2" />
+      <text x="16" y="23" text-anchor="middle" font-size="14">🎫</text>
+      <text x="40" y="17" font-size="13.5" font-weight="700" fill="#F8FAFC">동적 NFT 티켓 &amp; 부가 생태계</text>
+      <text x="40" y="33" font-size="11.5" font-weight="400" fill="#94A3B8">암표 방지 동적 QR, P2P 안전 양도, 예매자 전용 MD 커머스</text>
+    </g>
+
+    <!-- Pillar 3: Real-time Financial Network Settlement -->
+    <g transform="translate(1250, 16)">
+      <circle cx="16" cy="18" r="14" fill="#059669" fill-opacity="0.3" stroke="#34D399" stroke-width="1.2" />
+      <text x="16" y="23" text-anchor="middle" font-size="14">⚡</text>
+      <text x="40" y="17" font-size="13.5" font-weight="700" fill="#F8FAFC">금융망 API 무지연 자동 정산</text>
+      <text x="40" y="33" font-size="11.5" font-weight="400" fill="#94A3B8">집계 즉시 금융망 API 호출로 팀별 개별 계좌 즉시 자동 이체</text>
+    </g>
+  </g>
+
+</svg>

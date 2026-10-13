@@ -1,0 +1,91 @@
+<!doctype html>
+<!--
+  ⚠ `lang`은 **ko**다. 화면은 한·영 병기지만 주 언어는 한국어다.
+  `en`으로 두면 스크린리더가 한글 본문을 영어 음성으로 읽는다(2026-09-10 감사).
+-->
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- 다크가 기본이며 사용자가 고른 라이트 테마의 네이티브 컨트롤도 함께 전환한다. -->
+    <meta name="color-scheme" content="light dark" />
+
+    <!--
+      파비콘 — 브랜드 마크를 그대로 쓴다. `public/brand/`가 정본이고 여기서 참조만 한다.
+      공식 한글 로고의 마이크 심볼을 사용하며, 밝은 배경으로 라이트·다크 탭에서
+      같은 브랜드 색을 유지한다. SVG와 PNG는 `pnpm gen:brand-icons`로 함께 생성한다.
+    -->
+    <link rel="icon" href="/brand/icon-32.png?v=mic-20261002" type="image/png" sizes="32x32" />
+    <link rel="icon" href="/brand/icon-app.svg?v=mic-20261002" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png?v=mic-20261002" sizes="180x180" />
+    <!--
+      디자인 토큰이 지정한 세 벌을 명시적으로 로드한다(신현경 확정 2026-09-08).
+      DM Sans에는 한글 글리프가 없어 Noto Sans KR이 없으면 OS별 system-ui로 떨어진다
+      — 윈도우 맑은 고딕 / 맥 애플 SD 산돌고딕으로 기기마다 다르게 보인다.
+      Noto Sans KR은 용량이 커서 unicode-range 분할 서빙(css2 API)에 의존한다.
+      한글이 실제로 쓰이는 화면에서만 해당 subset을 받는다.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap"
+    />
+    <!--
+      기본 제목·설명. **라우트별 제목은 `usePageTitle`이 덮어쓴다**(shared/usePageTitle.ts).
+      여기 값은 JS가 뜨기 전과 라우트가 제목을 지정하지 않았을 때의 폴백이다.
+      예전에는 내부 프로젝트 코드(`B204`)가 33개 화면 모두에 그대로 떠 있었다(2026-09-10 감사).
+    -->
+    <title>불러요</title>
+    <meta
+      name="description"
+      content="소규모 공연 티켓팅과 공동 정산. 티켓을 사고, 응원할 팀을 고르고, 정산 결과를 누구나 확인합니다."
+    />
+
+    <!--
+      링크 미리보기. **V-03 정산 공유가 이걸 실제로 쓴다** — 밴드에게 링크로 보내는 것이
+      그 화면의 존재 이유인데, 예전에는 og 태그가 하나도 없어 카카오톡·슬랙에 빈 카드가 떴다.
+      화면별 값은 `usePageTitle`이 `og:title`·`og:description`까지 같이 덮어쓴다.
+      ⚠ `og:image`는 절대 URL이어야 해서 여기 두지 않았다 — 배포 도메인이 확정되면
+        `VITE_PUBLIC_ORIGIN`으로 주입해 추가한다(미해결 항목).
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="불러요" />
+    <meta property="og:title" content="불러요" />
+    <meta
+      property="og:description"
+      content="소규모 공연 티켓팅과 공동 정산. 티켓을 사고, 응원할 팀을 고르고, 정산 결과를 누구나 확인합니다."
+    />
+    <meta name="twitter:card" content="summary" />
+
+    <!--
+      테마를 **첫 페인트 전에** 정한다.
+
+      전에는 어디서도 정하지 않아서, 개발용 `ThemeSwitch`가 마운트되며 부수효과로 거는 것이
+      전부였다(그 컴포넌트는 프로덕션에서 null을 반환하지만 훅은 돌아 우연히 동작했다).
+      React가 뜬 뒤에 거는 이상 첫 프레임은 언제나 밝은 토큰이라, 주소를 치고 들어오면
+      흰 화면이 한 번 번쩍인 뒤 어두워졌다.
+
+      그래서 여기 인라인 스크립트로 올린다. 모듈·defer가 아니라 **동기 실행**이어야
+      본문이 그려지기 전에 속성이 붙는다.
+
+      ⚠ `src/shared/theme.ts`의 저장 키·허용 테마와 **값이 같아야 한다.**
+      번들을 기다릴 수 없어 어쩔 수 없이 중복된 것이고, 한쪽만 고치면 첫 프레임과 그 이후가 갈린다.
+      라이트는 기본 토큰이라 속성을 붙이지 않고 다크만 `data-theme`을 쓴다.
+    -->
+    <script>
+      try {
+        var t = localStorage.getItem('b204.theme.light-v1')
+        if (t === 'light') document.documentElement.removeAttribute('data-theme')
+        else document.documentElement.setAttribute('data-theme', 'dark')
+      } catch (e) {
+        // 스토리지가 막힌 환경(사생활 보호 모드)에서도 기본값은 지킨다
+        document.documentElement.setAttribute('data-theme', 'dark')
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <style>
+    :root{--ink:#17141f;--ink2:#3a3548;--muted:#6f6880;--line:#e3dfe9;--ground:#f5f3f7;--surface:#fff;
+      --amber:#e39b2b;--amber-soft:#fbf1de;--amber-line:#efdcb8;--amber-deep:#8a5510;
+      --ok:#2e7d5b;--ok-soft:#e4f1ea;--crit:#b3243c;--crit-soft:#fbe7ea;
+      --ease-out:cubic-bezier(.23,1,.32,1);}
+    *{box-sizing:border-box;}
+    body{margin:0;background:var(--ground);color:var(--ink);
+      font-family:Archivo,"Noto Sans KR",system-ui,sans-serif;font-size:14px;line-height:1.5;
+      -webkit-font-smoothing:antialiased;}
+    a{color:var(--amber-deep);text-decoration:none;} a:hover{color:#6b4009;}
+    h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:balance;}
+    .mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;}
+    .eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;}
+    .tap{transition:transform 160ms var(--ease-out);}
+    .tap:active{transform:scale(.985);}
+    .btn{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:8px;
+      border:1px solid var(--ink);background:var(--ink);color:#fff;
+      font:600 15px Archivo,"Noto Sans KR",sans-serif;transition:transform 160ms var(--ease-out);}
+    .btn:active{transform:scale(.97);}
+    .btn.ghost{background:var(--surface);color:var(--ink);}
+    .btn.amber{background:var(--amber);border-color:var(--amber);color:#2a1b04;}
+    .btn.off{background:var(--line);border-color:var(--line);color:#9b95a6;}
+    .btn.off:active{transform:none;}
+    @media (hover:hover) and (pointer:fine){
+      .btn.ghost:hover{background:var(--ground);}
+      .card.tap:hover{border-color:#cfc8da;}
+    }
+    @media (prefers-reduced-motion:reduce){ .tap,.btn{transition:none;} .tap:active,.btn:active{transform:none;} }
+    .badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:600;
+      background:var(--amber-soft);color:var(--amber-deep);}
+    .badge.ok{background:var(--ok-soft);color:var(--ok);}
+    .badge.crit{background:var(--crit-soft);color:var(--crit);}
+    .badge.plain{background:var(--ground);color:var(--muted);}
+    .sub{color:var(--muted);font-size:12px;}
+    .rule{height:1px;background:var(--line);}
+    .poster{background:linear-gradient(160deg,#2c2540,#5d4a2e 70%,#8a6a2c);border-radius:8px;}
+  </style>
+</helmet>
+<div style="min-height:100%;background:var(--ground);display:flex;flex-direction:column;"><div style="flex:1;padding:40px 20px 20px;display:flex;flex-direction:column;gap:22px;"><div style="display:flex;flex-direction:column;gap:8px;align-items:center;text-align:center;"><div style="width:56px;height:56px;border-radius:50%;background:var(--ok-soft);display:flex;align-items:center;justify-content:center;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2e7d5b" stroke-width="2.4"><path d="M4 12.5l5 5L20 6.5"></path></svg></div><h1 style="font-size:23px;">You're in! Your ticket is ready.</h1></div><div class="card" style="padding:15px;display:flex;flex-direction:column;gap:8px;"><div class="eyebrow">Order</div><div style="display:flex;justify-content:space-between;"><span>Hongdae Night Vol.7</span><span class="sub">Standard × 1</span></div><div class="sub">Sep 20 (Sat) 7:00 PM · KST 19:00 · Club FF</div><div class="rule"></div><div style="display:flex;justify-content:space-between;align-items:baseline;"><span style="font-weight:600;">Paid</span><div><span class="mono" style="font-size:17px;font-weight:600;">₩15,000</span> <span class="sub mono">≈ $11.10</span></div></div></div><div class="sub" style="text-align:center;">Remaining balance <span class="mono">₩85,000</span></div></div><div style="margin-top:auto;padding:12px 20px 20px;background:var(--surface);border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px;"><div class="btn amber">View my tickets</div></div></div>
+</x-dc>
+</body>
+</html>

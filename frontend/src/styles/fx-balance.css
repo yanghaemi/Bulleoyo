@@ -1,0 +1,202 @@
+/*
+ * 잔액(A-13) 연출 — 패널 광택 · 잔액 흐름 곡선 그리기 · 이력 타임라인 등장.
+ *
+ * ── 켜고 끄는 법 ───────────────────────────────────────────────────
+ * `styles.css`의 `@import "./styles/fx-balance.css";` 한 줄. 지우면 패널·곡선·이력은 그대로
+ * 남고 움직임과 광택만 사라진다(곡선은 즉시 완성된 채로 보인다).
+ * 카운트업(숫자 굴러가기)은 CSS가 아니라 `shared/fx/useCountUp`이다 — 그건 BalancePanel에서 뺀다.
+ *
+ * ── 왜 이 셋인가 ───────────────────────────────────────────────────
+ * "글자만 쭉 있어 무난하다"(강병구 2026-09-08). 정보를 더하지 않고 **있는 정보에 시간을 준다**:
+ *   · 광택 — 패널이 카드(실물)처럼 빛을 받는다. 22초에 한 바퀴, 알파 6~9%. 보이는 것보다 느껴지는 쪽
+ *   · 입출 막대 — 들어온 돈/나간 돈 막대가 0에서 제 길이까지 자란다. 길이가 곧 금액이다
+ *     (잔액 궤적 스파크라인이었다가 2026-09-08에 교체 — 이유는 BalanceLedger 주석)
+ *   · 타임라인 — 이력 행이 45ms 간격으로 왼쪽에서 들어오고, 왼쪽 레일의 점이 방향(들어옴/나감)을 색으로 표시
+ * 전부 한 번(마운트)이고 반복되는 것은 광택 회전과 끝점의 숨쉬기뿐이다.
+ */
+
+/* ── 패널: 손에 든 카드 ──────────────────────────────────────────
+   느린 conic 광택(늘 도는 것)과 포인터를 따라오는 하이라이트(호버에만)를 겹친다.
+   틸트는 ±3.5° — 포스터(±6°)보다 얕다. 여기엔 읽어야 할 숫자가 있고, 큰 각도는 금액을 눕힌다. */
+.fx-balance {
+  --mx: 0.5;
+  --my: 0.5;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    transform 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 320ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .fx-balance:hover {
+    /* 커서를 1:1로 따라가야 해서 transform 전환만 끈다(그림자는 계속 전환) */
+    transition: box-shadow 320ms ease;
+    transform: perspective(1100px) translateY(-2px) rotateX(calc((0.5 - var(--my)) * 7deg))
+      rotateY(calc((var(--mx) - 0.5) * 7deg));
+    box-shadow: 0 18px 40px color-mix(in srgb, var(--color-primary) 14%, transparent);
+    will-change: transform;
+  }
+
+  /* 포인터 하이라이트 — 카드 표면을 스치는 반사광. 흰색 알파는 색이 아니라 빛이라 테마를 타지 않는다 */
+  .fx-balance::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      340px circle at calc(var(--mx) * 100%) calc(var(--my) * 100%),
+      rgb(255 255 255 / 0.1),
+      rgb(255 255 255 / 0) 62%
+    );
+    mix-blend-mode: soft-light;
+    opacity: 0;
+    transition: opacity 260ms ease;
+  }
+  .fx-balance:hover::after {
+    opacity: 1;
+  }
+}
+.fx-balance::before {
+  content: '';
+  position: absolute;
+  inset: -60%;
+  z-index: -1;
+  pointer-events: none;
+  --fx-tint-a: color-mix(in srgb, var(--effect-primary-bright) 7%, transparent);
+  --fx-tint-b: color-mix(in srgb, var(--color-sel) 5%, transparent);
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    transparent 0deg,
+    var(--fx-tint-a) 60deg,
+    transparent 120deg,
+    transparent 200deg,
+    var(--fx-tint-b) 250deg,
+    transparent 310deg,
+    transparent 360deg
+  );
+  animation: fx-balance-sheen 22s linear infinite;
+}
+:root[data-theme='dark'] .fx-balance::before {
+  --fx-tint-a: color-mix(in srgb, var(--effect-primary-bright) 12%, transparent);
+  --fx-tint-b: color-mix(in srgb, var(--color-sel) 8%, transparent);
+}
+@keyframes fx-balance-sheen {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── 입출 막대 — 0에서 제 길이까지 자란다 ──────────────────────────
+   width를 애니메이션하지 않는다(레이아웃 재계산). scaleX로 늘리고 원점을 왼쪽에 둔다.
+   인라인 width가 최종 길이를 정하고 CSS는 0→1 배율만 준다. */
+.fx-ledger-bar {
+  transform-origin: left center;
+  animation: fx-ledger-grow 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(320ms + var(--i, 0) * 110ms);
+}
+@keyframes fx-ledger-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* ── 이력 타임라인 ───────────────────────────────────────────────── */
+[data-fx='ledger'] > li {
+  animation: fx-ledger-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+@keyframes fx-ledger-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* 왼쪽 레일: 점과 세로선. 점의 색이 방향이다 — 들어온 돈은 ok, 나간 돈은 ink(글자와 같은 규칙) */
+.fx-ledger-dot {
+  position: relative;
+  display: block;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 9999px;
+  background: var(--color-ink);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ink) 12%, transparent);
+  flex-shrink: 0;
+}
+.fx-ledger-dot[data-dir='IN'] {
+  background: var(--color-ok);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ok) 18%, transparent);
+}
+.fx-ledger-dot[data-failed] {
+  background: var(--color-faint);
+  box-shadow: none;
+}
+/* 점 아래로 다음 행까지 이어지는 세로선. 마지막 행은 끊는다 */
+[data-fx='ledger'] > li:not(:last-child) .fx-ledger-dot::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 1px;
+  height: 64px;
+  transform: translateX(-50%);
+  background: var(--color-line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-balance::before {
+    animation: none;
+  }
+  .fx-balance:hover {
+    transform: none;
+  }
+  .fx-ledger-bar {
+    animation: none;
+  }
+  [data-fx='ledger'] > li {
+    animation: none;
+  }
+}
+
+/* ── 세그먼트 인디케이터 — 표시 하나가 자리를 옮긴다 ──────────────────
+   위치·크기는 JS가 px로 넣고(SegmentedFilter) 여기서는 이동 곡선만 정한다.
+   width/height도 전환한다 — 라벨 길이가 제각각이라 폭이 같이 변해야 표시가 버튼에 붙어 있다.
+   이 파일이 없으면 인디케이터가 순간이동할 뿐 필터 동작은 같다. */
+.fx-segment-indicator {
+  transition:
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── 처리 중 유령 숫자 — 확정 잔액과 구분되게 아주 느리게 숨 쉰다 ───────
+   깜빡이지 않는다(주의를 뺏는다). 3.2초 주기로 투명도만 오간다 = "아직 확정되지 않았다"는 신호 */
+.fx-balance-ghost {
+  animation: fx-ghost-breathe 3200ms ease-in-out infinite;
+}
+@keyframes fx-ghost-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-segment-indicator,
+  .fx-balance-ghost {
+    animation: none;
+    transition: none;
+  }
+}

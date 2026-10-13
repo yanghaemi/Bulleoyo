@@ -1,0 +1,75 @@
+.admin-workbench {
+  min-width: 0;
+  color: var(--color-ink);
+}
+
+.admin-workbench > header {
+  background:
+    linear-gradient(
+      110deg,
+      color-mix(in srgb, var(--color-primary) 9%, transparent),
+      transparent 46%
+    ),
+    color-mix(in srgb, var(--color-surface) 96%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.admin-workbench aside {
+  position: sticky;
+  top: 1.5rem;
+  align-self: flex-start;
+  border: 1px solid var(--color-line);
+  border-radius: 1.25rem;
+  padding: 1rem 0.75rem;
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  box-shadow: 0 24px 70px rgb(0 0 0 / 0.22);
+}
+
+.admin-workbench main {
+  padding: 1rem;
+}
+
+.admin-workbench main > * {
+  min-width: 0;
+}
+
+.admin-workbench main section {
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.16);
+}
+
+.admin-workbench table {
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-workbench tbody tr {
+  transition: background-color 160ms ease-out;
+}
+
+.admin-workbench :where(button, a):active {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .admin-workbench tbody tr:hover {
+    background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+  }
+}
+
+@media (min-width: 48rem) {
+  .admin-workbench main {
+    padding: 0;
+  }
+}
+
+@media (max-width: 22rem) {
+  .admin-workbench main {
+    padding-inline: 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-workbench :where(button, a),
+  .admin-workbench tbody tr {
+    transition-duration: 0.01ms;
+  }
+}

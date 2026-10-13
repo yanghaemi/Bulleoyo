@@ -1,0 +1,419 @@
+.discovery-editorial,
+.discovery-footer__inner {
+  width: min(1320px, 100%);
+  margin-inline: auto;
+  padding-inline: 40px;
+}
+.discovery-editorial .discovery-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 30px 22px;
+}
+.discovery-editorial .discovery-heading h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.25;
+  letter-spacing: -0.035em;
+}
+.discovery-editorial .discovery-heading > a,
+.discovery-section__heading > a,
+.discovery-footer__inner > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.discovery-heading__actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.discovery-heading__actions > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.discovery-view-switch {
+  display: inline-flex;
+  gap: 3px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  padding: 3px;
+  background: var(--color-surface);
+}
+.discovery-view-switch button {
+  min-height: 34px;
+  border-radius: 999px;
+  padding: 0 13px;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 650;
+  transition: color 150ms ease-out, background-color 150ms ease-out;
+}
+.discovery-view-switch button[aria-pressed='true'] {
+  color: var(--color-surface);
+  background: var(--color-ink);
+}
+.discovery-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--color-line);
+}
+.discovery-dates button {
+  min-height: 44px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: var(--color-surface);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.discovery-dates button[aria-pressed='true'] {
+  border-color: var(--color-primary);
+  background: var(--color-sel-soft);
+  color: var(--color-primary);
+}
+.discovery-dates button[aria-pressed='true']::before {
+  content: '✓';
+  margin-right: 6px;
+}
+.discovery-editorial .discovery-section {
+  margin-top: 24px;
+  border: 0;
+  padding: 0;
+}
+.discovery-section__heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.discovery-section__heading h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+.discovery-section__grid {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  gap: 20px;
+}
+.discovery-section__grid > li {
+  min-width: 0;
+}
+/* 맞춤 추천 카드의 사유 한 줄(A-01 섹션 ④). 없으면 요소 자체가 없다 */
+.discovery-section__reason {
+  margin: 8px 2px 0;
+  color: var(--color-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+/* A-01 판매중 / AI 추천 세그먼트 탭(v8.14). 모바일에서도 한 줄 — 두 칸이 폭을 나눈다 */
+.home-tabs {
+  display: flex;
+  width: 100%;
+  max-width: 360px;
+  gap: 3px;
+  margin-top: 28px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  padding: 3px;
+  background: var(--color-surface);
+}
+.home-tabs [role='tab'] {
+  display: inline-flex;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 0 14px;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 150ms ease-out,
+    background-color 150ms ease-out;
+}
+.home-tabs [role='tab']:hover {
+  color: var(--color-ink);
+}
+.home-tabs [role='tab'][aria-selected='true'] {
+  color: var(--color-surface);
+  background: var(--color-ink);
+}
+/* 추천 표식. 선택 전에도 눈에 띄게 강조색을 쓰고, 선택되면 글자색을 따른다 */
+.home-tabs__mark {
+  flex: none;
+  color: var(--color-primary);
+}
+.home-tabs [role='tab'][aria-selected='true'] .home-tabs__mark {
+  color: currentColor;
+}
+.home-tabpanel:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+}
+.home-ai-prompt {
+  margin: 0 0 14px;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.home-ai-prompt a {
+  color: var(--color-primary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.discovery-empty .home-ai-prompt {
+  margin: 0;
+}
+.discovery-rate,
+.discovery-empty,
+.discovery-footer p {
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.discovery-rate {
+  margin: 20px 0 0;
+}
+.discovery-empty {
+  padding-block: 56px;
+  text-align: center;
+}
+.discovery-empty button {
+  min-height: 44px;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.discovery-footer {
+  width: 100%;
+  margin-top: 48px;
+  border-top: 1px solid var(--color-line);
+  background: var(--color-surface);
+}
+.discovery-footer__inner {
+  padding-block: 22px 28px;
+}
+.discovery-footer p {
+  margin: 8px 0 0;
+}
+.discovery-editorial :is(a, button):focus-visible,
+.discovery-footer a:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+.show-detail-editorial {
+  background: var(--color-ground);
+  color: var(--color-ink);
+  overflow-x: clip;
+}
+.show-detail-editorial__shell {
+  max-width: 1120px;
+  margin-inline: auto;
+  padding: 36px 40px 56px;
+}
+.show-detail-editorial__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+  column-gap: 48px;
+  row-gap: 28px;
+  align-items: start;
+}
+.show-detail-editorial__summary {
+  grid-column: 2;
+  min-width: 0;
+}
+.show-detail-editorial__summary h1 {
+  margin: 16px 0 0;
+  font-size: clamp(26px, 3vw, 38px);
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+}
+.show-detail-editorial__art {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  min-width: 0;
+}
+.show-detail-editorial__poster {
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.show-detail-editorial__content {
+  grid-column: 2;
+  min-width: 0;
+}
+.show-detail-editorial__facts {
+  display: grid;
+  gap: 16px;
+  margin: 24px 0 0;
+}
+.show-detail-editorial__facts dt {
+  margin-bottom: 5px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.show-detail-editorial__facts dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.show-detail-editorial h2 {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.show-detail-editorial__booking {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 0.85fr);
+  align-items: end;
+  gap: 16px;
+  margin-top: 24px;
+  border-top: 1px solid var(--color-line);
+  padding-top: 22px;
+}
+.show-detail-editorial__booking h2 {
+  margin-bottom: 10px;
+}
+.show-detail-editorial__booking > div > span {
+  margin-right: 8px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.show-detail-editorial__booking strong {
+  font-family: var(--font-num);
+  font-size: 26px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.show-detail-editorial__booking small {
+  display: block;
+  margin-top: 5px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.show-detail-editorial__booking > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.show-detail-editorial__section {
+  border-top: 1px solid var(--color-line);
+  padding-top: 22px;
+}
+.show-detail-editorial__section + .show-detail-editorial__section {
+  margin-top: 28px;
+}
+.show-detail-editorial__artists {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.show-detail-editorial__description {
+  margin: 0;
+  white-space: pre-line;
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 47.999rem) {
+  .discovery-editorial,
+  .discovery-footer__inner {
+    padding-inline: 20px;
+  }
+  .discovery-editorial .discovery-heading {
+    padding-block: 20px 16px;
+  }
+  .discovery-editorial .discovery-heading h1 {
+    font-size: 25px;
+  }
+  .discovery-editorial .discovery-heading {
+    align-items: flex-start;
+  }
+  .discovery-heading__actions {
+    align-items: flex-end;
+    flex-direction: column-reverse;
+    gap: 6px;
+  }
+  .discovery-view-switch button {
+    min-height: 32px;
+    padding-inline: 10px;
+    font-size: 10px;
+  }
+  .discovery-dates {
+    gap: 6px;
+    padding-bottom: 18px;
+  }
+  .discovery-dates button {
+    padding-inline: 13px;
+    font-size: 11px;
+  }
+  .discovery-section__grid {
+    gap: 12px;
+  }
+  .discovery-footer {
+    margin-top: 32px;
+  }
+  .show-detail-editorial__shell {
+    padding: 24px 20px 110px;
+  }
+  .show-detail-editorial__grid {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  .show-detail-editorial__summary,
+  .show-detail-editorial__content {
+    width: 100%;
+  }
+  .show-detail-editorial__summary h1 {
+    font-size: 28px;
+  }
+  .show-detail-editorial__art {
+    width: min(100%, 260px);
+    margin-inline: auto;
+  }
+  .show-detail-editorial__book-button {
+    display: none;
+  }
+  .show-detail-editorial__booking {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

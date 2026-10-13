@@ -1,0 +1,326 @@
+# 2026-09-08: 코인 개명 KRWS -> YoYo (name·symbol "YoYo", 로직 불변)
+paths:
+  /api/v1/performances/{performanceId}/verification:
+    get:
+      operationId: verify_01
+      tags: [verify]
+      summary: 정산 검증 데이터 조회
+      description: >
+        컨트랙트 주소·잠긴 규칙(원문+해시)·팀별 리더 지갑·팀별 동의 tx·온체인 선택 카운터·에스크로 잔액·팀별
+        산출액·release tx와 재계산에 필요한 원자료(recalculationInput)를 한 응답에 담아, 브라우저가 서버
+        표시값을 믿지 않고 독립 재계산할 수 있게 한다. 대사 3종(escrow·release·deposit)을 함께 담고,
+        release가 곧 수령 완료이므로 receiptSummary가 종단 정보다. 참여팀 로그인 전용이며 60초 캐시한다.
+        관객 지갑 주소·주문·티켓 식별자는 담지 않는다.
+      x-priority: P0
+      x-role: [PERFORMER]
+      x-screens: [V-01]
+      x-features: [F-verify-01, F-verify-03]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: 공연 PK
+      responses:
+        '200':
+          description: 정산 검증 데이터 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/VerificationData'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      performanceId: 12
+                      performanceTitle: 합정 3밴드 합동공연
+                      performedAt: '2026-09-19T19:00:00+09:00'
+                      settlementStatus: RELEASED
+                      network: kaia-kairos
+                      chainId: 1001
+                      contracts: { tokenAddress: '0x5f1e2d3c4b5a69788796a5b4c3d2e1f009182736', tokenSymbol: YoYo, tokenDecimals: 0, revenueSplitter: '0xa1b2c3d4e5f60718293a4b5c6d7e8f9012345678', explorerBaseUrl: 'https://kairos.kaiascan.io' }
+                      lockedRule:
+                        rulesHash: '0x4d1c8f7a2b9e0d3f6a5c8b1e4d7f0a3c6b9e2d5f8a1c4b7e0d3f6a9c2b5e8d1f'
+                        raw: { performanceId: 12, fixedRatioBp: 6000, selectionRatioBp: 4000, teamShares: [{ teamId: 7, shareBp: 5000 }, { teamId: 9, shareBp: 3000 }, { teamId: 11, shareBp: 2000 }], hostTeamId: 7 }
+                        onchainRulesHash: '0x4d1c8f7a2b9e0d3f6a5c8b1e4d7f0a3c6b9e2d5f8a1c4b7e0d3f6a9c2b5e8d1f'
+                        hashMatched: true
+                        lockedAt: '2026-09-03T11:00:00+09:00'
+                        startSaleTxHash: '0x8f2e1d0c9b8a70695847362514039281a0b1c2d3e4f5061728394a5b6c7d8e9f'
+                      agreements:
+                        - { teamId: 7, teamName: 블루노트, walletAddress: '0x7a3f9c1d2e4b5a6c8d0e1f2a3b4c5d6e7f809a1b', onchainAgreed: true, signerType: USER, txHash: '0x1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f901', agreedAt: '2026-09-03T10:02:00+09:00' }
+                      # 세 값의 단위가 서로 다르다 — choiceCount는 티켓 수, purchaseCount·refundCount는
+                      # 주문 수, refundedAmount는 YoYo(₩)다. 예시 값을 일부러 어긋나게 두었다:
+                      # 어느 조합으로도 합·차가 떨어지지 않는다. 종전 예시(30=28+2 등)는 우연히
+                      # 딱 맞아떨어져 화면이 없는 검산식을 만들도록 유도했다.
+                      onchainCounters:
+                        - { teamId: 7, teamIndex: 0, choiceCount: 30, purchaseCount: 26, refundCount: 3, refundedAmount: 50000 }
+                        - { teamId: 9, teamIndex: 1, choiceCount: 21, purchaseCount: 17, refundCount: 2, refundedAmount: 25000 }
+                        - { teamId: 11, teamIndex: 2, choiceCount: 13, purchaseCount: 10, refundCount: 0, refundedAmount: 0 }
+                      recalculationInput:
+                        grossRevenueAmount: 1600000
+                        refundedAmount: 75000
+                        netRevenueAmount: 1525000
+                        distributableAmount: 1525000
+                        fixedRatioBp: 6000
+                        selectionRatioBp: 4000
+                        teamShares: [{ teamId: 7, shareBp: 5000 }, { teamId: 9, shareBp: 3000 }, { teamId: 11, shareBp: 2000 }]
+                        participantCount: 3
+                        totalChoiceCount: 64
+                        roundingRule: FLOOR_TO_INTEGER_KRW
+                        remainderRule: ASSIGN_DUST_TO_HOST_TEAM
+                        hostTeamId: 7
+                        dustAmount: 4
+                        tokenDecimals: 0
+                        currency: KRW
+                      shares:
+                        - { teamId: 7, teamName: 블루노트, fixedAmount: 457500, choiceAmount: 285937, dustAmount: 4, totalAmount: 743441 }
+                        - { teamId: 9, teamName: 새벽세시, fixedAmount: 274500, choiceAmount: 200156, dustAmount: 0, totalAmount: 474656 }
+                        - { teamId: 11, teamName: 노이즈캔슬, fixedAmount: 183000, choiceAmount: 123903, dustAmount: 0, totalAmount: 306903 }
+                      escrowReconciliation: { purchasedTotal: 1600000, refundedTotal: 75000, releasedTotal: 1525000, escrowBalanceOnchain: 0, expectedEscrowBalance: 0, matched: true, note: 'escrowOf(showId) = Σpurchase − Σrefund − Σrelease' }
+                      releaseReconciliation:
+                        releasedEventTotal: 1525000
+                        recalculatedTotal: 1525000
+                        difference: 0
+                        matched: true
+                        releasedEvents:
+                          - { teamWallet: '0x7a3f9c1d2e4b5a6c8d0e1f2a3b4c5d6e7f809a1b', amount: 743441 }
+                          - { teamWallet: '0x3c8a1f2b4d6e8091a2b3c4d5e6f708192a3b4c5d', amount: 474656 }
+                          - { teamWallet: '0x9e0d1f2a3b4c5d6e7f8091a2b3c4d5e6f7081920', amount: 306903 }
+                      depositReconciliation: { amount: 50000, status: RETURNED, paidTxHash: '0x6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5', returnTxHash: '0x8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7', matched: true }
+                      receiptSummary:
+                        - { teamId: 7, walletAddress: '0x7a3f9c1d2e4b5a6c8d0e1f2a3b4c5d6e7f809a1b', receivedAmount: 743441, received: true, receivedAt: '2026-09-22T18:00:30+09:00' }
+                      releaseTx: { txHash: '0x9c1a4b7e2d5f8039ab6c4e1d2f3a5b7c9e0d1f2a3b4c5d6e7f8091a2b3c4d5e6', explorerUrl: 'https://kairos.kaiascan.io/tx/0x9c1a4b7e2d5f8039ab6c4e1d2f3a5b7c9e0d1f2a3b4c5d6e7f8091a2b3c4d5e6', releasedAt: '2026-09-22T18:00:30+09:00' }
+                      guarantees:
+                        guaranteed: [잠긴 규칙의 사후 변조 불가, 기록의 소급 수정 불가, 분배 계산의 결정론적 재현, 참여팀의 독립 검증 경로, 결제·환불·분배가 모두 같은 원장(YoYo) 위에 있음]
+                        notGuaranteed: [입력 데이터(선택·매출)의 진실성, '탈중앙 운영 — 정산 흐름은 운영자가 발의·실행한다']
+                      simulationNotice: 테스트넷에서 플랫폼이 발행한 시연용 가상 원화 코인으로 정산했습니다. 실제 자금이 아닙니다.
+                      refreshedAt: '2026-09-22T18:12:00+09:00'
+                      stale: false
+                    msg: ''
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 로그인하지 않고 검증 데이터를 조회
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_FORBIDDEN — 참여팀 소속이 아닌 회원의 조회
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않거나 아직 검증 대상이 아닌 공연(DRAFT·PENDING_AGREEMENT)
+        '429':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_TOO_MANY_REQUESTS — 호출 한도 초과
+        '502':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_EXTERNAL_SERVICE_ERROR — 체인 인덱스·노드 모두 사용 불가
+
+components:
+  schemas:
+    VerificationContracts:
+      type: object
+      properties:
+        tokenAddress: { $ref: '#/components/schemas/Address' }
+        tokenSymbol: { type: string, enum: [YoYo] }
+        tokenDecimals: { type: integer, enum: [0] }
+        revenueSplitter: { $ref: '#/components/schemas/Address' }
+        explorerBaseUrl: { type: string, format: uri }
+
+    VerificationTeamShare:
+      type: object
+      properties:
+        teamId: { type: integer, format: int64 }
+        shareBp: { type: integer, description: '팀별 고정 풀 배분 비율(basis point)' }
+
+    VerificationLockedRule:
+      type: object
+      required: [hashMatched]
+      properties:
+        rulesHash: { $ref: '#/components/schemas/TxHash' }
+        raw:
+          type: object
+          description: 잠금 당시 규칙 원문(해시 입력값)
+          properties:
+            performanceId: { type: integer, format: int64 }
+            fixedRatioBp: { type: integer }
+            selectionRatioBp: { type: integer }
+            teamShares:
+              type: array
+              items: { $ref: '#/components/schemas/VerificationTeamShare' }
+            hostTeamId: { type: integer, format: int64 }
+        onchainRulesHash: { $ref: '#/components/schemas/TxHash' }
+        hashMatched: { type: boolean }
+        lockedAt: { type: string, format: date-time }
+        startSaleTxHash: { $ref: '#/components/schemas/TxHash' }
+
+    VerificationAgreement:
+      type: object
+      properties:
+        teamId: { type: integer, format: int64 }
+        teamName: { type: string }
+        walletAddress: { $ref: '#/components/schemas/Address' }
+        onchainAgreed: { type: boolean }
+        signerType: { type: string, enum: [OPERATOR, USER] }
+        txHash: { $ref: '#/components/schemas/TxHash' }
+        agreedAt: { type: string, format: date-time }
+
+    VerificationOnchainCounter:
+      type: object
+      properties:
+        teamId: { type: integer, format: int64 }
+        teamIndex: { type: integer, description: 'createShow 시점 참여팀 순서. 온체인 인자로 그대로 쓰인다' }
+        choiceCount: { type: integer, description: '온체인 선택 카운터, 티켓 수(Σ quantity). 환불 이력 주문의 표는 전량 제외', example: 30 }
+        purchaseCount: { type: integer, description: '그 팀을 선택한 결제 건수(주문 수, 환불 이력 있는 주문 포함). 주문 수 — choiceCount(티켓 수)와 단위가 다르며 purchaseCount − refundCount = choiceCount 가 성립하지 않는다. example 값을 choiceCount(30)와 어긋나게 둔 것은 의도적이다 — 딱 떨어지는 예시는 화면이 없는 검산식을 만들도록 유도한다', example: 26 }
+        refundCount: { type: integer, description: '그 팀 주문 중 환불 이력이 있는 주문 수(부분·전액 불문, A-2 규칙). refund.status = COMPLETED 인 환불만 센다. 주문 단위 — COUNT(DISTINCT ticket_order_id), refund는 티켓 단위 행이므로 티켓 3장 중 2장 환불도 1', example: 3 }
+        refundedAmount: { type: integer, description: '그 팀 주문의 환불 금액 합(YoYo, decimals 0). refund.status = COMPLETED 인 환불만 센다', example: 50000 }
+
+    VerificationRecalculationInput:
+      type: object
+      description: 이 값들만으로 shares가 재현되어야 한다
+      properties:
+        grossRevenueAmount: { type: integer }
+        refundedAmount: { type: integer }
+        netRevenueAmount: { type: integer }
+        distributableAmount: { type: integer }
+        fixedRatioBp: { type: integer }
+        selectionRatioBp: { type: integer }
+        teamShares:
+          type: array
+          items: { $ref: '#/components/schemas/VerificationTeamShare' }
+        participantCount: { type: integer }
+        totalChoiceCount: { type: integer }
+        roundingRule: { type: string, example: FLOOR_TO_INTEGER_KRW }
+        remainderRule: { type: string, example: ASSIGN_DUST_TO_HOST_TEAM }
+        hostTeamId: { type: integer, format: int64 }
+        dustAmount: { type: integer }
+        tokenDecimals: { type: integer, enum: [0] }
+        currency: { type: string, enum: [KRW] }
+
+    VerificationShare:
+      type: object
+      properties:
+        teamId: { type: integer, format: int64 }
+        teamName: { type: string }
+        fixedAmount: { type: integer }
+        choiceAmount: { type: integer }
+        dustAmount: { type: integer }
+        totalAmount: { type: integer }
+
+    VerificationEscrowReconciliation:
+      type: object
+      description: '불변식 2 — escrowOf(showId) = Σpurchase − Σrefund − Σrelease'
+      properties:
+        purchasedTotal: { type: integer }
+        refundedTotal: { type: integer }
+        releasedTotal: { type: integer }
+        escrowBalanceOnchain: { type: integer }
+        expectedEscrowBalance: { type: integer }
+        matched: { type: boolean }
+        note: { type: string }
+
+    VerificationReleaseReconciliationEvent:
+      type: object
+      properties:
+        teamWallet: { $ref: '#/components/schemas/Address' }
+        amount: { type: integer }
+
+    VerificationReleaseReconciliation:
+      type: object
+      description: '불변식 3 — Released 이벤트 합 vs 잠긴 규칙×카운터 재계산 합(dust 포함, 1원도 다르지 않아야 한다)'
+      properties:
+        releasedEventTotal: { type: integer }
+        recalculatedTotal: { type: integer }
+        difference: { type: integer }
+        matched: { type: boolean }
+        releasedEvents:
+          type: array
+          items: { $ref: '#/components/schemas/VerificationReleaseReconciliationEvent' }
+
+    VerificationDepositReconciliation:
+      type: object
+      properties:
+        amount: { type: integer }
+        status: { type: string, example: RETURNED }
+        paidTxHash: { $ref: '#/components/schemas/TxHash' }
+        returnTxHash: { $ref: '#/components/schemas/TxHash' }
+        matched: { type: boolean }
+
+    VerificationReceiptItem:
+      type: object
+      description: '팀별 수령 여부·시각. release 확정이 곧 수령이라 이 값이 종단 정보다'
+      required: [received]
+      properties:
+        teamId: { type: integer, format: int64 }
+        walletAddress: { $ref: '#/components/schemas/Address' }
+        receivedAmount: { type: integer }
+        received: { type: boolean }
+        receivedAt: { type: string, format: date-time, nullable: true }
+
+    VerificationReleaseTx:
+      type: object
+      properties:
+        txHash: { $ref: '#/components/schemas/TxHash' }
+        explorerUrl: { type: string, format: uri }
+        releasedAt: { type: string, format: date-time }
+
+    VerificationGuarantees:
+      type: object
+      description: 보장 범위를 정직하게 표기 — 입력 데이터의 진실성·탈중앙 운영은 보장하지 않는다
+      properties:
+        guaranteed:
+          type: array
+          items: { type: string }
+        notGuaranteed:
+          type: array
+          items: { type: string }
+
+    VerificationData:
+      type: object
+      description: 정산 검증 데이터(API-verify-01). 참여팀 전용, 60초 캐시
+      required: [stale]
+      properties:
+        performanceId: { type: integer, format: int64 }
+        performanceTitle: { type: string }
+        performedAt: { type: string, format: date-time }
+        settlementStatus:
+          type: string
+          enum: [NONE, AGGREGATED, LOCKED, DISPUTE_OPEN, RELEASED, HALTED]
+        network: { type: string, enum: [kaia-kairos, besu-private] }
+        chainId: { type: integer, enum: [1001] }
+        contracts: { $ref: '#/components/schemas/VerificationContracts' }
+        lockedRule: { $ref: '#/components/schemas/VerificationLockedRule' }
+        agreements:
+          type: array
+          items: { $ref: '#/components/schemas/VerificationAgreement' }
+        onchainCounters:
+          type: array
+          items: { $ref: '#/components/schemas/VerificationOnchainCounter' }
+        recalculationInput: { $ref: '#/components/schemas/VerificationRecalculationInput' }
+        shares:
+          type: array
+          items: { $ref: '#/components/schemas/VerificationShare' }
+        escrowReconciliation: { $ref: '#/components/schemas/VerificationEscrowReconciliation' }
+        releaseReconciliation: { $ref: '#/components/schemas/VerificationReleaseReconciliation' }
+        depositReconciliation: { $ref: '#/components/schemas/VerificationDepositReconciliation' }
+        receiptSummary:
+          type: array
+          items: { $ref: '#/components/schemas/VerificationReceiptItem' }
+        releaseTx: { $ref: '#/components/schemas/VerificationReleaseTx' }
+        guarantees: { $ref: '#/components/schemas/VerificationGuarantees' }
+        simulationNotice: { type: string }
+        refreshedAt: { type: string, format: date-time }
+        stale:
+          type: boolean
+          description: 노드 장애로 마지막 인덱싱 값을 보여주는 중인지

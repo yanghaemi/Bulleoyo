@@ -1,0 +1,59 @@
+# 테스트 프로파일 — DB·Redis 접속은 Testcontainers 가 런타임에 주입한다(IntegrationTestBase).
+#
+# ⚠️ 체인 변수를 일부러 비워 둔다. 개발 환경 안내 v1 §3.1이 요구하는
+# "체인 키·컨트랙트 주소가 비어 있어도 기동된다"를 테스트로 고정하기 위해서다
+# (ChainConfigurationTest). 여기에 값을 채우면 그 요구사항이 검증되지 않는다.
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        show_sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+b204:
+  app:
+    base-url: https://b204.ssafy.io
+
+  jwt:
+    secret: test-only-secret-key-at-least-32-bytes-long-for-hs256
+    access-token-ttl: 30m
+    refresh-token-ttl: 14d
+    issuer: b204
+  web3auth:
+    # client-id · jwks-uri · issuer 는 IntegrationTestBase 가 띄우는 로컬 JWKS 스텁 서버 값으로
+    # 런타임에 덮인다(@DynamicPropertySource). 검증 경로를 mock 으로 우회하지 않고 실제로 탄다.
+    client-id: 'test-client-id'
+    jwks-uri: http://127.0.0.1:0/jwks
+    issuer: 'https://stub.web3auth.local'
+  chain:
+    rpc-url: ''
+    chain-id: 1001
+    operator-private-key: ''
+    minter-private-key: ''
+    operator-address: ''
+    contract:
+      yoyo-address: ''
+      splitter-address: ''
+    # 단위·통합 테스트가 도는 중에 스케줄러가 DB를 건드리면 테스트끼리 간섭한다.
+    # 워커 자체의 동작은 ChainJobWorkerTest 가 빈을 직접 만들어 검증한다.
+    worker:
+      enabled: false
+  entry:
+    qr-ttl: 60s
+    default-duration: 3h
+    link-grace: 2h
+  ticket:
+    payment-timeout: 15m
+  settlement:
+    dispute-period: 48h
+
+logging:
+  level:
+    root: WARN
+    com.ssafy.b204: INFO
+    org.flywaydb: INFO

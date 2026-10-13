@@ -1,0 +1,38 @@
+# Mattermost 는 Slack 형식 incoming webhook 을 그대로 받는다. 그래서 slack_configs 를 쓴다.
+#
+# 웹훅 URL 은 저장소에 두지 않는다. 서버에서 파일로 만든다:
+#   cd ~/monitoring && umask 077 && echo '<웹훅 URL>' > secrets/mattermost_url
+#
+# 경로는 `~/monitoring` 이다(`~/app/monitoring` 아님) — 모니터링 스택은 배포 디렉토리와
+# 따로 사람이 1회 복사한다(exec/monitoring/README.md). 여기 잘못 적혀 있던 동안은 secrets/ 가
+# 마운트되는 자리에 파일이 없어, Alertmanager 는 정상 기동한 채 알림만 사라졌다(리뷰 !93 🟡).
+#
+# **파일이 없어도 Alertmanager 는 정상 기동한다**(실측 2026-09-11). 알림이 실제로 발생할
+# 때에야 전송이 실패하고, 그대로 두면 조용히 사라진다. 그래서 alerts.yml 에
+# AlertDeliveryFailing 규칙을 둬 최소한 Prometheus·Grafana 에서는 보이게 했다.
+# 설치 뒤에는 **한 번 실제로 받아 봐야 한다**(README 의 전달 확인 절차).
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: mattermost
+  group_by: [alertname]
+  group_wait: 30s
+  group_interval: 5m
+  # 같은 알림을 4시간마다 다시 보낸다. 너무 짧으면 사람이 알림을 끄게 된다.
+  repeat_interval: 4h
+  routes:
+    - matchers: [severity = critical]
+      receiver: mattermost
+      repeat_interval: 1h
+
+receivers:
+  - name: mattermost
+    slack_configs:
+      - api_url_file: /etc/alertmanager/secrets/mattermost_url
+        channel: "#b204"
+        send_resolved: true
+        title: '{{ if eq .Status "firing" }}🔴{{ else }}✅{{ end }} {{ .CommonAnnotations.summary }}'
+        text: |
+          {{ range .Alerts }}{{ .Annotations.description }}
+          {{ end }}

@@ -1,0 +1,258 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.6'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.ssafy'
+version = '0.0.1-SNAPSHOT'
+
+// Java 17 고정. 21은 web3j-ext 보증 범위 밖이라 쓰지 않는다(기술 스택 v3 §2).
+// Jenkins 컨트롤러 JVM은 21이므로 툴체인 선언이 없으면 CI 테스트가 21로 돌고 파이프라인 가드가 막는다.
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+    // 컨트랙트 래퍼 생성기 전용. 앱 클래스패스와 분리한다 — codegen은 빌드 도구지 런타임 의존이
+    // 아니고, 기본 빌드에 물리지 않는다(문서 13 §8 "web3j generate 1회 실행하고 결과를 커밋").
+    web3jCodegen
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    // web3j-ext v2.0.7이 끌어오는 web3j 4.9.8과 okhttp 버전이 어긋나면 런타임 NoSuchMethodError가 난다.
+    // okio 명시 고정은 불필요(PoC 4 §1 — okhttp 4.12.0이 okio 3.6.0을 일관되게 끌고 온다).
+    okhttpVersion = '4.12.0'
+}
+
+dependencies {
+    // ---- web ----
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // ---- persistence ----
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.flywaydb:flyway-core'
+    // flyway-mysql이 빠지면 기동 시 `Unsupported Database: MySQL 8.0`으로 죽는다. 반드시 함께.
+    implementation 'org.flywaydb:flyway-mysql'
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // ---- security ----
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    // Web3Auth idToken의 JWKS 검증 + 자체 세션 JWT 발급·검증에 쓰는 Nimbus JOSE 래퍼.
+    // 리소스 서버 필터 전체는 쓰지 않으므로 starter-oauth2-resource-server가 아니라 이 라이브러리만 쓴다.
+    // (b204-stack 참조 문서의 `spring-boot-starter-oauth2-jose`는 존재하지 않는 아티팩트명이다 — 아래가 실물)
+    implementation 'org.springframework.security:spring-security-oauth2-jose'
+
+    // 외부 지갑 소유 증명(API-wallet-04 `provider=EXTERNAL`)의 `ecrecover`에 필요하다.
+    // keccak-256도 secp256k1 공개키 복구도 JDK에 없다. 대안이던 `org.web3j:crypto`는
+    // rlp·utils·abi 를 함께 끌고 오고 체인 브랜치(S15P21B204-41)와 좌표가 겹치므로,
+    // 전이 의존이 0인 이 한 개만 넣는다. web3j 4.9.8도 내부적으로 같은 라이브러리를 쓴다.
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
+
+    // 결제 전 패스키 본인 확인(API v7 §7.W) — WebAuthn 등록·인증 응답의 서명 검증.
+    // Spring Security 의 WebAuthn 모듈(spring-security-webauthn)은 로그인 자체를 패스키로 바꾸는
+    // 필터 체인이라 쓰지 않는다 — 여기서는 기존 세션 위에 결제 한 건의 추가 확인(step-up)만 한다.
+    // 0.30.x 에 고정하는 이유: 0.31.0 부터 Jackson 3(tools.jackson)으로 옮겨 가 Boot 3.5 의 Jackson 2 와
+    // jackson-annotations 버전이 부딪힌다. 0.30.3 은 Jackson 2(com.fasterxml)이고 Java 17 에서 돈다.
+    implementation 'com.webauthn4j:webauthn4j-core:0.30.3.RELEASE'
+
+    // ---- observability ----
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // ---- chain ---- (PoC 4 실측으로 확정, 2026-09-07 — `_workspace/poc4/RESULT.md`)
+    //
+    // 좌표 함정 3개. 하나라도 어기면 해석·컴파일이 깨진다.
+    //   1) **버전 문자열에 `v` 접두가 붙는다.** Maven Central에 존재하는 버전은 `v1.0.0`·`v2.0.7`
+    //      둘뿐이고 `2.0.7`은 404다.
+    //   2) **`org.web3j:core`를 명시 선언해야 한다.** web3j-ext v2.0.7의 pom이 모든 의존성을
+    //      `runtime` 스코프로 발행해, 명시하지 않으면 `org.web3j.protocol.*`이 compileClasspath에
+    //      없어 `package org.web3j.protocol does not exist`로 컴파일이 깨진다.
+    //      전이 버전 4.9.7이 여기 선언한 4.9.8로 승격된다(드리프트 없음).
+    //   3) web3j-ext가 Gradle 배포 플러그인(`gradle-nexus-staging-plugin`)을 런타임 의존성으로
+    //      잘못 발행해 놓았다. exclude하지 않으면 플러그인 jar가 앱 클래스패스에 올라온다.
+    //
+    // web3j 5.x는 선언하지 않는다 — Java 21을 요구해 깨진다(기술 스택 v3 §2 금지 목록).
+    implementation('io.kaia:web3j-ext:v2.0.7') {
+        exclude group: 'io.codearte.gradle.nexus'
+    }
+    implementation 'org.web3j:core:4.9.8'
+    // Kaia 네임스페이스 RPC(`org.web3j.protocol.kaia.Web3j`). 대납 전송은 표준 web3j로 충분하지만
+    // `kaia_*` RPC 폴백과 KaiaCredentials 계열이 이 모듈에 걸쳐 있어 함께 명시한다(runtime 스코프).
+    implementation 'io.kaia:web3rpc-java:v1.0.0'
+    // 전이 okhttp 4.9.0(web3j core) / okhttp3 3.14.9(retrofit)를 4.12.0으로 수렴시킨다.
+    // okio는 4.12.0이 3.6.0을 일관되게 끌고 와 충돌이 없다 — 명시 고정하지 않는다(PoC 4 §1).
+    implementation "com.squareup.okhttp3:okhttp:${okhttpVersion}"
+
+    // ---- lombok ----
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    // ---- test ----
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    // H2는 쓰지 않는다 — MySQL ENUM·Redis SETNX 동작이 달라 테스트가 거짓 통과한다.
+    // 버전은 Spring Boot BOM이 관리한다(testcontainers BOM 포함). 직접 고정하지 않는다.
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers' // @ServiceConnection
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:mysql'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // 래퍼 생성기(generateContractWrappers 전용). 앱에는 들어가지 않는다.
+    web3jCodegen 'org.web3j:codegen:4.9.8'
+}
+
+// ---- 컨트랙트 래퍼 생성 ----
+//
+// Gradle web3j 플러그인을 쓰지 않는다(문서 13 §8). 생성물을 커밋해 두고, ABI가 바뀔 때만 사람이
+// 한 번 돌린다 — 매 빌드마다 codegen이 돌면 ABI 없는 팀원의 빌드가 깨진다.
+//
+//   bash gradlew generateContractWrappers                       # ABI가 develop에 머지된 뒤
+//   bash gradlew generateContractWrappers -PabiDir=/path/to/abi # 다른 위치의 ABI로
+//
+// 생성 후 같은 디렉토리의 ABI_HASH.txt를 함께 갱신한다(integration-qa가 index.json과 대조한다).
+def contractWrapperPackage = 'com.ssafy.b204.chain.contract'
+def contractNames = ['YoYo', 'RevenueSplitter']
+def wrapperTasks = contractNames.collect { name ->
+    tasks.register("generate${name}Wrapper", JavaExec) {
+        group = 'build'
+        description = "${name} ABI → web3j 래퍼"
+        classpath = configurations.web3jCodegen
+        mainClass = 'org.web3j.codegen.SolidityFunctionWrapperGenerator'
+        // abiDir 기본값은 contract-dev 산출 위치. -PabiDir 로 덮어쓴다.
+        def abiDir = providers.gradleProperty('abiDir').getOrElse('../blockchain/deployments/abi')
+        args '-a', "${abiDir}/${name}.json",
+                '-o', file('src/main/java').absolutePath,
+                '-p', contractWrapperPackage
+    }
+}
+tasks.register('generateContractWrappers') {
+    group = 'build'
+    description = 'ABI → web3j 컨트랙트 래퍼 재생성(수동 실행. 기본 빌드에 물리지 않는다)'
+    dependsOn wrapperTasks
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+
+    // `ApiSpec202BodyTest` 는 저장소 밖(`docs/design/api/openapi.yaml`)을 읽어 record 와 대조한다.
+    // Gradle 은 자바 소스와 리소스만 입력으로 보므로, 이 파일만 바뀌면 test 를 UP-TO-DATE 로
+    // 건너뛴다 — 명세가 어긋나도 **캐시된 통과 결과가 그대로 나온다.** 실제로 그랬다(2026-09-16,
+    // 필드를 지워 놓고 돌렸는데 BUILD SUCCESSFUL 이 나왔다). 입력으로 등록해 막는다.
+    inputs.file(rootProject.file('../docs/design/api/openapi.yaml'))
+            .withPropertyName('openapiSpec')
+            .withPathSensitivity(PathSensitivity.RELATIVE)
+
+    // Testcontainers 가 "Could not find a valid Docker environment" 로 죽을 때 쓰는 탈출구.
+    //
+    // 원인: Docker Engine 29+ 는 낮은 API 버전을 400 으로 거부한다(`docker version` 의
+    // Server MinAPIVersion 확인). docker-java 3.4.x 가 그보다 낮은 버전으로 /info 를 호출하면
+    // 파이프는 붙는데 400 이 떨어져 "도커가 없다"로 보고된다. docker-java 는 이 값을
+    // 환경변수가 아니라 **시스템 프로퍼티 `api.version`** 으로만 읽으므로 여기서 넘겨야 한다.
+    //
+    // 기본값을 박지 않는 이유: 너무 높은 값을 고정하면 반대로 구버전 엔진(Jenkins 등)에서
+    // 거부된다. 필요한 사람만 켠다.
+    //   ./gradlew test -PdockerApiVersion=1.44
+    //   또는 DOCKER_API_VERSION=1.44 ./gradlew test
+    def dockerApiVersion = project.findProperty('dockerApiVersion') ?: System.getenv('DOCKER_API_VERSION')
+    if (dockerApiVersion) {
+        systemProperty 'api.version', dockerApiVersion
+    }
+
+    // 컨테이너 안에서 호스트 도커 소켓으로 Testcontainers를 돌릴 때 필요한 호스트 주소.
+    //
+    // Jenkins 컨트롤러가 정확히 그 구성이다(`exec/jenkins/docker-compose.jenkins.yml` —
+    // 컨테이너 + `/var/run/docker.sock` 마운트, DinD 없음). 이때 Testcontainers가 띄우는
+    // MySQL·Redis·Ryuk은 **호스트의 형제 컨테이너**로 뜨는데, 기본값은 `localhost:매핑포트`라
+    // 그 localhost가 Jenkins 컨테이너 자신을 가리켜 연결이 실패한다(Ryuk 단계에서 죽는다).
+    //
+    // 그래서 컨테이너 안이라고 판단되면 호스트 주소를 찾아 넘긴다. 환경변수가 이미 설정돼
+    // 있으면 그것을 존중한다 — 인프라가 compose에 값을 넣으면 이 로직은 비켜선다.
+    if (file('/.dockerenv').exists()) {
+        def configured = System.getenv('TESTCONTAINERS_HOST_OVERRIDE')
+
+        // 설정값이 있어도 **해석되는지 확인한다.** Linux에서 host.docker.internal 은
+        // compose 에 extra_hosts(host-gateway)가 없으면 해석되지 않는다. 그 값을 그대로
+        // 존중하면 UnknownHostException 으로 죽는데, 아무 설정이 없을 때보다 나쁘다
+        // (자동 탐지가 비켜서기 때문). 그래서 못 쓸 값이면 폴백으로 넘어간다.
+        if (configured && !isResolvableHost(configured)) {
+            logger.warn("TESTCONTAINERS_HOST_OVERRIDE=${configured} 를 해석할 수 없다. " +
+                    "Linux라면 compose 에 extra_hosts \"host.docker.internal:host-gateway\" 가 " +
+                    "필요하다. 우선 게이트웨이로 폴백한다.")
+            configured = null
+        }
+
+        def hostAddress = configured ?: resolveDockerHostAddress()
+        if (hostAddress) {
+            environment 'TESTCONTAINERS_HOST_OVERRIDE', hostAddress
+            logger.lifecycle("컨테이너 안에서 실행 중 — TESTCONTAINERS_HOST_OVERRIDE=${hostAddress}")
+        } else {
+            logger.warn('컨테이너 안인데 호스트 주소를 찾지 못했다. Testcontainers 연결이 실패할 수 있다.')
+        }
+    }
+}
+
+/** 이름·IP가 해석되는지. IP 리터럴은 DNS를 타지 않아 항상 참이다. */
+boolean isResolvableHost(String host) {
+    try {
+        InetAddress.getByName(host)
+        return true
+    } catch (ignored) {
+        return false
+    }
+}
+
+/**
+ * 컨테이너 안에서 본 호스트 주소.
+ *
+ * 1) `host.docker.internal` — Docker Desktop은 기본 제공, Linux는 compose에
+ *    `extra_hosts: ["host.docker.internal:host-gateway"]`가 있을 때 해석된다.
+ * 2) 기본 게이트웨이 — Linux 브리지 네트워크에서 호스트가 게시한 포트에 닿는 주소
+ *    (보통 172.17.0.1). `ip` 명령이 없는 이미지도 있어 /proc/net/route를 직접 읽는다.
+ */
+String resolveDockerHostAddress() {
+    try {
+        InetAddress.getByName('host.docker.internal')
+        return 'host.docker.internal'
+    } catch (ignored) {
+        // 해석되지 않으면 게이트웨이로 넘어간다.
+    }
+    try {
+        def route = file('/proc/net/route')
+        if (!route.exists()) {
+            return null
+        }
+        // Iface Destination Gateway Flags ... — Destination 이 00000000 인 줄이 기본 경로다.
+        for (String line : route.readLines().drop(1)) {
+            def cols = line.trim().split(/\s+/)
+            if (cols.length > 2 && cols[1] == '00000000' && cols[2] != '00000000') {
+                // Gateway 는 리틀엔디언 16진수다. 010011AC → 172.17.0.1
+                def hex = cols[2]
+                def octets = (0..3).collect { Integer.parseInt(hex.substring(it * 2, it * 2 + 2), 16) }
+                return octets.reverse().join('.')
+            }
+        }
+    } catch (ignored) {
+        return null
+    }
+    return null
+}
+
+// Dockerfile이 build/libs/*.jar 하나를 전제한다. plain jar를 끄지 않으면 jar가 2개가 되어
+// COPY --from=build /src/build/libs/*.jar app.jar 가 깨진다.
+tasks.named('jar') {
+    enabled = false
+}

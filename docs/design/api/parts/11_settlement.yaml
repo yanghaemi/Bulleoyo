@@ -1,0 +1,898 @@
+# 2026-09-08: 코인 개명 KRWS -> YoYo (name·symbol "YoYo", 로직 불변)
+paths:
+  /api/v1/performances/{performanceId}/settlement:
+    get:
+      operationId: settlement_01
+      tags: [settlement]
+      summary: 정산 상태·집계·분배액·tx 조회
+      description: >
+        정산 상태 머신의 현재 위치, 총 매출·환불액·분배 대상액, 팀별 분배액과 산출 근거, 관련 tx 해시를
+        한 응답에 담아 P-08 화면 전체를 그린다. 팀별 항목에 released·releasedAt·walletAddress(수령 여부·시각·
+        수령 주소 스냅샷)를 담고, release가 정산의 종단이라 myTeam.nextAction은 NONE/WAIT_RELEASE 둘뿐이다.
+        각 단계 액션(집계 확정·잠금·이의제기·release·approve)의 실행 가능 여부와 막힌 이유를 actions로 담아
+        버튼 활성 조건을 서버가 정한다. 참여팀 소속만 조회할 수 있다.
+        [2026-09-21] 팀별 항목에 approved·approvedAt(정산 조기 동의, API-settlement-08), myTeam.approved,
+        actions.approve를 추가했다. 미동의 팀은 approvedAt이 non_null 직렬화로 필드째 빠진다. 동의 현황
+        n/m은 shares.filter(approved).length / shares.length로 화면이 계산한다.
+      x-priority: P0
+      x-role: [PERFORMER]
+      x-screens: [P-08]
+      x-features: [F-settlement-01]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: 공연 PK
+      responses:
+        '200':
+          description: 정산 현황 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Settlement'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      performanceId: 12
+                      settlementId: 91
+                      status: RELEASED
+                      rate: { currency: USD, rate: 1350.0, asOf: '2026-09-02T09:00:00+09:00' }
+                      currency: KRW
+                      grossRevenueAmount: 1600000
+                      refundedAmount: 75000
+                      netRevenueAmount: 1525000
+                      distributableAmount: 1525000
+                      escrowBalanceAmount: 0
+                      fixedRatioBp: 6000
+                      selectionRatioBp: 4000
+                      dustAmount: 4
+                      dustTeamId: 7
+                      rulesHash: '0x4d1c8f7a2b9e0d3f6a5c8b1e4d7f0a3c6b9e2d5f8a1c4b7e0d3f6a9c2b5e8d1f'
+                      aggregatedAt: '2026-09-20T10:00:00+09:00'
+                      lockedAt: '2026-09-20T18:00:00+09:00'
+                      disputeClosesAt: '2026-09-22T18:00:00+09:00'
+                      releasedAt: '2026-09-22T18:00:30+09:00'
+                      releaseTxHash: '0x9c1a4b7e2d5f8039ab6c4e1d2f3a5b7c9e0d1f2a3b4c5d6e7f8091a2b3c4d5e6'
+                      counterMatched: true
+                      deposit: { status: RETURNED, amount: 50000, returnTxHash: '0x8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7', returnedAt: '2026-09-22T18:00:45+09:00' }
+                      shares:
+                        - { teamId: 7, teamName: 블루노트, walletAddress: '0x7a3f9c1d2e4b5a6c8d0e1f2a3b4c5d6e7f809a1b', fixedAmount: 457500, choiceAmount: 285937, dustAmount: 4, totalAmount: 743441, choiceCount: 30, released: true, releasedAt: '2026-09-22T18:00:30+09:00', approved: true, approvedAt: '2026-09-21T14:03:11+09:00' }
+                        - { teamId: 9, teamName: 새벽세시, walletAddress: '0x3c8a1f2b4d6e8091a2b3c4d5e6f708192a3b4c5d', fixedAmount: 274500, choiceAmount: 200156, dustAmount: 0, totalAmount: 474656, choiceCount: 21, released: true, releasedAt: '2026-09-22T18:00:30+09:00', approved: true, approvedAt: '2026-09-21T15:40:02+09:00' }
+                        - { teamId: 11, teamName: 노이즈캔슬, walletAddress: '0x9e0d1f2a3b4c5d6e7f8091a2b3c4d5e6f7081920', fixedAmount: 183000, choiceAmount: 123903, dustAmount: 0, totalAmount: 306903, choiceCount: 13, released: true, releasedAt: '2026-09-22T18:00:30+09:00', approved: true, approvedAt: '2026-09-21T16:12:47+09:00' }
+                      myTeam: { teamId: 11, totalAmount: 306903, released: true, releasedAt: '2026-09-22T18:00:30+09:00', walletAddress: '0x9e0d1f2a3b4c5d6e7f8091a2b3c4d5e6f7081920', nextAction: NONE, approved: true }
+                      disputes: []
+                      transactions:
+                        - { type: START_SALE, txHash: '0x8f2e1d0c9b8a70695847362514039281a0b1c2d3e4f5061728394a5b6c7d8e9f', explorerUrl: 'https://kairos.kaiascan.io/tx/0x8f2e1d0c9b8a70695847362514039281a0b1c2d3e4f5061728394a5b6c7d8e9f' }
+                        - { type: RELEASE, txHash: '0x9c1a4b7e2d5f8039ab6c4e1d2f3a5b7c9e0d1f2a3b4c5d6e7f8091a2b3c4d5e6', explorerUrl: 'https://kairos.kaiascan.io/tx/0x9c1a4b7e2d5f8039ab6c4e1d2f3a5b7c9e0d1f2a3b4c5d6e7f8091a2b3c4d5e6' }
+                      actions:
+                        aggregate: { available: false, blockedReason: SETTLEMENT_ALREADY_RELEASED }
+                        lock: { available: false, blockedReason: SETTLEMENT_ALREADY_RELEASED }
+                        dispute: { available: false, blockedReason: SETTLEMENT_ALREADY_RELEASED }
+                        release: { available: false, blockedReason: SETTLEMENT_ALREADY_RELEASED }
+                        approve: { available: false, blockedReason: SETTLEMENT_ALREADY_RELEASED }
+                    msg: ''
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 비로그인
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            SETTLEMENT_NOT_PARTICIPANT — 참여팀 소속이 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+
+  /api/v1/performances/{performanceId}/settlement/aggregate:
+    post:
+      operationId: settlement_02
+      tags: [settlement]
+      summary: 정산 집계 확정
+      description: >
+        공연 종료(ENDED) 이후 생성자 또는 ADMIN이 실행한다. 서버 집계와 온체인 선택 카운터 합을 대조해
+        불일치하면 SETTLEMENT_AGGREGATE_MISMATCH(409)로 집계 확정만 거부하고 정산 상태는 그대로 둔다 —
+        HALTED로 전이하는 경로가 아니다. 확정 서명이 끝나지 않은 결제·mint가 남아 있으면 COIN_MINT_PENDING으로
+        막는다 — PAYING 결제는 주문 상태와 무관하게 세고(대납 tx 가 이미 나갔다), 미서명 결제는 살아 있는
+        (PENDING_PAYMENT) 주문의 것만 센다. 확정되면 정산이 NONE → AGGREGATED로 전이하고 팀별 분배액이 산출·저장된다.
+      x-priority: P0
+      x-role: [PERFORMER, ADMIN]
+      x-screens: [P-08]
+      x-features: [F-settlement-02]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: 공연 PK
+      responses:
+        '202':
+          description: >
+            집계 확정 접수(운영자 tx, signerType=OPERATOR). 확정 시 정산 NONE → AGGREGATED, settlement_share가
+            확정 저장된다.
+            [2026-09-16 — S15P21B204-92] 공용 ChainJobAccepted 를 참조하던 것을 AggregateResponse
+            실제 7필드로 바꿨다. 전부 필수다 — null 이 될 수 있는 자리가 없다.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [jobId, status, signerType, pollAfterMs, performanceId, nextStatus, validTicketCount]
+                        properties:
+                          jobId: { type: string }
+                          status: { type: string, enum: [PENDING, SUBMITTED, CONFIRMED, FAILED] }
+                          signerType: { type: string, enum: [OPERATOR, USER] }
+                          pollAfterMs: { type: integer, default: 2000 }
+                          performanceId: { type: integer, format: int64 }
+                          nextStatus: { type: string, enum: [AGGREGATED], description: 확정 시 정산 상태 }
+                          validTicketCount: { type: integer, description: 환불을 뺀 유효 티켓 수. 온체인 카운터와 대조가 끝난 값이다 }
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      jobId: chain_01J9E1K2L3
+                      status: PENDING
+                      signerType: OPERATOR
+                      pollAfterMs: 2000
+                      performanceId: 12
+                      nextStatus: AGGREGATED
+                      validTicketCount: 64
+                    msg: 집계 확정을 접수했습니다.
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_OWNER — 생성자도 ADMIN도 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_INVALID_STATUS — 공연이 아직 ENDED가 아니거나 CANCELLED이거나, 정산이 HALTED
+            COMMON_CONFLICT — 이미 AGGREGATED 이상이거나 집계 작업 진행 중
+            COIN_MINT_PENDING — 확정되지 않은 결제 서명·mint 건이 남아 있음 (PAYING 은 주문 상태와 무관하게, 미서명 결제는 살아 있는 PENDING_PAYMENT 주문의 것만 센다)
+            SETTLEMENT_AGGREGATE_MISMATCH — 온체인 카운터 합 ≠ 서버 집계
+        '500':
+          $ref: '#/components/responses/Error'
+          description: |
+            CHAIN_GAS_INSUFFICIENT — 운영지갑 가스 부족
+        '504':
+          $ref: '#/components/responses/Error'
+          description: |
+            CHAIN_TX_TIMEOUT — 온체인 확정 지연 — jobId로 계속 폴링
+
+  /api/v1/performances/{performanceId}/settlement/lock:
+    post:
+      operationId: settlement_03
+      tags: [settlement]
+      summary: 정산 잠금(이의제기 시작)
+      description: >
+        AGGREGATED에서만 실행한다. 잠금 즉시 팀별 분배액이 고정되고 48시간 이의제기 기간이 시작되며, 조회
+        응답에서는 DISPUTE_OPEN으로 표시된다. 온체인 카운터 불일치(counterMatched=false) 상태에서는 잠글 수
+        없다. 잠금 이후 개별 환불은 앱·컨트랙트 양쪽에서 막힌다.
+      x-priority: P0
+      x-role: [PERFORMER, ADMIN]
+      x-screens: [P-08]
+      x-features: [F-settlement-03]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: 공연 PK
+      responses:
+        '202':
+          description: >
+            정산 잠금 접수(운영자 tx, signerType=OPERATOR). 확정 시 AGGREGATED → LOCKED,
+            disputeClosesAt = now + 48h.
+            [2026-09-16 — S15P21B204-92] 공용 ChainJobAccepted 를 참조하던 것을 LockResponse
+            실제 7필드로 바꿨다. 전부 필수다.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [jobId, status, signerType, pollAfterMs, performanceId, nextStatus, disputeClosesAt]
+                        properties:
+                          jobId: { type: string }
+                          status: { type: string, enum: [PENDING, SUBMITTED, CONFIRMED, FAILED] }
+                          signerType: { type: string, enum: [OPERATOR, USER] }
+                          pollAfterMs: { type: integer, default: 2000 }
+                          performanceId: { type: integer, format: int64 }
+                          nextStatus: { type: string, enum: [LOCKED] }
+                          disputeClosesAt: { type: string, format: date-time, description: 이의제기 마감(= 접수 시각 + 48h) }
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      jobId: chain_01J9E4M5N6
+                      status: PENDING
+                      signerType: OPERATOR
+                      pollAfterMs: 2000
+                      performanceId: 12
+                      nextStatus: LOCKED
+                      disputeClosesAt: '2026-09-22T18:00:00+09:00'
+                    msg: 정산을 잠갔습니다. 48시간 동안 이의제기를 받습니다.
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_OWNER — 생성자도 ADMIN도 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            SETTLEMENT_NOT_LOCKED — 정산이 아직 AGGREGATED가 아님(집계 미확정)
+            SETTLEMENT_AGGREGATE_MISMATCH — 카운터 불일치 상태
+            COMMON_CONFLICT — 이미 LOCKED 이상이거나 잠금 작업 진행 중
+            PERFORMANCE_INVALID_STATUS — 공연이 CANCELLED이거나 정산이 HALTED
+        '500':
+          $ref: '#/components/responses/Error'
+          description: |
+            CHAIN_GAS_INSUFFICIENT — 운영지갑 가스 부족
+
+  /api/v1/performances/{performanceId}/settlement/disputes:
+    post:
+      operationId: settlement_04
+      tags: [settlement]
+      summary: 정산 이의제기
+      description: >
+        참여팀 리더가 잠금 후 48시간 안에 사유를 제출한다. 접수되면 release 자동 실행이 보류되고 관리자 검토
+        (API-admin-06)로 넘어간다. 팀당 동시에 열린 이의는 1건이며, 온체인 작업이 아니므로 동기 201로
+        응답한다. dispute에 member_id는 없다 — 팀 단위 이의다.
+      x-priority: P0
+      x-role: [PERFORMER]
+      x-screens: [P-08]
+      x-features: [F-settlement-04]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: 공연 PK
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisputeCreateRequest'
+            examples:
+              default:
+                value: { teamId: 11, reason: 관객 선택 집계가 현장 티켓 수와 맞지 않습니다. 재확인 요청합니다., expectedAmount: 320000 }
+      responses:
+        '201':
+          description: 이의제기 접수 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Dispute'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data: { disputeId: 41, performanceId: 12, teamId: 11, status: OPEN, createdAt: '2026-09-21T09:12:00+09:00', releaseHeld: true }
+                    msg: 이의제기가 접수되었습니다. 관리자 검토 후 정산이 재개됩니다.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 사유 길이 위반
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_FORBIDDEN — 해당 팀 리더가 아님
+            SETTLEMENT_NOT_PARTICIPANT — 참여팀이 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            SETTLEMENT_NOT_LOCKED — 아직 잠금 전이라 이의 대상이 없음
+            SETTLEMENT_ALREADY_RELEASED — 이미 release 완료
+            COMMON_CONFLICT — 이의제기 기간 종료, 같은 팀의 열린 이의 존재(전용 코드 SETTLEMENT_DISPUTE_CLOSED는 §16.1),
+            진행 중인 RELEASE job 존재 — 조기 동의로 release 가 기간 중에도 성립하면서 생긴 겹침이다.
+            두 경로는 공연 행 쓰기 락으로 직렬화되고, job 이 먼저 걸렸으면 그 뒤의 이의를 거절한다
+
+  /api/v1/performances/{performanceId}/settlement/release:
+    post:
+      operationId: settlement_05
+      tags: [settlement]
+      summary: release 실행(정산 종단)
+      description: >
+        이의제기 48시간이 지나면 자동 스케줄이 실행하고 이 API는 같은 동작의 수동 트리거다. 열린 이의가 있으면
+        자동·수동 모두 막힌다. 확정되면 운영자가 release(showId)로 각 팀 리더 지갑에 YoYo를 push하고 이어서
+        returnDeposit(showId)로 보증금을 반환한다 — release 확정이 곧 수령 완료이며 그 뒤 단계가 없다. 팀별
+        부분 성공을 허용하고 실패 건은 자동 재시도 대상이다. Idempotency-Key가 필수다.
+        [2026-09-21] 참여팀 전원(주최팀 포함)이 조기 동의(API-settlement-08)하면 이의제기 48시간이 남아
+        있어도 통과한다. 열린 이의가 하나라도 있으면 전원 동의여도 여전히 막힌다 — 순서는 그대로다. 자동
+        스케줄 후보도 "마감이 지난 정산"에서 "잠긴 정산 전부(LOCKED·DISPUTE_OPEN)"로 넓어져 전원 동의 후
+        최대 60초 안에 자동 실행이 접수된다.
+      x-priority: P0
+      x-role: [PERFORMER, ADMIN]
+      x-screens: [P-08]
+      x-features: [F-settlement-05]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: X-Step-Up-Token
+          in: header
+          required: false
+          schema: { type: string, maxLength: 128 }
+          description: "[2026-09-24] 본인 확인 토큰(webauthn_04, 범위 SETTLEMENT_RELEASE·공연). 서버 스위치 STEP_UP_ENABLED 가 켜져 있으면 필수 — 없거나 만료·소비·다른 동작/대상/회원의 토큰이면 403 WEBAUTHN_STEP_UP_REQUIRED. 권한·소유 검사가 먼저 돈다. 자동 스케줄은 가드하지 않는다. 꺼져 있으면 읽지 않는다"
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: 공연 PK
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettlementReleaseRequest'
+            examples:
+              default:
+                value: { note: 이의 처리 완료 후 수동 실행 }
+      responses:
+        '202':
+          description: >
+            release 실행 접수(운영자 tx 2건: release·returnDeposit, signerType=OPERATOR). 확정 시 정산
+            LOCKED/DISPUTE_OPEN → RELEASED(종단), settlement_share.released·deposit_status=RETURNED 기록.
+            팀별 부분 성공 결과는 GET /api/v1/chain/jobs/{jobId}의 results로 확인한다.
+            [2026-09-16 — S15P21B204-92] 공용 ChainJobAccepted 를 참조하던 것을 ReleaseResponse
+            실제 13필드로 바꿨다.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [jobId, status, signerType, pollAfterMs, performanceId, settlementId, nextStatus, targetTeamCount, totalAmount, currency, depositReturnPlanned, payoutNotice]
+                        properties:
+                          jobId: { type: string }
+                          status: { type: string, enum: [PENDING, SUBMITTED, CONFIRMED, FAILED] }
+                          signerType: { type: string, enum: [OPERATOR, USER] }
+                          pollAfterMs: { type: integer, default: 2500 }
+                          performanceId: { type: integer, format: int64 }
+                          settlementId: { type: integer, format: int64 }
+                          nextStatus: { type: string, enum: [RELEASED] }
+                          targetTeamCount: { type: integer, description: 분배 대상 팀 수(settlement_share 행 수) }
+                          totalAmount: { $ref: '#/components/schemas/Money' }
+                          currency: { type: string, enum: [KRW] }
+                          depositReturnPlanned: { type: boolean }
+                          depositAmount:
+                            allOf: [{ $ref: '#/components/schemas/Money' }]
+                            description: >
+                              보증금이 없는 공연이면 서버가 null 을 담고 non_null 직렬화가 키를 지운다.
+                              그래서 required 가 아니다 — 0 과 구분해야 한다.
+                          payoutNotice: { type: string, description: 수령 안내 문구. 고정 문자열이다 }
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      jobId: chain_01J9F7P8Q9
+                      status: PENDING
+                      signerType: OPERATOR
+                      pollAfterMs: 2500
+                      performanceId: 12
+                      settlementId: 91
+                      nextStatus: RELEASED
+                      targetTeamCount: 3
+                      totalAmount: 1525000
+                      currency: KRW
+                      depositReturnPlanned: true
+                      depositAmount: 50000
+                      payoutNotice: release가 확정되면 각 팀 리더 지갑에 코인이 도착하고, 그것으로 수령이 끝납니다.
+                    msg: 정산 실행을 접수했습니다.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — Idempotency-Key 헤더 없음
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_OWNER — 생성자도 ADMIN도 아님
+            WEBAUTHN_STEP_UP_REQUIRED — [2026-09-24] 스위치 켜짐 + X-Step-Up-Token 없음·만료·소비·범위(SETTLEMENT_RELEASE·공연) 불일치
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            SETTLEMENT_NOT_LOCKED — 집계·잠금 전
+            SETTLEMENT_DISPUTE_PERIOD — 이의제기 48시간 경과 전(단 참여팀 전원 동의면 통과, API-settlement-08) 또는 열린 이의 존재(전원 동의여도 막힘)
+            SETTLEMENT_ALREADY_RELEASED — 이미 release 완료
+            PERFORMANCE_INVALID_STATUS — 공연이 CANCELLED이거나 정산이 HALTED
+            COIN_ESCROW_INSUFFICIENT — 에스크로 잔액 < 분배 합계(대사 점검 대상)
+            COIN_RESERVE_MISMATCH — 발행량 대사 불일치로 release 중단 상태(전용 코드 COIN_SUPPLY_MISMATCH는 §16.1)
+            COMMON_CONFLICT — 같은 멱등키에 다른 본문, release 작업 진행 중
+        '500':
+          $ref: '#/components/responses/Error'
+          description: |
+            CHAIN_GAS_INSUFFICIENT — 운영지갑 가스 부족
+        '504':
+          $ref: '#/components/responses/Error'
+          description: |
+            CHAIN_TX_TIMEOUT — 확정 지연 — jobId로 계속 폴링
+
+  /api/v1/performances/{performanceId}/settlement/share-link:
+    post:
+      operationId: settlement_06
+      tags: [settlement]
+      summary: 정산 공유 링크 생성
+      description: >
+        팀 리더가 정산 내역을 밴드 멤버에게 보여줄 공개 링크를 발급한다(settlement.share_token). 팀원 소속
+        개념이 없으므로 이 링크가 밴드 멤버 공유의 유일한 경로다. 재발급하면 기존 토큰이 무효화되고, 정산이
+        AGGREGATED 이상이어야 의미 있는 데이터가 있다.
+      x-priority: P0
+      x-role: [PERFORMER]
+      x-screens: [P-08]
+      x-features: [F-settlement-06]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: 공연 PK
+      responses:
+        '201':
+          description: 공유 링크 생성 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SettlementShareLinkResult'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data: { performanceId: 12, shareUrl: 'https://b204.ssafy.io/settlement/share/stl_9f2c1a7b4e8d', shareToken: stl_9f2c1a7b4e8d, issuedAt: '2026-09-22T18:30:00+09:00' }
+                    msg: 공유 링크가 생성되었습니다. 밴드 멤버에게 전달해 주세요.
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_OWNER — 생성자 팀 리더가 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_INVALID_STATUS — 정산이 아직 NONE
+
+  /api/v1/public/settlement/{shareToken}:
+    get:
+      operationId: settlement_07
+      tags: [settlement]
+      summary: 정산 공유 링크 조회(공개)
+      description: >
+        share_token으로 팀별 분배액·선택 수·상태를 로그인 없이 조회한다. 관객 개인정보는 담지 않고 팀 단위
+        집계만 준다. settlementStatus는 RELEASED가 종단이며 팀별 수령 여부(released)까지만 담는다. 토큰이
+        무효화됐거나 없으면 404다.
+      x-priority: P0
+      x-role: [GUEST]
+      x-screens: [V-03]
+      x-features: [F-settlement-07]
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: shareToken
+          in: path
+          required: true
+          schema: { type: string }
+          description: 정산 공유 토큰
+      responses:
+        '200':
+          description: 공개 정산 내역 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SettlementPublic'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      performanceId: 12
+                      performanceTitle: 합정 3밴드 합동공연
+                      performedAt: '2026-09-19T19:00:00+09:00'
+                      settlementStatus: RELEASED
+                      rate: { currency: USD, rate: 1350.0, asOf: '2026-09-02T09:00:00+09:00' }
+                      currency: KRW
+                      grossRevenueAmount: 1600000
+                      refundedAmount: 75000
+                      netRevenueAmount: 1525000
+                      fixedRatioBp: 6000
+                      selectionRatioBp: 4000
+                      shares:
+                        - { teamName: 블루노트, fixedAmount: 457500, choiceAmount: 285937, dustAmount: 4, totalAmount: 743441, choiceCount: 30, released: true }
+                        - { teamName: 새벽세시, fixedAmount: 274500, choiceAmount: 200156, dustAmount: 0, totalAmount: 474656, choiceCount: 21, released: true }
+                        - { teamName: 노이즈캔슬, fixedAmount: 183000, choiceAmount: 123903, dustAmount: 0, totalAmount: 306903, choiceCount: 13, released: true }
+                      releaseTxHash: '0x9c1a4b7e2d5f8039ab6c4e1d2f3a5b7c9e0d1f2a3b4c5d6e7f8091a2b3c4d5e6'
+                      explorerUrl: 'https://kairos.kaiascan.io/tx/0x9c1a4b7e2d5f8039ab6c4e1d2f3a5b7c9e0d1f2a3b4c5d6e7f8091a2b3c4d5e6'
+                      simulationNotice: 테스트넷 시연 정산입니다. 실제 자금이 아닙니다.
+                    msg: ''
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_NOT_FOUND — 존재하지 않거나 무효화된 토큰
+
+  /api/v1/performances/{performanceId}/settlement/approvals:
+    post:
+      operationId: settlement_08
+      tags: [settlement]
+      summary: 정산 조기 동의
+      description: >
+        [2026-09-21 신설] 참여팀 전원(주최팀 포함)이 동의하면 48시간 이의제기 기간을 건너뛰고 release가
+        열린다. 요청 본문이 없다 — 동의 대상 팀은 요청자가 리더인 참여팀으로 서버가 정한다. ADMIN 우회가
+        없다(dispute와 달리 남의 팀을 대신 동의할 수 없다). 동의는 되돌릴 수 없다. 온체인 작업이 아니므로
+        동기 201로 응답한다. 이의제기 마감이 지난 뒤의 동의도 막지 않는다.
+      x-priority: P0
+      x-role: [PERFORMER]
+      x-screens: [P-08]
+      x-features: [F-settlement-08]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: X-Step-Up-Token
+          in: header
+          required: false
+          schema: { type: string, maxLength: 128 }
+          description: "[2026-09-24] 본인 확인 토큰(webauthn_04, 범위 SETTLEMENT_APPROVE·공연). 서버 스위치 STEP_UP_ENABLED 가 켜져 있으면 필수 — 없거나 만료·소비·다른 동작/대상/회원의 토큰이면 403 WEBAUTHN_STEP_UP_REQUIRED. 권한·소유 검사가 먼저 돈다. 동의 게이트(참여팀 리더·정산 상태)를 통과한 뒤 검사한다. 꺼져 있으면 읽지 않는다"
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: 공연 PK
+      responses:
+        '201':
+          description: 정산 동의 접수 성공(동기)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SettlementApproval'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data: { teamId: 12, approvedAt: '2026-09-21T14:03:11+09:00', approvedCount: 2, requiredCount: 3, releaseUnlocked: false }
+                    msg: 정산에 동의했습니다.
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 비로그인
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            SETTLEMENT_NOT_PARTICIPANT — 참여팀이 아님(참여팀 아닌 ADMIN 포함, 리더가 아닌 팀원 포함)
+            WEBAUTHN_STEP_UP_REQUIRED — [2026-09-24] 스위치 켜짐 + X-Step-Up-Token 없음·만료·소비·범위(SETTLEMENT_APPROVE·공연) 불일치
+            -04와 달리 COMMON_FORBIDDEN 은 없다 — 본문이 없어 대상 팀을 요청자에서 찾고,
+            팀 소속 테이블이 없어 참여팀의 리더가 곧 소속이다
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            SETTLEMENT_NOT_LOCKED — 정산이 NONE·AGGREGATED, 또는 요청자 팀의 분배 행이 없음
+            SETTLEMENT_ALREADY_RELEASED — 정산이 RELEASED
+            PERFORMANCE_INVALID_STATUS — 정산이 HALTED
+            COMMON_CONFLICT — 이미 동의한 팀, 또는 그 팀에 열린 이의가 있음
+
+components:
+  schemas:
+    SettlementRateSummary:
+      type: object
+      description: '§0.5 목록 축약형 환율 — 항목마다 display를 반복하지 않는다'
+      properties:
+        currency: { type: string }
+        rate: { type: number }
+        asOf: { type: string, format: date-time }
+
+    SettlementActionState:
+      type: object
+      required: [available]
+      properties:
+        available: { type: boolean }
+        blockedReason:
+          type: string
+          nullable: true
+          description: |
+            available=false일 때 막힌 이유. 실행 API가 그 상태에서 실제로 던지는 ErrorCode와 **같은 문자열**이다
+            (서버가 실행·조회에 같은 게이트 `SettlementGates`를 쓴다). 안내 문구 매핑을 409 응답과 공유하면 된다.
+
+    SettlementActions:
+      type: object
+      description: |
+        단계별 액션 실행 가능 여부. 버튼 활성 조건을 서버가 정한다 — 프론트는 상태·이의·마감·대사를 다시 판정하지 않는다.
+
+        **예외 2종(체인 조회가 필요한 검사)은 여기 반영되지 않는다** — 조회 한 번에 eth_call이 여러 번 붙는 것을 피한다.
+        · aggregate: 서버 집계 ↔ 온체인 카운터 대사 → 실행 시 409 `SETTLEMENT_AGGREGATE_MISMATCH`
+        · release: 실행 직전 에스크로 잔액 확인 → 실행 시 409 `COIN_ESCROW_INSUFFICIENT`
+        즉 `available: true`인 버튼도 실행이 409로 끝날 수 있다. 화면은 409 응답의 `code`로 안내하는 경로를 반드시 둔다(2026-09-09, D-25).
+
+        [2026-09-21] `approve`(정산 조기 동의, API-settlement-08)를 추가했다. 실행 API와 같은 게이트를
+        그대로 부른다 — 이미 동의했거나 열린 이의가 있으면 `available: false`다.
+      properties:
+        aggregate: { $ref: '#/components/schemas/SettlementActionState' }
+        lock: { $ref: '#/components/schemas/SettlementActionState' }
+        dispute: { $ref: '#/components/schemas/SettlementActionState' }
+        release: { $ref: '#/components/schemas/SettlementActionState' }
+        approve: { $ref: '#/components/schemas/SettlementActionState' }
+
+    SettlementShare:
+      type: object
+      required: [released]
+      properties:
+        teamId: { type: integer, format: int64 }
+        teamName: { type: string }
+        walletAddress: { $ref: '#/components/schemas/Address' }
+        fixedAmount: { type: integer, description: '2단계 규칙의 고정 풀 분배액(teamShareBp로 배분, v3의 equalAmount 대체)' }
+        choiceAmount: { type: integer }
+        dustAmount: { type: integer }
+        totalAmount: { type: integer }
+        choiceCount: { type: integer }
+        released: { type: boolean }
+        releasedAt: { type: string, format: date-time, nullable: true }
+        approved:
+          type: boolean
+          description: '[2026-09-21] 정산 조기 동의 여부(API-settlement-08)'
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: '[2026-09-21] 동의 시각. 미동의 팀은 non_null 직렬화로 필드째 빠진다'
+
+    SettlementMyTeam:
+      type: object
+      required: [released]
+      properties:
+        teamId: { type: integer, format: int64 }
+        totalAmount: { type: integer }
+        released: { type: boolean }
+        releasedAt: { type: string, format: date-time, nullable: true }
+        walletAddress: { $ref: '#/components/schemas/Address' }
+        nextAction:
+          type: string
+          enum: [NONE, WAIT_RELEASE]
+          description: release 이후에는 팀이 할 일이 없어 값이 둘뿐이다
+        approved:
+          type: boolean
+          description: '[2026-09-21] 내 팀의 정산 조기 동의 여부. 버튼 라벨만 바꾸고 활성 판단에는 쓰지 않는다(활성 판단은 actions.approve)'
+
+    SettlementTransaction:
+      type: object
+      properties:
+        type:
+          type: string
+          description: 'chain_job.tx_type과 같은 값(§0.3 14종 중 정산 관련: START_SALE·AGGREGATE·LOCK·RELEASE·HALT 등)'
+          example: RELEASE
+        txHash: { $ref: '#/components/schemas/TxHash' }
+        explorerUrl: { type: string, format: uri }
+
+    SettlementDeposit:
+      type: object
+      properties:
+        status:
+          type: string
+          description: '보증금 상태. 문서 예시값은 RETURNED — 전체 enum은 performance/rule 도메인 소관'
+          example: RETURNED
+        amount: { type: integer }
+        returnTxHash: { $ref: '#/components/schemas/TxHash' }
+        returnedAt: { type: string, format: date-time, nullable: true }
+
+    Settlement:
+      type: object
+      description: 정산 상태·집계·분배액 전체(API-settlement-01). 참여팀 전용
+      required: [performanceId, settlementId, status, currency]
+      properties:
+        performanceId: { type: integer, format: int64 }
+        settlementId: { type: integer, format: int64 }
+        status:
+          type: string
+          enum: [NONE, AGGREGATED, LOCKED, DISPUTE_OPEN, RELEASED, HALTED]
+        rate: { $ref: '#/components/schemas/SettlementRateSummary' }
+        currency: { type: string, enum: [KRW] }
+        grossRevenueAmount: { type: integer }
+        refundedAmount: { type: integer }
+        netRevenueAmount: { type: integer }
+        distributableAmount: { type: integer }
+        escrowBalanceAmount: { type: integer }
+        fixedRatioBp: { type: integer, description: '고정 배분 비율(basis point, 10000=100%)' }
+        selectionRatioBp: { type: integer, description: '선택 배분 비율(basis point)' }
+        dustAmount: { type: integer, description: '나머지 배분(버림 오차). 생성 팀에 귀속' }
+        dustTeamId: { type: integer, format: int64 }
+        rulesHash: { $ref: '#/components/schemas/TxHash' }
+        aggregatedAt: { type: string, format: date-time, nullable: true }
+        lockedAt: { type: string, format: date-time, nullable: true }
+        disputeClosesAt: { type: string, format: date-time, nullable: true }
+        releasedAt: { type: string, format: date-time, nullable: true }
+        releaseTxHash:
+          oneOf:
+            - $ref: '#/components/schemas/TxHash'
+            - type: "null"
+        counterMatched:
+          type: boolean
+          description: 온체인 선택 카운터 합과 서버 집계 일치 여부(REL-06)
+        deposit: { $ref: '#/components/schemas/SettlementDeposit' }
+        shares:
+          type: array
+          items: { $ref: '#/components/schemas/SettlementShare' }
+        myTeam: { $ref: '#/components/schemas/SettlementMyTeam' }
+        disputes:
+          type: array
+          items: { $ref: '#/components/schemas/Dispute' }
+        transactions:
+          type: array
+          items: { $ref: '#/components/schemas/SettlementTransaction' }
+        actions: { $ref: '#/components/schemas/SettlementActions' }
+        stepUpRequired:
+          type: boolean
+          description: "[2026-09-24] 본인 확인 스위치(STEP_UP_ENABLED)가 켜졌을 때만 true — 조기 동의(settlement_08)·정산금 지급(settlement_05)이 X-Step-Up-Token 을 요구한다는 뜻(범위 SETTLEMENT_APPROVE / SETTLEMENT_RELEASE·공연). 꺼져 있으면 키가 없다(전역 non_null)"
+
+    Dispute:
+      type: object
+      description: 정산 이의제기(팀 단위, member_id 없음)
+      required: [releaseHeld]
+      properties:
+        disputeId: { type: integer, format: int64 }
+        performanceId: { type: integer, format: int64 }
+        teamId: { type: integer, format: int64 }
+        status:
+          type: string
+          enum: [OPEN, RESOLVED, REJECTED]
+        createdAt: { type: string, format: date-time }
+        releaseHeld:
+          type: boolean
+          description: 이 이의로 release 자동 실행이 보류 중인지
+
+    DisputeCreateRequest:
+      type: object
+      required: [teamId, reason]
+      properties:
+        teamId:
+          type: integer
+          format: int64
+          description: 이의를 제기하는 팀. 요청자가 리더인 참여팀이어야 한다
+        reason:
+          type: string
+          minLength: 10
+          maxLength: 1000
+        expectedAmount:
+          type: integer
+          minimum: 0
+          description: 팀이 주장하는 정산액(참고용)
+
+    SettlementReleaseRequest:
+      type: object
+      properties:
+        note:
+          type: string
+          maxLength: 200
+          description: 수동 실행 사유(감사 로그)
+
+    SettlementApproval:
+      type: object
+      description: 정산 조기 동의 응답(API-settlement-08, 동기 201)
+      required: [teamId, approvedAt, approvedCount, requiredCount, releaseUnlocked]
+      properties:
+        teamId: { type: integer, format: int64 }
+        approvedAt: { type: string, format: date-time }
+        approvedCount:
+          type: integer
+          description: 이번 동의를 포함해 동의한 팀 수
+        requiredCount:
+          type: integer
+          description: 전체 settlement_share 행 수(= 참여팀 수)
+        releaseUnlocked:
+          type: boolean
+          description: >
+            이 동의로 전원이 찼는가. release의 나머지 게이트(열린 이의·발행량 대사·에스크로·수령 지갑)까지
+            통과했다는 뜻은 아니다 — 그 답은 actions.release다.
+
+    SettlementShareLinkResult:
+      type: object
+      properties:
+        performanceId: { type: integer, format: int64 }
+        shareUrl: { type: string, format: uri }
+        shareToken: { type: string }
+        issuedAt: { type: string, format: date-time }
+
+    SettlementPublicShare:
+      type: object
+      required: [released]
+      properties:
+        teamName: { type: string }
+        fixedAmount: { type: integer }
+        choiceAmount: { type: integer }
+        dustAmount: { type: integer }
+        totalAmount: { type: integer }
+        choiceCount: { type: integer }
+        released: { type: boolean }
+
+    SettlementPublic:
+      type: object
+      description: 정산 공유 링크의 공개 조회 응답(API-settlement-07). 관객 개인정보 없음, 팀 단위 집계만
+      properties:
+        performanceId: { type: integer, format: int64 }
+        performanceTitle: { type: string }
+        performedAt: { type: string, format: date-time }
+        settlementStatus:
+          type: string
+          enum: [NONE, AGGREGATED, LOCKED, DISPUTE_OPEN, RELEASED, HALTED]
+        rate: { $ref: '#/components/schemas/SettlementRateSummary' }
+        currency: { type: string, enum: [KRW] }
+        grossRevenueAmount: { type: integer }
+        refundedAmount: { type: integer }
+        netRevenueAmount: { type: integer }
+        fixedRatioBp: { type: integer }
+        selectionRatioBp: { type: integer }
+        shares:
+          type: array
+          items: { $ref: '#/components/schemas/SettlementPublicShare' }
+        releaseTxHash: { $ref: '#/components/schemas/TxHash' }
+        explorerUrl: { type: string, format: uri }
+        simulationNotice: { type: string }

@@ -1,0 +1,63 @@
+.settlement-share {
+  color: var(--color-ink);
+}
+
+.settlement-share > header {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      circle at 88% 8%,
+      color-mix(in srgb, var(--color-primary) 24%, transparent),
+      transparent 38%
+    ),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--color-surface) 98%, black),
+      var(--color-surface)
+    );
+  box-shadow: 0 28px 84px rgb(0 0 0 / 0.28);
+}
+
+.settlement-share > header::after {
+  position: absolute;
+  right: -4rem;
+  bottom: -5rem;
+  width: 14rem;
+  height: 8rem;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 46%, transparent);
+  border-radius: 50%;
+  transform: rotate(-14deg);
+  content: '';
+  pointer-events: none;
+}
+
+.settlement-share section {
+  min-width: 0;
+}
+
+.settlement-share table {
+  font-variant-numeric: tabular-nums;
+}
+
+.settlement-share tbody tr {
+  transition: background-color 160ms ease-out;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .settlement-share tbody tr:hover {
+    background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+  }
+}
+
+@media (max-width: 22rem) {
+  .settlement-share {
+    padding-inline: 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settlement-share tbody tr {
+    transition-duration: 0.01ms;
+  }
+}

@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>B204 API v6 — Swagger UI</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+<style>body{margin:0} .topbar{display:none}</style></head>
+<body><div id="swagger-ui"></div>
+<script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+<script>
+// 로컬: docs/design/api 에서 `python3 -m http.server 8088` 후 http://localhost:8088 (file:// 은 fetch 차단)
+SwaggerUIBundle({ url: "./openapi.yaml", dom_id: "#swagger-ui", deepLinking: true, docExpansion: "list",
+  defaultModelsExpandDepth: 0, tagsSorter: (a,b)=>0, operationsSorter: (a,b)=>0 });
+</script></body></html>

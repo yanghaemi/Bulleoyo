@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="운영지갑 1개 안과 팀별 커스터디얼 지갑 안의 자금·서명 흐름을 나란히 그려 비교한 결정 문서.">
+<style>
+  *,*::before,*::after { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; }
+  img,svg { max-width:100%; }
+  dl,dd,figure,table,p,h1,h2,h3,ul { margin:0; }
+</style>
+<title>정산 지갑 두 갈래</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --paper:#f4f6f7; --surface:#ffffff; --surface-2:#eaeef0;
+    --ink:#16202a; --ink-2:#4b5b69; --ink-3:#77878f;
+    --line:#ccd6dc; --line-2:#dde4e8;
+    --chain:#0e6f62; --chain-wash:rgba(14,111,98,.065);
+    --bank:#2f5d8a; --bank-wash:rgba(47,93,138,.065);
+    --warn:#a4500e; --warn-wash:rgba(164,80,14,.09);
+    --serif:"Hahmlet","Noto Serif KR",Georgia,serif;
+    --sans:"IBM Plex Sans KR","Noto Sans KR",system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:#0e1215; --surface:#161c21; --surface-2:#1d252b;
+      --ink:#e3e8ea; --ink-2:#9caab4; --ink-3:#77878f;
+      --line:#2c363e; --line-2:#232c33;
+      --chain:#5cc4b2; --chain-wash:rgba(92,196,178,.10);
+      --bank:#86b6e2; --bank-wash:rgba(134,182,226,.10);
+      --warn:#e2a066; --warn-wash:rgba(226,160,102,.12);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#0e1215; --surface:#161c21; --surface-2:#1d252b;
+    --ink:#e3e8ea; --ink-2:#9caab4; --ink-3:#77878f;
+    --line:#2c363e; --line-2:#232c33;
+    --chain:#5cc4b2; --chain-wash:rgba(92,196,178,.10);
+    --bank:#86b6e2; --bank-wash:rgba(134,182,226,.10);
+    --warn:#e2a066; --warn-wash:rgba(226,160,102,.12);
+  }
+
+  body { background:var(--paper); color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.7; }
+  .wrap { max-width:1120px; margin:0 auto; padding:52px 24px 96px; display:flex; flex-direction:column; gap:52px; }
+  h1,h2,h3 { font-family:var(--serif); font-weight:600; text-wrap:balance; margin:0; line-height:1.28; }
+  h1 { font-size:clamp(30px,4.4vw,44px); letter-spacing:-.01em; }
+  h2 { font-size:clamp(21px,2.6vw,26px); }
+  h3 { font-size:17px; }
+  p { margin:0; }
+  a { color:var(--chain); }
+
+  .eyebrow { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3); }
+  header { display:flex; flex-direction:column; gap:14px; border-bottom:1px solid var(--line); padding-bottom:32px; }
+  .lede { font-size:18px; color:var(--ink-2); max-width:62ch; }
+  .meta { font-family:var(--mono); font-size:11.5px; color:var(--ink-3); display:flex; flex-wrap:wrap; gap:6px 18px; }
+
+  section { display:flex; flex-direction:column; gap:20px; }
+  .sechead { display:flex; flex-direction:column; gap:6px; }
+
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { font-family:var(--mono); font-size:11.5px; padding:5px 11px; border:1px solid var(--line); border-radius:2px; background:var(--surface); color:var(--ink-2); }
+  .chip b { color:var(--ink); font-weight:500; }
+
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:3px; padding:26px; display:flex; flex-direction:column; gap:18px; }
+  .card.rec { border-color:var(--chain); box-shadow:inset 3px 0 0 var(--chain); }
+  .cardtop { display:flex; flex-wrap:wrap; align-items:baseline; gap:12px; justify-content:space-between; }
+  .tag { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; padding:4px 9px; border-radius:2px; }
+  .tag.rec { background:var(--chain-wash); color:var(--chain); border:1px solid var(--chain); }
+  .tag.alt { background:var(--surface-2); color:var(--ink-2); border:1px solid var(--line); }
+
+  figure { margin:0; display:flex; flex-direction:column; gap:10px; }
+  .scroll { overflow-x:auto; }
+  .d { max-width:100%; height:auto; display:block; min-width:720px; }
+  figcaption { font-size:13px; color:var(--ink-2); }
+
+  .d text { fill:currentColor; }
+  .nt { font-family:var(--sans); font-size:11.5px; text-anchor:middle; }
+  .ns { font-family:var(--mono); font-size:9px; text-anchor:middle; opacity:.72; }
+  .lb { font-family:var(--mono); font-size:9.5px; text-anchor:middle; opacity:.85; }
+  .bandlb { font-family:var(--mono); font-size:10px; letter-spacing:.1em; }
+  .n { fill:var(--surface); stroke:currentColor; stroke-width:1.2; }
+  .n-chain { fill:var(--surface); stroke:var(--chain); stroke-width:1.4; }
+  .band-bank { fill:var(--bank-wash); stroke:var(--bank); stroke-width:1; stroke-dasharray:3 4; }
+  .band-chain { fill:var(--chain-wash); stroke:var(--chain); stroke-width:1; stroke-dasharray:3 4; }
+  .a { stroke:currentColor; stroke-width:1.3; fill:none; }
+  .a-dash { stroke:currentColor; stroke-width:1.2; fill:none; stroke-dasharray:4 3; opacity:.8; }
+  .a-acc { stroke:var(--chain); stroke-width:2; fill:none; }
+  .t-chain { fill:var(--chain); }
+  .mk-acc { fill:var(--chain); }
+  .t-bank { fill:var(--bank); }
+  .t-warn { fill:var(--warn); }
+
+  table { border-collapse:collapse; width:100%; font-size:13.5px; }
+  th,td { text-align:left; padding:11px 12px; border-bottom:1px solid var(--line-2); vertical-align:top; }
+  thead th { font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); border-bottom:1px solid var(--line); }
+  tbody th { font-weight:500; color:var(--ink); width:26%; }
+  td.num { font-variant-numeric:tabular-nums; font-family:var(--mono); }
+  .keep { color:var(--chain); font-weight:500; }
+  .lose { color:var(--warn); font-weight:500; }
+  .tbl { overflow-x:auto; }
+
+  .rows { display:flex; flex-direction:column; gap:0; }
+  .row { display:grid; grid-template-columns:150px 1fr; gap:18px; padding:15px 0; border-top:1px solid var(--line-2); }
+  .row:first-child { border-top:0; }
+  .row dt { font-family:var(--mono); font-size:11.5px; color:var(--ink-3); letter-spacing:.04em; padding-top:3px; }
+  .row dd { margin:0; }
+  @media (max-width:640px) { .row { grid-template-columns:1fr; gap:5px; } }
+
+  code { font-family:var(--mono); font-size:.9em; background:var(--surface-2); padding:1px 5px; border-radius:2px; }
+  .quote { border-left:2px solid var(--chain); padding:4px 0 4px 18px; color:var(--ink-2); font-size:14.5px; }
+  ul { margin:0; padding-left:20px; display:flex; flex-direction:column; gap:7px; }
+  li::marker { color:var(--ink-3); }
+  .note { font-size:13.5px; color:var(--ink-2); }
+  .legend { display:flex; flex-wrap:wrap; gap:14px; font-family:var(--mono); font-size:11px; color:var(--ink-2); }
+  .swatch { display:inline-flex; align-items:center; gap:6px; }
+  .swatch i { width:16px; height:0; border-top-width:2px; border-top-style:solid; display:inline-block; }
+  footer { border-top:1px solid var(--line); padding-top:24px; font-size:13px; color:var(--ink-3); }
+  :focus-visible { outline:2px solid var(--chain); outline-offset:2px; }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">기획 v2.1 · 지갑 구조 결정</div>
+    <h1>정산 지갑 두 갈래</h1>
+    <p class="lede">KRWS 정산을 운영지갑 하나로 처리할지, 팀별 커스터디얼 지갑을 두고 관리자가 대행할지. 자금 흐름은 두 안이 같고, 갈라지는 지점은 <strong>동의 증거를 누가 남기는가</strong> 하나입니다.</p>
+    <div class="meta">
+      <span>SSAFY 15기 특화 · B204</span>
+      <span>기준 문서 01_기획_초안_v2.md (v2.1)</span>
+      <span>2026-08-27</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="sechead">
+      <div class="eyebrow">공통 전제</div>
+      <h2>두 안이 공유하는 것</h2>
+      <p class="note">아래 여섯 개는 어느 안을 골라도 그대로 갑니다. 비교에서 제외하고 읽으세요.</p>
+    </div>
+    <div class="chips">
+      <span class="chip"><b>금융망</b> = 입출금 창구 (on/off-ramp)</span>
+      <span class="chip"><b>KRWS</b> ERC-20 · decimals 0 · 1 KRWS = 1원</span>
+      <span class="chip"><b>규칙 잠금</b> locked 이후 owner도 변경 불가</span>
+      <span class="chip"><b>준비금 증명</b> 에스크로 잔액 ≥ 유통량</span>
+      <span class="chip"><b>환급</b> 자동 push · 이체 성공 확인 후 burn</span>
+      <span class="chip"><b>권한 분리</b> minter/burner · operator 2개</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <div class="eyebrow">옵션 A</div>
+      <h2>운영지갑 1개 — 팀 지갑 없음</h2>
+    </div>
+    <div class="card">
+      <div class="cardtop">
+        <h3>팀은 온체인에 등장하지 않는다</h3>
+        <span class="tag alt">대안</span>
+      </div>
+      <figure>
+        <div class="scroll">
+          <svg class="d" viewBox="0 0 1000 412" role="img" aria-label="옵션 A: 모든 온체인 트랜잭션이 minter와 operator 두 운영지갑에서만 나가고, 컨트랙트가 산출한 KRWS는 운영지갑이 수령해 소각한 뒤 금융망이 팀 계좌로 이체한다. 팀 지갑은 존재하지 않는다.">
+            <defs>
+              <marker id="arA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L10 5 L0 10 z" fill="currentColor"></path>
+              </marker>
+              <marker id="arAc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path class="mk-acc" d="M0 0 L10 5 L0 10 z"></path>
+              </marker>
+            </defs>
+
+            <rect class="band-bank" x="130" y="44" width="740" height="156" rx="3"></rect>
+            <text class="bandlb t-bank" x="142" y="62">금융망 (은행)</text>
+            <rect class="band-chain" x="130" y="216" width="740" height="176" rx="3"></rect>
+            <text class="bandlb t-chain" x="142" y="234">온체인 (Polygon Amoy)</text>
+
+            <rect class="n" x="20" y="80" width="86" height="48" rx="2"></rect>
+            <text class="nt" x="63" y="102">관객</text>
+            <text class="ns" x="63" y="117">예매·결제</text>
+
+            <rect class="n" x="150" y="80" width="104" height="48" rx="2"></rect>
+            <text class="nt" x="202" y="102">결제 API</text>
+            <text class="ns" x="202" y="117">멱등키</text>
+
+            <rect class="n" x="310" y="80" width="130" height="48" rx="2"></rect>
+            <text class="nt" x="375" y="102">에스크로 계좌</text>
+            <text class="ns" x="375" y="117">예치금 보관</text>
+
+            <rect class="n" x="700" y="80" width="120" height="48" rx="2"></rect>
+            <text class="nt" x="760" y="102">이체 실행</text>
+            <text class="ns" x="760" y="117">예금주 검증</text>
+
+            <rect class="n" x="880" y="58" width="106" height="38" rx="2"></rect>
+            <text class="nt" x="933" y="82">팀 A 통장</text>
+            <rect class="n" x="880" y="104" width="106" height="38" rx="2"></rect>
+            <text class="nt" x="933" y="128">팀 B 통장</text>
+            <rect class="n" x="880" y="150" width="106" height="38" rx="2"></rect>
+            <text class="nt" x="933" y="174">팀 C 통장</text>
+
+            <rect class="n" x="142" y="244" width="104" height="40" rx="2"></rect>
+            <text class="nt" x="194" y="262">minter</text>
+            <text class="ns" x="194" y="276">발행·소각</text>
+
+            <rect class="n" x="142" y="320" width="104" height="40" rx="2"></rect>
+            <text class="nt" x="194" y="338">operator</text>
+            <text class="ns" x="194" y="352">기록·분배</text>
+
+            <rect class="n" x="320" y="252" width="160" height="110" rx="2"></rect>
+            <text class="nt" x="400" y="278">RevenueSplitter</text>
+            <text class="ns" x="400" y="298">규칙 잠금 (locked)</text>
+            <text class="ns" x="400" y="314">선택 카운터</text>
+            <text class="ns" x="400" y="330">KRWS 에스크로</text>
+            <text class="ns" x="400" y="348">분배액 산출</text>
+
+            <rect class="n" x="580" y="280" width="130" height="54" rx="2"></rect>
+            <text class="nt" x="645" y="302">운영지갑</text>
+            <text class="ns" x="645" y="318">KRWS 전량 수령</text>
+
+            <line class="a" x1="106" y1="104" x2="144" y2="104" marker-end="url(#arA)"></line>
+            <text class="lb" x="125" y="96">결제</text>
+            <line class="a" x1="254" y1="104" x2="304" y2="104" marker-end="url(#arA)"></line>
+            <text class="lb" x="279" y="96">예치</text>
+
+            <polyline class="a-dash" points="375,128 375,206 194,206 194,240" marker-end="url(#arA)"></polyline>
+            <text class="lb" x="292" y="200">입금 확인</text>
+
+            <line class="a" x1="246" y1="264" x2="314" y2="264" marker-end="url(#arA)"></line>
+            <text class="lb" x="280" y="256">mint KRWS</text>
+
+            <line class="a-acc" x1="246" y1="332" x2="314" y2="332" marker-end="url(#arAc)"></line>
+            <text class="lb t-chain" x="280" y="324">recordAgreement</text>
+            <text class="lb" x="280" y="348">recordChoice · startSale</text>
+
+            <line class="a" x1="480" y1="307" x2="574" y2="307" marker-end="url(#arA)"></line>
+            <text class="lb" x="527" y="299">release</text>
+
+            <polyline class="a" points="710,307 762,307 762,132" marker-end="url(#arA)"></polyline>
+            <text class="lb" x="820" y="230">환급: 이체 → burn</text>
+
+            <line class="a" x1="820" y1="104" x2="876" y2="79" marker-end="url(#arA)"></line>
+            <line class="a" x1="820" y1="104" x2="876" y2="123" marker-end="url(#arA)"></line>
+            <line class="a" x1="820" y1="104" x2="876" y2="169" marker-end="url(#arA)"></line>
+            <text class="lb" x="846" y="94">입금</text>
+          </svg>
+        </div>
+        <figcaption>온체인 트랜잭션이 <strong>전부 운영지갑 두 개에서만</strong> 나갑니다. 팀 동의는 서버가 만든 동의서의 해시를 <code>recordAgreement</code>로 기록하는 방식(강조된 화살표)으로 대체됩니다.</figcaption>
+      </figure>
+      <div class="chips">
+        <span class="chip">지갑 <b>2개 고정</b> (팀 수 무관)</span>
+        <span class="chip">팀 키 <b>없음</b></span>
+        <span class="chip">가스 <b>운영지갑만</b></span>
+        <span class="chip">문서 수정 <b>§6.1·8.1·8.2·8.3·8.4 전면</b></span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <div class="eyebrow">옵션 B</div>
+      <h2>팀별 커스터디얼 지갑 — 관리자가 대행</h2>
+    </div>
+    <div class="card rec">
+      <div class="cardtop">
+        <h3>팀 키는 동의 서명 한 번에만 쓴다</h3>
+        <span class="tag rec">권장</span>
+      </div>
+      <figure>
+        <div class="scroll">
+          <svg class="d" viewBox="0 0 1000 412" role="img" aria-label="옵션 B: 팀별 커스터디얼 지갑 3개가 각자 agreeToRules로 규칙에 동의하고, 컨트랙트가 release로 KRWS를 각 팀 지갑에 분배한 뒤 burner 권한이 소각하고 금융망이 팀 계좌로 이체한다.">
+            <defs>
+              <marker id="arB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L10 5 L0 10 z" fill="currentColor"></path>
+              </marker>
+              <marker id="arBc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path class="mk-acc" d="M0 0 L10 5 L0 10 z"></path>
+              </marker>
+            </defs>
+
+            <rect class="band-bank" x="130" y="44" width="740" height="156" rx="3"></rect>
+            <text class="bandlb t-bank" x="142" y="62">금융망 (은행)</text>
+            <rect class="band-chain" x="130" y="216" width="740" height="176" rx="3"></rect>
+            <text class="bandlb t-chain" x="142" y="234">온체인 (Polygon Amoy)</text>
+
+            <rect class="n" x="20" y="80" width="86" height="48" rx="2"></rect>
+            <text class="nt" x="63" y="102">관객</text>
+            <text class="ns" x="63" y="117">예매·결제</text>
+
+            <rect class="n" x="150" y="80" width="104" height="48" rx="2"></rect>
+            <text class="nt" x="202" y="102">결제 API</text>
+            <text class="ns" x="202" y="117">멱등키</text>
+
+            <rect class="n" x="310" y="80" width="130" height="48" rx="2"></rect>
+            <text class="nt" x="375" y="102">에스크로 계좌</text>
+            <text class="ns" x="375" y="117">예치금 보관</text>
+
+            <rect class="n" x="700" y="80" width="120" height="48" rx="2"></rect>
+            <text class="nt" x="760" y="102">이체 실행</text>
+            <text class="ns" x="760" y="117">예금주 검증</text>
+
+            <rect class="n" x="880" y="58" width="106" height="38" rx="2"></rect>
+            <text class="nt" x="933" y="82">팀 A 통장</text>
+            <rect class="n" x="880" y="104" width="106" height="38" rx="2"></rect>
+            <text class="nt" x="933" y="128">팀 B 통장</text>
+            <rect class="n" x="880" y="150" width="106" height="38" rx="2"></rect>
+            <text class="nt" x="933" y="174">팀 C 통장</text>
+
+            <rect class="n" x="142" y="244" width="104" height="40" rx="2"></rect>
+            <text class="nt" x="194" y="262">minter</text>
+            <text class="ns" x="194" y="276">발행·소각</text>
+
+            <rect class="n" x="142" y="320" width="104" height="40" rx="2"></rect>
+            <text class="nt" x="194" y="338">operator</text>
+            <text class="ns" x="194" y="352">기록·분배</text>
+
+            <rect class="n" x="320" y="252" width="160" height="110" rx="2"></rect>
+            <text class="nt" x="400" y="278">RevenueSplitter</text>
+            <text class="ns" x="400" y="298">규칙 잠금 (locked)</text>
+            <text class="ns" x="400" y="314">선택 카운터</text>
+            <text class="ns" x="400" y="330">KRWS 에스크로</text>
+            <text class="ns" x="400" y="348">분배액 산출</text>
+
+            <rect class="n-chain" x="580" y="254" width="130" height="34" rx="2"></rect>
+            <text class="nt" x="645" y="275">팀 A 지갑</text>
+            <rect class="n-chain" x="580" y="300" width="130" height="34" rx="2"></rect>
+            <text class="nt" x="645" y="321">팀 B 지갑</text>
+            <rect class="n-chain" x="580" y="346" width="130" height="34" rx="2"></rect>
+            <text class="nt" x="645" y="367">팀 C 지갑</text>
+
+            <line class="a" x1="106" y1="104" x2="144" y2="104" marker-end="url(#arB)"></line>
+            <text class="lb" x="125" y="96">결제</text>
+            <line class="a" x1="254" y1="104" x2="304" y2="104" marker-end="url(#arB)"></line>
+            <text class="lb" x="279" y="96">예치</text>
+
+            <polyline class="a-dash" points="375,128 375,206 194,206 194,240" marker-end="url(#arB)"></polyline>
+            <text class="lb" x="292" y="200">입금 확인</text>
+
+            <line class="a" x1="246" y1="264" x2="314" y2="264" marker-end="url(#arB)"></line>
+            <text class="lb" x="280" y="256">mint KRWS</text>
+
+            <line class="a" x1="246" y1="336" x2="314" y2="336" marker-end="url(#arB)"></line>
+            <text class="lb" x="280" y="328">recordChoice</text>
+            <text class="lb" x="280" y="352">startSale</text>
+
+            <line class="a-acc" x1="576" y1="265" x2="486" y2="265" marker-end="url(#arBc)"></line>
+            <line class="a-acc" x1="576" y1="311" x2="486" y2="311" marker-end="url(#arBc)"></line>
+            <line class="a-acc" x1="576" y1="357" x2="486" y2="357" marker-end="url(#arBc)"></line>
+            <line class="a" x1="480" y1="277" x2="574" y2="277" marker-end="url(#arB)"></line>
+            <line class="a" x1="480" y1="323" x2="574" y2="323" marker-end="url(#arB)"></line>
+            <line class="a" x1="480" y1="369" x2="574" y2="369" marker-end="url(#arB)"></line>
+            <text class="lb t-chain" x="528" y="246">← agreeToRules</text>
+            <text class="lb" x="528" y="392">→ release: KRWS</text>
+
+            <polyline class="a" points="710,271 762,271 762,132" marker-end="url(#arB)"></polyline>
+            <polyline class="a" points="710,317 748,317 748,271" marker-end="url(#arB)"></polyline>
+            <polyline class="a" points="710,363 736,363 736,271" marker-end="url(#arB)"></polyline>
+            <text class="lb" x="820" y="230">환급: 이체 → burnFrom</text>
+
+            <line class="a" x1="820" y1="104" x2="876" y2="79" marker-end="url(#arB)"></line>
+            <line class="a" x1="820" y1="104" x2="876" y2="123" marker-end="url(#arB)"></line>
+            <line class="a" x1="820" y1="104" x2="876" y2="169" marker-end="url(#arB)"></line>
+            <text class="lb" x="846" y="94">입금</text>
+          </svg>
+        </div>
+        <figcaption><strong>서로 다른 3개 주소</strong>가 같은 규칙 해시에 동의하고(강조된 좌향 화살표), <code>release</code>로 KRWS가 실제 팀 지갑에 들어갑니다. 팀 키를 복호화하는 순간은 <code>agreeToRules</code> 한 번뿐이고, 소각은 burner 권한이 처리합니다.</figcaption>
+      </figure>
+      <div class="chips">
+        <span class="chip">지갑 <b>2 + 팀 수</b></span>
+        <span class="chip">팀 키 <b>동의 1회만</b></span>
+        <span class="chip">가스 <b>운영지갑 자동 충전</b></span>
+        <span class="chip">문서 수정 <b>§8.2·8.4 두 줄</b></span>
+      </div>
+      <div class="legend">
+        <span class="swatch"><i style="border-color:var(--chain)"></i> 온체인 동의 증거</span>
+        <span class="swatch"><i style="border-color:currentColor"></i> 자금·기록 흐름</span>
+        <span class="swatch"><i style="border-color:currentColor;border-top-style:dashed"></i> 오프체인 트리거</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <div class="eyebrow">갈라지는 지점</div>
+      <h2>동의 증거를 누가 남기는가</h2>
+      <p class="note">자금 흐름은 두 안이 동일합니다. 실제로 선택하는 건 아래 한 장면입니다.</p>
+    </div>
+    <figure>
+      <div class="scroll">
+        <svg class="d" viewBox="0 0 1000 244" role="img" aria-label="옵션 A에서는 팀들의 앱 동의를 서버가 동의서로 만들어 operator 지갑 한 곳이 해시를 기록한다. 옵션 B에서는 팀별 지갑 세 개가 각자 다른 주소로 agreeToRules에 서명해 컨트랙트에 기록된다.">
+          <defs>
+            <marker id="arC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="currentColor"></path>
+            </marker>
+            <marker id="arCc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path class="mk-acc" d="M0 0 L10 5 L0 10 z"></path>
+            </marker>
+          </defs>
+
+          <text class="bandlb" x="20" y="22">옵션 A — 주소 1개</text>
+          <line x1="500" y1="8" x2="500" y2="236" stroke="currentColor" stroke-width="1" opacity=".25"></line>
+          <text class="bandlb t-chain" x="540" y="22">옵션 B — 주소 3개</text>
+
+          <rect class="n" x="20" y="46" width="80" height="30" rx="2"></rect>
+          <text class="nt" x="60" y="66">팀 A</text>
+          <rect class="n" x="20" y="88" width="80" height="30" rx="2"></rect>
+          <text class="nt" x="60" y="108">팀 B</text>
+          <rect class="n" x="20" y="130" width="80" height="30" rx="2"></rect>
+          <text class="nt" x="60" y="150">팀 C</text>
+          <text class="ns" x="60" y="178">앱에서 동의</text>
+
+          <rect class="n" x="140" y="70" width="86" height="66" rx="2"></rect>
+          <text class="nt" x="183" y="96">서버</text>
+          <text class="ns" x="183" y="112">동의서 생성</text>
+          <text class="ns" x="183" y="126">해시 산출</text>
+
+          <rect class="n" x="262" y="82" width="92" height="42" rx="2"></rect>
+          <text class="nt" x="308" y="101">operator</text>
+          <text class="ns" x="308" y="115">0x1f…</text>
+
+          <rect class="n" x="390" y="70" width="90" height="66" rx="2"></rect>
+          <text class="nt" x="435" y="98">컨트랙트</text>
+          <text class="ns" x="435" y="114">기록 1건</text>
+
+          <line class="a-dash" x1="100" y1="61" x2="136" y2="82" marker-end="url(#arC)"></line>
+          <line class="a-dash" x1="100" y1="103" x2="136" y2="103" marker-end="url(#arC)"></line>
+          <line class="a-dash" x1="100" y1="145" x2="136" y2="124" marker-end="url(#arC)"></line>
+          <line class="a" x1="226" y1="103" x2="258" y2="103" marker-end="url(#arC)"></line>
+          <line class="a-acc" x1="354" y1="103" x2="386" y2="103" marker-end="url(#arCc)"></line>
+          <text class="lb t-chain" x="370" y="90">record</text>
+          <text class="lb t-chain" x="370" y="128">Agreement</text>
+          <text class="ns" x="250" y="212">한 주소가 3팀 동의를 대신 기록</text>
+          <text class="ns" x="250" y="228">위조하면 팀이 반박해야 발각</text>
+
+          <rect class="n-chain" x="540" y="46" width="126" height="30" rx="2"></rect>
+          <text class="nt" x="603" y="66">팀 A 지갑</text>
+          <rect class="n-chain" x="540" y="88" width="126" height="30" rx="2"></rect>
+          <text class="nt" x="603" y="108">팀 B 지갑</text>
+          <rect class="n-chain" x="540" y="130" width="126" height="30" rx="2"></rect>
+          <text class="nt" x="603" y="150">팀 C 지갑</text>
+          <text class="ns" x="603" y="178">키는 서버 보관 (커스터디얼)</text>
+
+          <text class="ns t-chain" x="700" y="60">0x7a…</text>
+          <text class="ns t-chain" x="700" y="102">0x3c…</text>
+          <text class="ns t-chain" x="700" y="144">0x9e…</text>
+
+          <rect class="n" x="856" y="70" width="120" height="66" rx="2"></rect>
+          <text class="nt" x="916" y="98">컨트랙트</text>
+          <text class="ns" x="916" y="114">기록 3건</text>
+
+          <line class="a-acc" x1="740" y1="61" x2="852" y2="88" marker-end="url(#arCc)"></line>
+          <line class="a-acc" x1="740" y1="103" x2="852" y2="103" marker-end="url(#arCc)"></line>
+          <line class="a-acc" x1="740" y1="145" x2="852" y2="120" marker-end="url(#arCc)"></line>
+          <text class="lb t-chain" x="796" y="36">agreeToRules(rulesHash)</text>
+          <text class="ns" x="790" y="212">서로 다른 3개 주소의 서명이 익스플로러에 남음</text>
+          <text class="ns" x="790" y="228">§8.3의 "핵심 시연 장면"</text>
+        </svg>
+      </div>
+      <figcaption>두 안 모두 키는 서버가 보관하므로 <strong>암호학적 신뢰 수준은 거의 같습니다.</strong> 차이는 익스플로러에서 보여줄 수 있는 그림 — 그런데 그 그림이 문서에 "핵심 시연 장면"으로 적혀 있는 항목입니다.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <div class="eyebrow">대조</div>
+      <h2>무엇이 남고 무엇이 사라지나</h2>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead>
+          <tr><th>항목</th><th>옵션 A · 운영지갑 1개</th><th>옵션 B · 팀별 지갑 (권장)</th></tr>
+        </thead>
+        <tbody>
+          <tr><th>§8.3 ① 선택 온체인 기록</th><td class="keep">유지 — 원래도 operator가 호출</td><td class="keep">유지</td></tr>
+          <tr><th>§8.3 ② 팀별 동의 tx</th><td class="lose">사라짐 → 동의서 해시로 대체</td><td class="keep">유지 (핵심 시연 장면)</td></tr>
+          <tr><th>§8.3 ③ 공개 검증 페이지</th><td class="keep">유지</td><td class="keep">유지</td></tr>
+          <tr><th>규칙 잠금 불가역성</th><td class="keep">유지 — owner조차 변경 불가</td><td class="keep">유지</td></tr>
+          <tr><th>KRWS 실제 transfer</th><td class="lose">받을 주소 없음 → 내부 기록화</td><td class="keep">팀 지갑에 실제 입금</td></tr>
+          <tr><th>"온체인 분배가 곧 정산" 프레임</th><td>톤 조정 필요 — "산출·근거가 온체인"</td><td class="keep">그대로 사용 가능</td></tr>
+          <tr><th>지갑 개수</th><td class="num">2 (고정)</td><td class="num">2 + 팀 수</td></tr>
+          <tr><th>가스 관리</th><td>문제 소멸</td><td>동의 tx 1~2회분만 자동 충전</td></tr>
+          <tr><th>팀 키 복호화 시점</th><td>없음</td><td><code>agreeToRules</code> 1회</td></tr>
+          <tr><th>구현 공수</th><td>가장 적음</td><td>현행 + 코드 몇 줄</td></tr>
+          <tr><th>문서 수정량</th><td>§6.1·8.1·8.2·8.3·8.4 전면</td><td>§8.2·8.4 두 줄</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">A를 택하면 잃는 것이 정확히 두 줄(②와 KRWS transfer)이고, B를 택해도 실제로 아팠던 두 문제(가스 충전 담당·팀 출금 버튼)는 코드로 해결됩니다. <strong>없애서 버는 게 작고, 없애서 잃는 게 큽니다.</strong></p>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <div class="eyebrow">옵션 B 채택 시</div>
+      <h2>누가 어떤 트랜잭션에 서명하나</h2>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead>
+          <tr><th>단계</th><th>서명 주체</th><th>가스</th><th>비고</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>팀 생성 (키 생성)</td><td>서버</td><td class="num">0</td><td>온체인 tx 없음 · envelope encryption 보관</td></tr>
+          <tr><td>가스 충전</td><td>운영지갑</td><td>운영지갑</td><td>임계 미달 시 자동 재충전</td></tr>
+          <tr><td><code>agreeToRules</code></td><td class="keep">팀 키 — 유일</td><td>팀 지갑 (소량)</td><td>서로 다른 주소의 동의 기록</td></tr>
+          <tr><td><code>startSale</code> 잠금</td><td>operator</td><td>operator</td><td>이후 setter 전부 revert</td></tr>
+          <tr><td>결제 → KRWS <code>mint</code></td><td>minter</td><td>minter</td><td>금융망 입금 확인에만 결합</td></tr>
+          <tr><td><code>recordChoice</code> / <code>cancelChoice</code></td><td>operator</td><td>operator</td><td>nonce 직렬 큐 필요</td></tr>
+          <tr><td><code>release</code> → 팀 지갑</td><td>operator</td><td>operator</td><td>KRWS 실제 전송</td></tr>
+          <tr><td>환급: 이체 → <code>burnFrom</code></td><td>burner 권한</td><td>burner</td><td>팀 키 불필요 · 순서 역전 금지</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note"><strong>순서 주의.</strong> 반드시 계좌 이체 성공 확인 후 소각입니다. 반대로 하면 이체 실패 시 토큰만 사라져 준비금 증명이 깨집니다.</p>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <div class="eyebrow">결정</div>
+      <h2>옵션 B + 자동 환급</h2>
+    </div>
+    <div class="card rec">
+      <dl class="rows">
+        <div class="row">
+          <dt>가스 충전</dt>
+          <dd>팀 생성 시 운영지갑이 팀 지갑으로 소량 자동 전송, 잔액 임계 미달 시 자동 재충전. <span class="note">→ §10 미결 안건 "충전 담당자·주기 협의"가 코드로 닫힙니다.</span></dd>
+        </div>
+        <div class="row">
+          <dt>환급 방식</dt>
+          <dd><code>release</code> 시 자동 push. 팀 출금 버튼 제거 — 시연에서 손이 하나 줄고, 취미 밴드가 이해할 이유가 없는 단계입니다.</dd>
+        </div>
+        <div class="row">
+          <dt>팀 키 사용 범위</dt>
+          <dd><code>agreeToRules</code> 서명 1회로 한정. 키 복호화 횟수 = 노출 횟수이므로 최소화하고, 나머지는 운영지갑 권한으로 처리합니다.</dd>
+        </div>
+      </dl>
+    </div>
+    <h3>어느 쪽을 택해도 지금 잡을 것</h3>
+    <ul>
+      <li><strong>운영지갑 권한 2개로 분리</strong> — <code>minter/burner</code>와 <code>operator</code>. 키 하나 유출로 무한 mint가 가능해지면 준비금 증명 자체가 무의미해집니다. 팀 수와 무관하게 2개 고정.</li>
+      <li><strong>nonce 직렬 큐</strong> — <code>recordChoice</code>가 한 지갑에서 나가므로 예매 100건이 몰리면 nonce 충돌·지연이 납니다. 단일 nonce 관리 큐 또는 <code>recordChoiceBatch</code>.</li>
+      <li><strong>예금주명 일치 검증</strong> — 팀 정산계좌 등록 시 필수. 현재 설계에 빠져 있습니다.</li>
+      <li><strong>팀 대시보드에 지갑 주소 노출</strong> — 키는 안 주더라도 주소와 익스플로러 링크를 보여주면 "각 팀이 독립 검증 경로를 갖는다"는 주장이 화면으로 성립합니다. 구현 비용 거의 0.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <div class="eyebrow">발표 방어</div>
+      <h2>정직하게 인정하고 갈 부분</h2>
+    </div>
+    <p>서버가 모든 팀 키를 보관하므로 <strong>암호학적으로는 플랫폼이 전원 동의를 위조할 수 있습니다.</strong> 문서 §8.3도 이미 "완전 커스터디얼 구조"라고 적어 두었습니다. 파고들어오면 이렇게 답하세요.</p>
+    <p class="quote">동의 주소가 서로 다르다는 사실은 온체인에 남지만, 키는 플랫폼이 보관합니다. 그래서 저희가 주장하는 건 탈중앙이 아니라 <strong>"잠근 뒤에는 플랫폼조차 못 바꾼다"와 "누구나 같은 값을 재계산할 수 있다"</strong> 입니다. 위조하면 팀이 즉시 반박할 수 있고, 그 흔적이 남는 구조입니다.</p>
+    <p class="note">§8.3의 "보장하는 것 / 보장하지 않는 것" 표와 같은 논리라 발표 전체의 일관성이 유지됩니다. 덧붙일 한 줄 — 실서비스라면 팀 자산의 키를 플랫폼이 보관하는 것은 가상자산 <strong>보관관리업</strong> 영역입니다. 프로젝트는 테스트넷 모의라 해당 없지만, 물으면 "실서비스 전환 시 라이선스 과제"로 답하면 됩니다.</p>
+  </section>
+
+  <footer>
+    기준 문서 <code>docs/planning/01_기획_초안_v2.md</code> (v2.1, 2026-08-27) · 반영 시 v2.1은 보존하고 v2.2로 분리 작성
+  </footer>
+
+</div>
+</body>
+</html>

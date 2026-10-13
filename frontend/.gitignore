@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# 환경변수 — VITE_*는 빌드 시점에 번들에 인라인된다. 절대 커밋하지 않는다.
+.env
+.env.local
+.env.*.local
+
+.DS_Store
+*.log

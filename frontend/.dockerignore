@@ -1,0 +1,10 @@
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+.idea/
+.env
+.env.*
+*.local
+README.md

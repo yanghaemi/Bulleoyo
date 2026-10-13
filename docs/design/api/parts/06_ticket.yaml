@@ -1,0 +1,790 @@
+# 2026-09-08: 코인 개명 KRWS -> YoYo (name·symbol "YoYo", 로직 불변)
+paths:
+  /api/v1/orders:
+    post:
+      operationId: ticket_01
+      tags: [ticket]
+      x-priority: P0
+      x-screens: [A-03, A-04]
+      x-features: [F-ticket-01]
+      x-role: AUDIENCE
+      summary: "주문 생성(표별 응원 팀 배분)"
+      description: >-
+        [v6.2] 티켓 타입·수량을 받아 표마다 응원 팀을 배분하고, 서버가 배분을 팀별 하위 주문(팀 하나·orderRef 하나)으로
+        쪼개 PENDING_PAYMENT로 만들고 Redis 재고를 그룹 합으로 원자적으로 선점한다. 결제 전까지 15분(그룹 공통)
+        유효하며 경과 시 하위 주문을 CANCELLED로 자동 전이하고 재고를 원복한다. 같은 ticketTypeId라도 배분한 팀이
+        다르면 items 행을 나눠 담는다. 단독 공연은 items[].chosenTeamId를 생략하고 서버가 공연 생성팀으로 채운다.
+        응답에 orderGroupId(그룹 대표 주문 id)·orderId(= orderGroupId, 하위 호환)·orders[](하위 주문마다 orderId·
+        orderRef·chosenTeamId·chosenTeamName·teamIndex·items·quantity·amount)·totalAmount·totalQuantity(그룹 합)·
+        walletBalance·shortfall(그룹 합계 기준 부족액)을 담으며, shortfall > 0이어도 주문(그룹)은 만들어지고
+        PENDING_PAYMENT로 15분 유지된다. 지갑을 등록하지 않은 회원은 WALLET_NOT_FOUND로 막는다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+            examples:
+              default:
+                value: { performanceId: 12, items: [ { ticketTypeId: 31, quantity: 1, chosenTeamId: 9 }, { ticketTypeId: 31, quantity: 1, chosenTeamId: 11 } ], totalAmount: 50000 }
+      responses:
+        '201':
+          description: 주문 생성 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/OrderCreateResult'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      orderGroupId: 5501
+                      orderId: 5501
+                      performanceId: 12
+                      performanceTitle: "합정 3밴드 합동공연"
+                      status: PENDING_PAYMENT
+                      orders:
+                        - orderId: 5501
+                          orderRef: "0x9a8b7c6d5e4f30211f2e3d4c5b6a798807162534435261708f9e0d1c2b3a4958"
+                          chosenTeamId: 9
+                          chosenTeamName: "새벽세시"
+                          teamIndex: 1
+                          items: [ { ticketTypeId: 31, name: "일반", priceAmount: 25000, quantity: 1, amount: 25000 } ]
+                          quantity: 1
+                          amount: 25000
+                        - orderId: 5502
+                          orderRef: "0x1c2b3a4958f6a9d8e7c6b5a49382716f5e4d3c2b1a09887766554433221100f"
+                          chosenTeamId: 11
+                          chosenTeamName: "노을과기타"
+                          teamIndex: 2
+                          items: [ { ticketTypeId: 31, name: "일반", priceAmount: 25000, quantity: 1, amount: 25000 } ]
+                          quantity: 1
+                          amount: 25000
+                      totalAmount: 50000
+                      totalQuantity: 2
+                      currency: KRW
+                      display: { currency: USD, approx: 37.04, rate: 1350.0, asOf: "2026-09-02T09:00:00+09:00" }
+                      walletBalance: 35000
+                      shortfall: 15000
+                      balanceStale: false
+                      expiresAt: "2026-09-10T20:15:00+09:00"
+                    msg: "15분 안에 결제를 완료해 주세요. (Insufficient balance · ₩15,000 short)"
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 수량 범위 위반, Idempotency-Key 없음, totalAmount 소수, items 11행 이상(같은 팀 중복 행은 서버가 합산)
+            TICKET_TEAM_CHOICE_REQUIRED — 공동 공연인데 chosenTeamId가 없는 행이 있음
+            TICKET_TEAM_CHOICE_INVALID — 참여팀이 아닌 팀 배분
+        '401':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_UNAUTHORIZED — 비로그인"
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 공연
+            TICKET_OPTION_NOT_FOUND — 이 공연의 티켓 타입이 아님
+            WALLET_NOT_FOUND — 지갑 미연결 회원
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            TICKET_SALE_NOT_STARTED — 공연이 아직 ON_SALE이 아님
+            TICKET_SALE_CLOSED — 예매 마감 또는 SALE_CLOSED 이후
+            TICKET_SOLD_OUT — 재고 차감 실패(동시 예매 경합, 그룹 전체 원복)
+            TICKET_PURCHASE_LIMIT_EXCEEDED — 1인 1공연 4매 초과(그룹 합산)
+            COMMON_CONFLICT — 같은 멱등키에 다른 본문
+        '429':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_TOO_MANY_REQUESTS — 매크로 차단 룰"
+
+  /api/v1/orders/me:
+    get:
+      operationId: ticket_02
+      tags: [ticket]
+      x-priority: P0
+      x-screens: [A-12]
+      x-features: [F-ticket-02]
+      x-role: AUDIENCE
+      summary: 내 주문 목록
+      description: >-
+        로그인 관객의 주문을 주문 그룹 단위로 최신순으로 준다. paymentStatus는 Payment 6값(REQUESTED/AWAITING_SIGNATURE/PAYING/PAID/FAILED/REFUNDED)이며,
+        AWAITING_SIGNATURE인 주문에는 서명 대기 배지를 위한 resumable: true를 담는다.
+        [v6.2] 각 항목에 orderGroupId·groupStatus(하위 주문에서 파생)·팀별 표 수·금액(teamBreakdown)을 담는다.
+        PENDING_PAYMENT/PARTIALLY_PAID 그룹에는 expiresAt을 담아 결제 화면으로 되돌아갈 수 있게 하며,
+        조회 시점에 만료분은 CANCELLED로 정리해 노출한다. 금액은 §0.5 축약형이다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING_PAYMENT, PAID, PARTIALLY_PAID, CANCELLED, REFUNDED]
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['createdAt,desc', 'createdAt,asc']
+            default: 'createdAt,desc'
+      responses:
+        '200':
+          description: 내 주문 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          rate:
+                            type: object
+                            description: "§0.5 목록 축약형 환율 — 항목마다 display를 반복하지 않는다"
+                            properties:
+                              currency: { type: string }
+                              rate: { type: number }
+                              asOf: { type: string, format: date-time }
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/OrderSummary'
+                          pageInfo:
+                            $ref: '#/components/schemas/PageMeta'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      rate: { currency: USD, rate: 1350.0, asOf: "2026-09-02T09:00:00+09:00" }
+                      items:
+                        - orderGroupId: 5501
+                          performanceId: 12
+                          performanceTitle: "합정 3밴드 합동공연"
+                          startAt: "2026-09-19T19:00:00+09:00"
+                          groupStatus: PAID
+                          teamBreakdown:
+                            - { teamId: 9, teamName: "새벽세시", quantity: 1, amount: 25000 }
+                            - { teamId: 11, teamName: "노을과기타", quantity: 1, amount: 25000 }
+                          totalAmount: 50000
+                          currency: KRW
+                          ticketCount: 2
+                          resumable: false
+                          orderedAt: "2026-09-10T20:00:00+09:00"
+                          expiresAt: null
+                      pageInfo: { page: 0, size: 20, totalElements: 6, hasNext: false }
+                    msg: ""
+        '400':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_VALIDATION_FAILED — 허용되지 않는 status·sort, size 100 초과"
+        '401':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_UNAUTHORIZED — 비로그인"
+
+  /api/v1/orders/{orderId}:
+    get:
+      operationId: ticket_03
+      tags: [ticket]
+      x-priority: P0
+      x-screens: [A-06, A-12]
+      x-features: [F-ticket-03]
+      x-role: "AUDIENCE(주문자)"
+      summary: 주문 상세
+      description: >-
+        주문 항목·응원 팀·결제 정보와 발급된 티켓 목록을 준다. 본인 주문만 조회하고 타인 주문은
+        COMMON_NOT_FOUND로 존재를 숨긴다. [v6.2] orderId(경로)는 그룹의 어느 하위 주문이든 조회할 수 있고,
+        응답은 항상 그룹 전체(orderGroupId·groupStatus·orders[])를 담는다. 결제 정보는
+        status(Payment 6값)·approveTxHash·purchaseTxHash를 담으며, 관객 화면에는 해시를 접어 두고
+        "결제 완료" 수준으로 표기한다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: "주문 PK. v6.2 — 그룹의 어느 하위 주문이든 허용"
+      responses:
+        '200':
+          description: 주문 상세 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/OrderDetail'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      orderGroupId: 5501
+                      groupStatus: PAID
+                      performanceId: 12
+                      performanceTitle: "합정 3밴드 합동공연"
+                      venueName: "합정 언플러그드"
+                      startAt: "2026-09-19T19:00:00+09:00"
+                      orders:
+                        - orderId: 5501
+                          orderRef: "0x9a8b7c6d5e4f30211f2e3d4c5b6a798807162534435261708f9e0d1c2b3a4958"
+                          status: PAID
+                          chosenTeamId: 9
+                          chosenTeamName: "새벽세시"
+                          items: [ { ticketTypeId: 31, name: "일반", priceAmount: 25000, quantity: 1, amount: 25000 } ]
+                          amount: 25000
+                          payment:
+                            paymentId: 8801
+                            status: PAID
+                            approveTxHash: "0x1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809"
+                            purchaseTxHash: "0x5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182934a"
+                            paidAt: "2026-09-10T20:03:11+09:00"
+                          tickets:
+                            - { ticketId: 90211, ticketTypeName: "일반", status: ISSUED }
+                        - orderId: 5502
+                          orderRef: "0x1c2b3a4958f6a9d8e7c6b5a49382716f5e4d3c2b1a09887766554433221100f"
+                          status: PAID
+                          chosenTeamId: 11
+                          chosenTeamName: "노을과기타"
+                          items: [ { ticketTypeId: 31, name: "일반", priceAmount: 25000, quantity: 1, amount: 25000 } ]
+                          amount: 25000
+                          payment:
+                            paymentId: 8802
+                            status: PAID
+                            approveTxHash: null
+                            purchaseTxHash: "0x8f90a1b2c3d4e5f607182934a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7"
+                            paidAt: "2026-09-10T20:03:22+09:00"
+                          tickets:
+                            - { ticketId: 90212, ticketTypeName: "일반", status: ISSUED }
+                      totalAmount: 50000
+                      currency: KRW
+                      display: { currency: USD, approx: 37.04, rate: 1350.0, asOf: "2026-09-02T09:00:00+09:00" }
+                    msg: ""
+        '401':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_UNAUTHORIZED — 비로그인"
+        '404':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_NOT_FOUND — 존재하지 않는 주문 또는 타인 주문"
+
+  /api/v1/tickets/me:
+    get:
+      operationId: ticket_04
+      tags: [ticket]
+      x-priority: P0
+      x-screens: [A-07]
+      x-features: [F-ticket-04]
+      x-role: AUDIENCE
+      summary: 내 티켓 목록
+      description: >-
+        소유 중인 티켓을 상태별 필터로 준다. 상태 배지와 함께 입장·취소 가능 여부를 표시한다.
+        cancellable이 true인 티켓에는 환불이 지갑 잔액으로 돌아간다는 안내(refundTarget: WALLET_BALANCE)를 담는다.
+        [v6.2] 티켓마다 응원 팀 표기(chosenTeamName)를 담는다. 관객 화면은 "응원 팀"으로만 표기한다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ISSUED, USED, CANCELLED]
+          description: "미지정 시 전체. [v6] 3값"
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['startAt,asc', 'startAt,desc']
+            default: 'startAt,asc'
+      responses:
+        '200':
+          description: 내 티켓 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/TicketSummary'
+                          pageInfo:
+                            $ref: '#/components/schemas/PageMeta'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      items:
+                        - { ticketId: 90211, performanceId: 12, performanceTitle: "합정 3밴드 합동공연", venueName: "합정 언플러그드", startAt: "2026-09-19T19:00:00+09:00", ticketTypeName: "일반", chosenTeamName: "새벽세시", status: ISSUED, cancellable: true, refundTarget: WALLET_BALANCE }
+                      pageInfo: { page: 0, size: 20, totalElements: 2, hasNext: false }
+                    msg: ""
+        '400':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_VALIDATION_FAILED — 허용되지 않는 status·sort, size 100 초과"
+        '401':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_UNAUTHORIZED — 비로그인"
+
+  /api/v1/tickets/{ticketId}:
+    get:
+      operationId: ticket_05
+      tags: [ticket]
+      x-priority: P0
+      x-screens: [A-08]
+      x-features: [F-ticket-05]
+      x-role: "AUDIENCE(소유자)"
+      summary: 티켓 상세
+      description: >-
+        티켓 정보·현재 상태·취소 가능 여부(사유 포함)를 준다. QR 토큰은 여기 담지 않는다 — 회전 토큰은
+        API-ticket-06이 발급한다. 취소 가능 여부에는 수수료 구간(D-7 전액 / D-3 전까지 50% / D-3 00:00 이후 불가)
+        판단 결과를 담고, 정확한 환불액은 API-refund-01이 담당한다. 소유자가 아니면 TICKET_NOT_OWNED다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: ticketId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: 티켓 PK
+      responses:
+        '200':
+          description: 티켓 상세 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TicketDetail'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      ticketId: 90211
+                      orderId: 5501
+                      performanceId: 12
+                      performanceTitle: "합정 3밴드 합동공연"
+                      venueName: "합정 언플러그드"
+                      venueAddress: "서울 마포구 양화로 000"
+                      startAt: "2026-09-19T19:00:00+09:00"
+                      ticketTypeName: "일반"
+                      priceAmount: 25000
+                      currency: KRW
+                      display: { currency: USD, approx: 18.52, rate: 1350.0, asOf: "2026-09-02T09:00:00+09:00" }
+                      status: ISSUED
+                      chosenTeamName: "새벽세시"
+                      cancellable: true
+                      refundTarget: WALLET_BALANCE
+                      cancelDeadlineAt: "2026-09-16T00:00:00+09:00"
+                      entryOpenAt: "2026-09-19T18:00:00+09:00"
+                      usedAt: null
+                    msg: ""
+        '401':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_UNAUTHORIZED — 비로그인"
+        '403':
+          $ref: '#/components/responses/Error'
+          description: "TICKET_NOT_OWNED — 현재 소유자가 아님"
+        '404':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_NOT_FOUND — 존재하지 않는 ticketId"
+
+  /api/v1/tickets/{ticketId}/qr:
+    get:
+      operationId: ticket_06
+      tags: [ticket]
+      x-priority: P0
+      x-screens: [A-08]
+      x-features: [F-ticket-06]
+      x-role: 소유자
+      summary: 동적 QR 토큰 발급
+      description: >-
+        TOTP 방식 동적 QR — 서버가 ticket.qr_secret과 현재 30초 윈도우로 HMAC-SHA256을 계산해 반환한다.
+        클라이언트는 rotateAfterMs(30초) 주기로 재호출한다. qr_secret은 티켓 발급 시 1회 생성되고
+        이후 재생성 경로가 없다. USED·CANCELLED에는 발급하지 않는다. QR·입장은 온체인과 무관하다 —
+        티켓의 유효성은 DB 소유권과 서명 QR이 정한다.
+        [2026-09-16 — S15P21B204-101] QR 이미지의 페이로드는 qrToken 문자열 그대로다(포장·접두 없음).
+        검표(S-02)는 읽은 문자열을 entry_01의 qrToken에 그대로 넣고, performanceId는 QR이 아니라
+        검표 진입 URL /entry/{performanceId}에서 가져온다. 검표 링크의 ?token=(STAFF 기기 인증,
+        performance_10이 발급)과는 다른 토큰이다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: 티켓 PK
+      responses:
+        '200':
+          description: QR 토큰 발급 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TicketQr'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      ticketId: 90211
+                      qrToken: "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjkwMjExLCJleHAiOjE3ODk..."
+                      issuedAt: "2026-09-19T18:30:00+09:00"
+                      expiresAt: "2026-09-19T18:31:00+09:00"
+                      rotateAfterMs: 30000
+                    msg: ""
+        '401':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_UNAUTHORIZED — 비로그인"
+        '403':
+          $ref: '#/components/responses/Error'
+          description: "TICKET_NOT_OWNED — 현재 소유자가 아님"
+        '404':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_NOT_FOUND — 존재하지 않는 ticketId"
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            TICKET_ALREADY_USED — 상태가 USED
+            TICKET_CANCELED — 상태가 CANCELLED
+        '429':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_TOO_MANY_REQUESTS — 회전 주기보다 잦은 호출"
+
+components:
+  schemas:
+    OrderItemRequest:
+      type: object
+      required: [ticketTypeId, quantity]
+      properties:
+        ticketTypeId:
+          type: integer
+          description: "티켓 타입 PK. 해당 공연 소속이어야 한다"
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 4
+          description: 수량(1~4)
+        chosenTeamId:
+          type: integer
+          description: "[v6.2] 이 행의 표가 응원할 팀. 공동 공연 Y, 단독 공연은 생략(서버가 생성팀으로 채운다). 같은 ticketTypeId가 팀별로 여러 행일 수 있다"
+
+    OrderCreateRequest:
+      type: object
+      required: [performanceId, items, totalAmount]
+      properties:
+        performanceId:
+          type: integer
+          description: "공연 PK. ON_SALE 상태여야 한다"
+        items:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/OrderItemRequest'
+          description: "[v6.2] 티켓 타입·응원 팀별 수량. 행 quantity 1~4, 그룹 합 4 이하"
+        totalAmount:
+          type: integer
+          description: "클라이언트 계산 금액(YoYo 정수, 그룹 합계). 서버 계산과 다르면 결제 단계에서 PAYMENT_AMOUNT_MISMATCH"
+
+    OrderLineItem:
+      type: object
+      properties:
+        ticketTypeId: { type: integer }
+        name: { type: string }
+        priceAmount: { type: integer, description: "단가(YoYo 정수)" }
+        quantity: { type: integer }
+        amount: { type: integer, description: "항목 합계(YoYo 정수)" }
+
+    SubOrder:
+      type: object
+      description: "[v6.2] 주문 그룹을 이루는 하위 주문 — 팀 하나·orderRef 하나·purchase tx 하나"
+      properties:
+        orderId: { type: integer, format: int64 }
+        orderRef:
+          $ref: '#/components/schemas/TxHash'
+        chosenTeamId: { type: integer }
+        chosenTeamName: { type: string }
+        teamIndex:
+          type: integer
+          description: "createShow 시점 참여팀 순서. 온체인 인자로 그대로 쓰인다"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderLineItem'
+        quantity: { type: integer }
+        amount: { type: integer }
+
+    OrderCreateResult:
+      type: object
+      required: [balanceStale]
+      properties:
+        orderGroupId:
+          type: integer
+          format: int64
+          description: "[v6.2] 그룹 대표 주문(= 첫 하위 주문)의 id"
+        orderId:
+          type: integer
+          format: int64
+          description: "= orderGroupId. 하위 호환용"
+        performanceId: { type: integer }
+        performanceTitle: { type: string }
+        status:
+          type: string
+          enum: [PENDING_PAYMENT]
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubOrder'
+        totalAmount:
+          type: integer
+          description: "그룹 합계"
+        totalQuantity:
+          type: integer
+          description: "그룹 합 수량"
+        currency:
+          type: string
+          enum: [KRW]
+        display:
+          $ref: '#/components/schemas/Display'
+        walletBalance: { type: integer }
+        shortfall:
+          type: integer
+          description: "부족액(그룹 합계 − 잔액, 0 이상). 안내 문구용이며 대체 결제 경로는 없다"
+        balanceStale:
+          type: boolean
+          description: "체인 노드 조회 실패 시 캐시값을 썼는지 여부"
+        expiresAt:
+          type: string
+          format: date-time
+          description: "PENDING_PAYMENT 만료 시각(생성 + 15분, 그룹 공통)"
+
+    TeamBreakdown:
+      type: object
+      properties:
+        teamId: { type: integer }
+        teamName: { type: string }
+        quantity: { type: integer }
+        amount: { type: integer }
+
+    OrderSummary:
+      type: object
+      required: [resumable]
+      properties:
+        orderGroupId: { type: integer, format: int64 }
+        performanceId: { type: integer }
+        performanceTitle: { type: string }
+        startAt: { type: string, format: date-time }
+        groupStatus:
+          type: string
+          enum: [PENDING_PAYMENT, PAID, PARTIALLY_PAID, CANCELLED, REFUNDED]
+          description: "[v6.2] 하위 주문 상태에서 파생(§5-1). AWAITING_SIGNATURE·FAILED는 payments[].paymentStatus에서만 노출한다"
+        teamBreakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamBreakdown'
+        totalAmount: { type: integer }
+        currency:
+          type: string
+          enum: [KRW]
+        ticketCount: { type: integer }
+        resumable:
+          type: boolean
+          description: "AWAITING_SIGNATURE 주문에 서명 대기 배지를 띄우기 위한 값"
+        orderedAt: { type: string, format: date-time }
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    PaymentInfo:
+      type: object
+      properties:
+        paymentId: { type: integer, format: int64 }
+        status:
+          type: string
+          enum: [REQUESTED, AWAITING_SIGNATURE, PAYING, PAID, FAILED, REFUNDED]
+        approveTxHash:
+          oneOf:
+            - $ref: '#/components/schemas/TxHash'
+            - type: "null"
+        purchaseTxHash:
+          oneOf:
+            - $ref: '#/components/schemas/TxHash'
+            - type: "null"
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    TicketBrief:
+      type: object
+      properties:
+        ticketId: { type: integer, format: int64 }
+        ticketTypeName: { type: string }
+        status:
+          type: string
+          enum: [ISSUED, USED, CANCELLED]
+
+    SubOrderDetail:
+      type: object
+      description: "[v6.2] 그룹을 이루는 하위 주문의 상세"
+      properties:
+        orderId: { type: integer, format: int64 }
+        orderRef:
+          $ref: '#/components/schemas/TxHash'
+        status:
+          type: string
+          enum: [PENDING_PAYMENT, PAID, CANCELLED, REFUNDED]
+        chosenTeamId: { type: integer }
+        chosenTeamName: { type: string }
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderLineItem'
+        amount: { type: integer }
+        payment:
+          $ref: '#/components/schemas/PaymentInfo'
+        tickets:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketBrief'
+
+    OrderDetail:
+      type: object
+      properties:
+        orderGroupId: { type: integer, format: int64 }
+        groupStatus:
+          type: string
+          enum: [PENDING_PAYMENT, PAID, PARTIALLY_PAID, CANCELLED, REFUNDED]
+        performanceId: { type: integer }
+        performanceTitle: { type: string }
+        venueName: { type: string }
+        startAt: { type: string, format: date-time }
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubOrderDetail'
+        totalAmount: { type: integer }
+        currency:
+          type: string
+          enum: [KRW]
+        display:
+          $ref: '#/components/schemas/Display'
+
+    TicketSummary:
+      type: object
+      required: [cancellable]
+      properties:
+        ticketId: { type: integer, format: int64 }
+        performanceId: { type: integer }
+        performanceTitle: { type: string }
+        venueName: { type: string }
+        startAt: { type: string, format: date-time }
+        ticketTypeName: { type: string }
+        chosenTeamName:
+          type: string
+          description: "[v6.2] 응원 팀 표기"
+        status:
+          type: string
+          enum: [ISSUED, USED, CANCELLED]
+        cancellable: { type: boolean }
+        refundTarget:
+          type: string
+          enum: [WALLET_BALANCE]
+
+    TicketDetail:
+      type: object
+      required: [cancellable]
+      properties:
+        ticketId: { type: integer, format: int64 }
+        orderId: { type: integer, format: int64 }
+        performanceId: { type: integer }
+        performanceTitle: { type: string }
+        venueName: { type: string }
+        venueAddress: { type: string }
+        startAt: { type: string, format: date-time }
+        ticketTypeName: { type: string }
+        priceAmount: { type: integer }
+        currency:
+          type: string
+          enum: [KRW]
+        display:
+          $ref: '#/components/schemas/Display'
+        status:
+          type: string
+          enum: [ISSUED, USED, CANCELLED]
+        chosenTeamName: { type: string }
+        cancellable: { type: boolean }
+        refundTarget:
+          type: string
+          enum: [WALLET_BALANCE]
+        cancelDeadlineAt: { type: string, format: date-time }
+        entryOpenAt: { type: string, format: date-time }
+        usedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    TicketQr:
+      type: object
+      properties:
+        ticketId: { type: integer, format: int64 }
+        qrToken:
+          type: string
+          description: "HMAC(qr_secret, ticketId + floor(now/30)) 기반 서명 토큰"
+        issuedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        rotateAfterMs:
+          type: integer
+          description: "재호출 권장 주기(ms). 고정 30000"

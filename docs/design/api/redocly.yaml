@@ -1,0 +1,4 @@
+extends: [recommended]
+rules:
+  no-server-example.com: off   # 로컬 서버 항목은 의도한 것
+  no-unused-components: warn

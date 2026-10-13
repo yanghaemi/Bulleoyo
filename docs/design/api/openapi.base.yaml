@@ -1,0 +1,227 @@
+# 2026-09-08: 코인 개명 KRWS -> YoYo (name·symbol "YoYo", 환경변수·산출물 키 YOYO/YoYo, 로직 불변)
+openapi: 3.1.0
+info:
+  title: 인디 합동 공연 티켓팅·공동 정산 API
+  version: 6.0.0
+  summary: S15P21B204 — API 명세서 v6의 OpenAPI 표현
+  description: |
+    **정본은 `docs/design/06_API_명세서_v6.md`와 `docs/design/15_API_v6_계약정정_추록_v1.md`** 이고 이 문서는 그 기계 판독용 표현이다. API-member-01 가입 안내·오류 코드와 API-payment-03 실패 job 재제출은 추록을 우선한다. 문서가 어긋나면 v6 원문을 보존한 정정 문서와 `parts/*.yaml`을 맞춘 뒤 `python3 build.py`로 재생성한다. `openapi.yaml`은 손으로 편집하지 않는다.
+
+    ### 공통 규약 요약 (md §0)
+    - base URL `/api/v1`. 응답 본문은 성공·실패 모두 `{ code, data, msg }`. 성공 판별은 **`code === "SUCCESS"`**(201·202도 정상). 실패 시 `data`는 `null`.
+    - `code`는 문자열 enum(`도메인_사유`). 클라이언트는 `code`로만 분기하고 `msg`로 분기하지 않는다.
+    - 금액은 YoYo 정수(= ₩, decimals 0). 표시 환산은 `display` 객체로만.
+    - 운영자 tx는 **202 + `jobId`**(§0.3), 사용자 서명 tx는 **prepare → 서명 → signed-tx(202) → receipt 검증**(§0.4). 폴링은 `GET /api/v1/chain/jobs/{jobId}` 하나.
+    - 체인: Kaia Kairos `chainId 1001 (0x3e9)`. 관객 지갑 KAIA 잔액은 0이며 수수료는 운영지갑이 대납한다.
+    - `x-priority`(P0/P1) · `x-role` · `x-screens` · `x-features`는 md의 우선순위·권한·연관 화면·연관 기능이다.
+  contact:
+    name: B204
+  license:
+    name: Proprietary
+    identifier: LicenseRef-B204-Internal
+servers:
+  - url: http://localhost:8080/api/v1
+    description: 로컬
+  - url: https://{host}/api/v1
+    description: dev / 발표 환경 (EC2)
+    variables:
+      host:
+        default: dev.example.invalid
+tags:
+  - { name: member, description: "회원·인증 (AUTH_*)" }
+  - { name: team, description: "공연팀 (TEAM_*)" }
+  - { name: wallet, description: "지갑 등록·조회·서명 tx 보고 (WALLET_*)" }
+  - { name: performance, description: "공연·참여팀·보증금 (PERFORMANCE_*)" }
+  - { name: rule, description: "정산 규칙·동의·판매 시작 (RULE_*)" }
+  - { name: ticket, description: "주문·티켓·QR (TICKET_*)" }
+  - { name: payment, description: "코인 결제 — 사용자 서명 tx (PAYMENT_*)" }
+  - { name: coin, description: "YoYo 지급·공시·환율 (COIN_*)" }
+  - { name: chain, description: "온체인 작업 공통 폴링 (CHAIN_*)" }
+  - { name: refund, description: "취소·환불 (REFUND_*)" }
+  - { name: entry, description: "QR 입장 (ENTRY_*)" }
+  - { name: settlement, description: "집계·잠금·이의제기·release (SETTLEMENT_*)" }
+  - { name: verify, description: "공개 검증·발행량 공시" }
+  - { name: admin, description: "관리자" }
+  - { name: recommendation, description: "맞춤 추천 (recommendation 도메인)" }
+  - { name: webauthn, description: "패스키 본인 확인 — step-up. 결제·규칙 동의·보증금·정산 동의·정산금 지급 (WEBAUTHN_*, 스위치 STEP_UP_ENABLED 기본 off)" }
+security:
+  - bearerAuth: []
+paths: {}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 회원 세션 access token(30분). refresh 14일은 Redis `auth:refresh:{jti}`. Web3Auth idToken 자체는 쓰지 않는다.
+    entryToken:
+      type: apiKey
+      in: header
+      name: X-Entry-Token
+      description: 검표 링크 토큰(API-performance-10 발급, 해당 공연에만 유효). 쿼리 `entryToken`으로도 전달 가능.
+  parameters:
+    AcceptLanguage:
+      name: Accept-Language
+      in: header
+      required: false
+      schema: { type: string, enum: [en, ko], default: en }
+      description: msg·서명 요약·고지 문구 언어. 로그인 회원은 프로필 locale이 우선.
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      # §0.8은 이 헤더를 **필수**로 규정한다. 이 파라미터를 참조하는 곳은 그 필수 6개
+      # (ticket-01 · payment-01 · refund-02 · performance-12 · settlement-05 · coin-07)뿐이라
+      # 공용 정의를 required로 두어도 다른 절에 번지지 않는다.
+      # required: false 였을 때는 생성 타입에서도 선택값이라, 키 없이 보내는 코드가
+      # 타입 검사를 통과했다 — 재시도 때 키가 바뀌면 결제·환불이 두 번 돈다.
+      required: true
+      schema: { type: string, maxLength: 64 }
+      description: 멱등키(§0.8). 같은 키 + 같은 본문 = 최초 응답 재생, 본문 다르면 409 COMMON_CONFLICT. §0.8 필수 헤더(ticket-01 · payment-01 · refund-02 · performance-12 · settlement-05 · coin-07) — 재시도 때 키가 바뀌면 결제·환불이 두 번 돈다.
+  schemas:
+    Envelope:
+      type: object
+      required: [code, data, msg]
+      properties:
+        code:
+          type: string
+          description: 성공은 항상 `SUCCESS`. 실패는 `도메인_사유` 대문자 스네이크.
+          examples: [SUCCESS]
+        data:
+          description: 성공 payload. 실패 시 null.
+        msg:
+          type: string
+          description: 사용자에게 그대로 노출 가능한 문장. 성공은 빈 문자열 기본. 분기 키로 쓰지 않는다.
+    ErrorEnvelope:
+      type: object
+      required: [code, data, msg]
+      properties:
+        code:
+          type: string
+          description: |
+            실패 코드. 공통(§0.10): `COMMON_VALIDATION_FAILED`(400) · `COMMON_UNAUTHORIZED`(401) · `AUTH_TOKEN_EXPIRED`(401, 이 코드에서만 재발급 후 재시도) · `AUTH_TOKEN_INVALID`(401, 즉시 로그아웃) · `COMMON_FORBIDDEN`(403) · `COMMON_NOT_FOUND`(404) · `COMMON_CONFLICT`(409) · `COMMON_TOO_MANY_REQUESTS`(429) · `COMMON_INTERNAL_ERROR`(500) · `COMMON_EXTERNAL_SERVICE_ERROR`(502). 도메인 코드는 각 응답 description 참조.
+        data:
+          type: "null"
+        msg:
+          type: string
+    Money:
+      type: integer
+      format: int64
+      minimum: 0
+      description: YoYo 정수(= ₩). decimals 0.
+    Address:
+      type: string
+      pattern: '^0x[0-9a-fA-F]{40}$'
+      description: 지갑·컨트랙트 주소 42자(체크섬 표기 그대로)
+    TxHash:
+      type: string
+      pattern: '^0x[0-9a-fA-F]{64}$'
+      description: 트랜잭션 해시 66자
+    Display:
+      type: object
+      description: 표시 통화 환산(§0.5). 표시 전용, 요청으로 되돌리지 않는다. display_currency가 KRW이거나 환율이 없으면 생략.
+      required: [currency, approx, rate, asOf]
+      properties:
+        currency: { type: string, example: USD }
+        approx: { type: number, example: 11.11 }
+        rate: { type: number, description: "1 display.currency = rate KRW", example: 1350.0 }
+        asOf: { type: string, format: date-time }
+    PageMeta:
+      type: object
+      required: [page, size, totalElements, hasNext]
+      properties:
+        page: { type: integer, minimum: 0 }
+        size: { type: integer }
+        totalElements: { type: integer }
+        hasNext: { type: boolean }
+    ChainJob:
+      type: object
+      description: 온체인 작업(§0.3). `chain_job` 단일 테이블.
+      required: [jobId, txType, signerType, status]
+      properties:
+        jobId: { type: string, example: chain_01J8XQ7M2K }
+        txType:
+          type: string
+          enum: [MINT, APPROVE, PURCHASE, REFUND, DEPOSIT, DEPOSIT_RETURN, DEPOSIT_FORFEIT, AGREE, LOCK, AGGREGATE, RELEASE, HALT, CREATE_SHOW, START_SALE, UPDATE_RULES]
+        signerType: { type: string, enum: [OPERATOR, USER], description: "USER = 사용자 발신자 서명 + 서버 대납 서명" }
+        feeDelegated: { type: boolean, description: "USER job은 항상 true" }
+        status: { type: string, enum: [PENDING, SUBMITTED, CONFIRMED, FAILED] }
+        txHash: { oneOf: [ { $ref: '#/components/schemas/TxHash' }, { type: "null" } ] }
+        explorerUrl: { type: [string, "null"], format: uri, description: "서버가 완성한 절대 URL(kairos.kaiascan.io)" }
+        blockNumber: { type: [integer, "null"] }
+        submittedAt: { type: [string, "null"], format: date-time }
+        amount: { oneOf: [ { $ref: '#/components/schemas/Money' }, { type: "null" } ], description: "MINT·PURCHASE·REFUND·RELEASE 등 금액이 있는 job의 YoYo" }
+        currency: { type: string, enum: [KRW] }
+        grantSource: { type: [string, "null"], enum: [SIGNUP, ADMIN, null], description: "MINT job의 지급 사유" }
+        results: { type: [array, "null"], description: "RELEASE·HALT 등 다건 결과(팀별 분배액·tx)", items: { type: object, additionalProperties: true } }
+        failureReason: { type: [string, "null"], description: "FAILED 시 사유 코드(CHAIN_*·PAYMENT_TX_MISMATCH 등)" }
+        retryable: { type: boolean, description: "OPERATOR job은 최대 3회 자동 재시도, USER job은 false" }
+        retryCount: { type: integer }
+        pollAfterMs: { type: [integer, "null"], description: "미확정 상태에서 다음 폴링 권장 대기(ms). 확정 후 null" }
+        issuerType: { type: string, enum: [MOCK, EXTERNAL], description: "MINT job의 발행 어댑터. MVP는 항상 MOCK" }
+        feePayerAddress: { oneOf: [ { $ref: '#/components/schemas/Address' }, { type: "null" } ] }
+        walletAddress: { oneOf: [ { $ref: '#/components/schemas/Address' }, { type: "null" } ], description: "관련 사용자 지갑(USER job 발신자·MINT 수신자)" }
+        performanceId: { type: [integer, "null"] }
+        orderId: { type: [integer, "null"] }
+        verification:
+          type: [object, "null"]
+          description: "USER job receipt 검증 5항목 결과(§0.4)"
+          additionalProperties: true
+        createdAt: { type: string, format: date-time }
+        confirmedAt: { type: string, format: date-time }
+    SignRequest:
+      type: object
+      description: 사용자가 발신자 서명할 tx 하나(§0.4 ①). 배열 순서대로 서명·보고.
+      required: [kind, required, txType, to, data, value, chainId, feePayer, summary]
+      properties:
+        kind: { type: string, enum: [APPROVE, PURCHASE, DEPOSIT, AGREE] }
+        required: { type: boolean, description: "false면 생략 가능(예: allowance 충분 시 APPROVE)" }
+        txType: { type: string, enum: [FEE_DELEGATED_SMART_CONTRACT_EXECUTION] }
+        to: { $ref: '#/components/schemas/Address' }
+        data: { type: string, description: "calldata hex" }
+        value: { type: string, enum: ["0x0"] }
+        chainId: { type: string, enum: ["0x3e9"] }
+        gas: { type: string, description: "가스 한도 힌트(hex). 수수료는 feePayer 전액 부담" }
+        feePayer: { $ref: '#/components/schemas/Address' }
+        summary:
+          type: object
+          description: 서명 팝업 직전 사용자에게 보여줄 요약. title은 Accept-Language 적용.
+          additionalProperties: true
+          properties:
+            title: { type: string }
+            amount: { $ref: '#/components/schemas/Money' }
+            currency: { type: string, example: KRW }
+    PrepareResponse:
+      type: object
+      required: [signRequests, expiresAt]
+      properties:
+        signRequests:
+          type: array
+          items: { $ref: '#/components/schemas/SignRequest' }
+        expiresAt: { type: string, format: date-time, description: "서명 파라미터 유효 시각(주문 15분 만료 등)" }
+    SignedTxRequest:
+      type: object
+      description: 사용자 발신자 서명 RLP 보고(§0.4 ③). senderSignedRlp 자체가 멱등키.
+      required: [kind, senderSignedRlp]
+      properties:
+        kind: { type: string, enum: [APPROVE, PURCHASE, DEPOSIT, AGREE] }
+        senderSignedRlp: { type: string, pattern: '^0x[0-9a-fA-F]+$', maxLength: 16384, description: "0x hex, 최대 8KB" }
+    # [2026-09-22] v7 — 팀 대표 장르(team_01·04)·회원 선호 장르(member_05·06)·추천 매칭(recommendation_01)이
+    # 공유하는 장르 코드 10종. 코드는 언어 중립이며 화면 라벨은 Accept-Language(§0.6)로 en/ko 매핑한다.
+    Genre:
+      type: string
+      enum: [ROCK, INDIE, POP, HIPHOP, RNB, JAZZ, ELECTRONIC, ACOUSTIC, CLASSICAL, ETC]
+  responses:
+    Error:
+      description: 실패 응답. `data`는 null. 코드 목록은 각 엔드포인트 description 참조.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+          examples:
+            example:
+              value: { code: COMMON_VALIDATION_FAILED, data: null, msg: "Invalid request." }
+    # [2026-09-16 — S15P21B204-92] 공용 ChainJobAccepted 를 삭제했다.
+    # 참조하던 11개 오퍼레이션 전부가 jobId/status/pollAfterMs 3필드보다 넓은 본문을 실제로
+    # 반환하고 있었고(9~14필드), 그 셋만 선언한 공용 응답이 생성 타입을 실제 응답보다 좁게
+    # 만들었다. 202 응답은 이제 각 오퍼레이션이 자기 record 그대로 선언한다(parts/*.yaml).
+    # 새 202 를 추가할 때도 공용 스키마를 만들지 말고 record 를 그대로 옮겨 적는다 —
+    # 전역 non_null 직렬화라 "값이 null 일 수 있는 필드"는 키 자체가 없으므로 required 에서 뺀다.

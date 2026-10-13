@@ -1,0 +1,216 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1720" height="1335" viewBox="0 0 1720 1335" role="img" aria-labelledby="t d">
+<title id="t">불러요 시스템 아키텍처</title>
+<desc id="d">AWS EC2 단일 노드 위 Docker Compose 블루-그린 구성 — 호스트 Nginx, router, Spring Boot API, React 정적 프론트, MySQL·Redis·업로드 볼륨, Prometheus·Grafana 모니터링, Kaia Kairos의 YoYo·RevenueSplitter 컨트랙트, GitLab·Jenkins CI/CD.</desc>
+<defs>
+<marker id="ah-3D7BD9" viewBox="0 0 10 8" markerWidth="8.5" markerHeight="6.5" refX="9.2" refY="4" orient="auto"><path d="M0 0 L10 4 L0 8 z" fill="#3D7BD9"/></marker>
+<marker id="as-3D7BD9" viewBox="0 0 10 8" markerWidth="8.5" markerHeight="6.5" refX="0.8" refY="4" orient="auto"><path d="M10 0 L0 4 L10 8 z" fill="#3D7BD9"/></marker>
+<marker id="ah-2E7A52" viewBox="0 0 10 8" markerWidth="8.5" markerHeight="6.5" refX="9.2" refY="4" orient="auto"><path d="M0 0 L10 4 L0 8 z" fill="#2E7A52"/></marker>
+<marker id="as-2E7A52" viewBox="0 0 10 8" markerWidth="8.5" markerHeight="6.5" refX="0.8" refY="4" orient="auto"><path d="M10 0 L0 4 L10 8 z" fill="#2E7A52"/></marker>
+<marker id="ah-8B6FD0" viewBox="0 0 10 8" markerWidth="8.5" markerHeight="6.5" refX="9.2" refY="4" orient="auto"><path d="M0 0 L10 4 L0 8 z" fill="#8B6FD0"/></marker>
+<marker id="as-8B6FD0" viewBox="0 0 10 8" markerWidth="8.5" markerHeight="6.5" refX="0.8" refY="4" orient="auto"><path d="M10 0 L0 4 L10 8 z" fill="#8B6FD0"/></marker>
+<marker id="ah-6B4FC8" viewBox="0 0 10 8" markerWidth="8.5" markerHeight="6.5" refX="9.2" refY="4" orient="auto"><path d="M0 0 L10 4 L0 8 z" fill="#6B4FC8"/></marker>
+<marker id="as-6B4FC8" viewBox="0 0 10 8" markerWidth="8.5" markerHeight="6.5" refX="0.8" refY="4" orient="auto"><path d="M10 0 L0 4 L10 8 z" fill="#6B4FC8"/></marker>
+<marker id="ah-5B7185" viewBox="0 0 10 8" markerWidth="8.5" markerHeight="6.5" refX="9.2" refY="4" orient="auto"><path d="M0 0 L10 4 L0 8 z" fill="#5B7185"/></marker>
+<marker id="as-5B7185" viewBox="0 0 10 8" markerWidth="8.5" markerHeight="6.5" refX="0.8" refY="4" orient="auto"><path d="M10 0 L0 4 L10 8 z" fill="#5B7185"/></marker>
+</defs>
+<rect x="0" y="0" width="1720" height="1335" rx="0" fill="#F6F7F3" stroke="none" stroke-width="0"/>
+<text x="48" y="62" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="34" font-weight="700" fill="#25313A" text-anchor="start">System Architecture</text>
+<text x="48" y="92" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="13" font-weight="400" fill="#5D6E78" text-anchor="start">불러요(BULLEOYO) · S15P21B204 — 소규모 공연 티켓팅 · 공동 정산 플랫폼</text>
+<text x="48" y="112" font-family='D2Coding, NanumGothicCoding, Consolas, monospace' font-size="11.5" font-weight="400" fill="#8A9AA4" text-anchor="start">AWS EC2 단일 노드 · Docker Compose 블루-그린 무중단 배포 · Kaia Kairos 테스트넷</text>
+<rect x="612" y="130" width="1040" height="176" rx="16" fill="#6B4FC80A" stroke="#6B4FC855" stroke-width="1.4" stroke-dasharray="6 5"/>
+<text x="630" y="158" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="12.5" font-weight="700" fill="#6B4FC8" text-anchor="start" letter-spacing="1.4">BLOCKCHAIN · KAIA KAIROS</text>
+<text x="630" y="176" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="400" fill="#8A9AA4" text-anchor="start">chainId 1001 · 퍼블릭 테스트넷 · 누구나 같은 값을 다시 읽을 수 있다</text>
+<rect x="632" y="190" width="320" height="98" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="634" y="202" width="4" height="74" rx="2" fill="#6B4FC8"/>
+<text x="652" y="220" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">YoYo (ERC-20)</text>
+<text x="652" y="242" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">서비스 결제 코인 · decimals 0</text>
+<text x="652" y="259" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">mint 전용 · grantRef 중복 발행 거부</text>
+<rect x="972" y="190" width="320" height="98" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="974" y="202" width="4" height="74" rx="2" fill="#6B4FC8"/>
+<text x="992" y="220" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">RevenueSplitter</text>
+<text x="992" y="242" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">규칙 잠금 · 에스크로 · 보증금</text>
+<text x="992" y="259" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">컨트랙트 안 정산 계산 · push release</text>
+<rect x="1312" y="190" width="320" height="98" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="1314" y="202" width="4" height="74" rx="2" fill="#6B4FC8"/>
+<text x="1332" y="220" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">KaiaScan · Sourcify</text>
+<text x="1332" y="242" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">소스 검증(exact match)</text>
+<text x="1332" y="259" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">참여팀 독립 검증 경로</text>
+<rect x="290" y="342" width="1382" height="610" rx="20" fill="#FFFFFF66" stroke="#C8D2CD" stroke-width="1.6"/>
+<text x="308" y="372" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="13.5" font-weight="700" fill="#25313A" text-anchor="start">AWS EC2 · Ubuntu</text>
+<text x="436" y="372" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#8A9AA4" text-anchor="start">· Docker Compose · 단일 노드 블루-그린</text>
+<rect x="48" y="396" width="230" height="290" rx="16" fill="#3D7BD90A" stroke="#3D7BD955" stroke-width="1.4" stroke-dasharray="6 5"/>
+<text x="66" y="424" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="12.5" font-weight="700" fill="#3D7BD9" text-anchor="start" letter-spacing="1.4">CLIENT</text>
+<text x="66" y="442" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="400" fill="#8A9AA4" text-anchor="start">관객 · 팀 리더 · 검표</text>
+<rect x="68" y="454" width="190" height="88" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="70" y="466" width="4" height="64" rx="2" fill="#3D7BD9"/>
+<text x="88" y="484" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">Web Browser</text>
+<text x="88" y="506" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">React 19 SPA</text>
+<text x="88" y="523" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">예매 · 스튜디오 · 검표</text>
+<rect x="68" y="566" width="190" height="100" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="70" y="578" width="4" height="76" rx="2" fill="#3D7BD9"/>
+<text x="88" y="596" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">Wallet</text>
+<text x="88" y="618" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">Web3Auth 소셜 로그인</text>
+<text x="88" y="635" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">(비수탁 · SSS)</text>
+<text x="88" y="652" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">Kaia Wallet 확장</text>
+<rect x="310" y="396" width="270" height="290" rx="16" fill="#2E7A520A" stroke="#2E7A5255" stroke-width="1.4" stroke-dasharray="6 5"/>
+<text x="328" y="424" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="12.5" font-weight="700" fill="#2E7A52" text-anchor="start" letter-spacing="1.4">PUBLIC EDGE</text>
+<text x="328" y="442" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="400" fill="#8A9AA4" text-anchor="start">유일한 공개 진입점</text>
+<rect x="330" y="454" width="230" height="212" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="332" y="466" width="4" height="188" rx="2" fill="#2E7A52"/>
+<text x="350" y="484" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">Host Nginx</text>
+<text x="350" y="506" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">HTTPS 443 · Let's Encrypt</text>
+<text x="350" y="531" font-family='D2Coding, NanumGothicCoding, Consolas, monospace' font-size="10.5" font-weight="400" fill="#4A6070" text-anchor="start">/           → frontend</text>
+<text x="350" y="547" font-family='D2Coding, NanumGothicCoding, Consolas, monospace' font-size="10.5" font-weight="400" fill="#4A6070" text-anchor="start">/api/       → router</text>
+<text x="350" y="563" font-family='D2Coding, NanumGothicCoding, Consolas, monospace' font-size="10.5" font-weight="400" fill="#4A6070" text-anchor="start">/uploads/   → volume</text>
+<text x="350" y="579" font-family='D2Coding, NanumGothicCoding, Consolas, monospace' font-size="10.5" font-weight="400" fill="#4A6070" text-anchor="start">/jenkins/ · /grafana/</text>
+<text x="350" y="595" font-family='D2Coding, NanumGothicCoding, Consolas, monospace' font-size="10.5" font-weight="400" fill="#4A6070" text-anchor="start">/actuator/  → 404</text>
+<rect x="612" y="396" width="690" height="290" rx="16" fill="#3E9B6B0A" stroke="#3E9B6B55" stroke-width="1.4" stroke-dasharray="6 5"/>
+<text x="630" y="424" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="12.5" font-weight="700" fill="#3E9B6B" text-anchor="start" letter-spacing="1.4">APPLICATION STACK</text>
+<text x="630" y="442" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="400" fill="#8A9AA4" text-anchor="start">Docker Compose · Blue-Green</text>
+<rect x="632" y="454" width="190" height="88" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="634" y="466" width="4" height="64" rx="2" fill="#3E9B6B"/>
+<text x="652" y="484" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">router</text>
+<text x="652" y="506" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">nginx :8080</text>
+<text x="652" y="523" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">active_color 전환</text>
+<rect x="632" y="566" width="190" height="88" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="634" y="578" width="4" height="64" rx="2" fill="#3E9B6B"/>
+<text x="652" y="596" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">frontend</text>
+<text x="652" y="618" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">nginx :3000</text>
+<text x="652" y="635" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">Vite 정적 빌드</text>
+<rect x="852" y="454" width="430" height="212" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="854" y="466" width="4" height="188" rx="2" fill="#3E9B6B"/>
+<text x="872" y="484" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">Spring Boot API</text>
+<text x="872" y="506" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">backend-blue / green :8080 · Java 17 · web3j-ext</text>
+<text x="872" y="523" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">회원 · 공연 · 예매 · 입장 · 코인 · 정산 · 검증</text>
+<rect x="872" y="579" width="390" height="22" rx="6" fill="#3E9B6B18" stroke="#3E9B6B4D" stroke-width="1"/>
+<text x="882" y="594" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="400" fill="#25313A" text-anchor="start">chain_job 큐 — OPERATOR · MINTER 지갑별 단일 nonce 워커</text>
+<rect x="872" y="607" width="390" height="22" rx="6" fill="#3E9B6B18" stroke="#3E9B6B4D" stroke-width="1"/>
+<text x="882" y="622" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="400" fill="#25313A" text-anchor="start">수수료 대납 — 사용자 서명 RLP에 fee payer 서명만 덧붙임</text>
+<rect x="872" y="635" width="390" height="22" rx="6" fill="#3E9B6B18" stroke="#3E9B6B4D" stroke-width="1"/>
+<text x="882" y="650" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="400" fill="#25313A" text-anchor="start">발행량 불변식 4개 30초 대사 — 깨지면 발행 · 분배 halt</text>
+<rect x="1336" y="396" width="316" height="290" rx="16" fill="#5B71850A" stroke="#5B718555" stroke-width="1.4" stroke-dasharray="6 5"/>
+<text x="1354" y="424" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="12.5" font-weight="700" fill="#5B7185" text-anchor="start" letter-spacing="1.4">MONITORING</text>
+<text x="1354" y="442" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="400" fill="#8A9AA4" text-anchor="start">별도 Compose 스택</text>
+<rect x="1356" y="454" width="276" height="70" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="1358" y="466" width="4" height="46" rx="2" fill="#5B7185"/>
+<text x="1376" y="484" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">Prometheus</text>
+<text x="1376" y="506" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">/actuator/prometheus 스크랩</text>
+<rect x="1356" y="536" width="276" height="62" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="1358" y="548" width="4" height="38" rx="2" fill="#5B7185"/>
+<text x="1376" y="566" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">Grafana</text>
+<text x="1376" y="588" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">b204_chain_job_* 대시보드</text>
+<rect x="1356" y="610" width="276" height="56" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="1358" y="622" width="4" height="32" rx="2" fill="#5B7185"/>
+<text x="1376" y="640" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">Alertmanager → Mattermost</text>
+<rect x="310" y="718" width="1342" height="210" rx="16" fill="#8B6FD00A" stroke="#8B6FD055" stroke-width="1.4" stroke-dasharray="6 5"/>
+<text x="328" y="746" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="12.5" font-weight="700" fill="#8B6FD0" text-anchor="start" letter-spacing="1.4">DATA LAYER</text>
+<text x="328" y="764" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="400" fill="#8A9AA4" text-anchor="start">Compose 네트워크 내부 전용 · Spring Boot 만 접근</text>
+<rect x="330" y="778" width="431" height="120" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="332" y="790" width="4" height="96" rx="2" fill="#8B6FD0"/>
+<text x="350" y="808" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">MySQL 8.0</text>
+<text x="350" y="830" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">관계형 정본 · 테이블 24</text>
+<text x="350" y="847" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">Flyway V1~V14 · 지급·거래 이력은 chain_job 하나</text>
+<text x="350" y="872" font-family='D2Coding, NanumGothicCoding, Consolas, monospace' font-size="10.5" font-weight="400" fill="#4A6070" text-anchor="start">mysql:3306</text>
+<rect x="771" y="778" width="431" height="120" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="773" y="790" width="4" height="96" rx="2" fill="#8B6FD0"/>
+<text x="791" y="808" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">Redis 7</text>
+<text x="791" y="830" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">리프레시 토큰 · 멱등키 · 재고 · 입장 SETNX</text>
+<text x="791" y="847" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">chain:owner 워커 소유권 · AOF everysec</text>
+<text x="791" y="872" font-family='D2Coding, NanumGothicCoding, Consolas, monospace' font-size="10.5" font-weight="400" fill="#4A6070" text-anchor="start">redis:6379</text>
+<rect x="1212" y="778" width="431" height="120" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="1214" y="790" width="4" height="96" rx="2" fill="#8B6FD0"/>
+<text x="1232" y="808" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">Uploads</text>
+<text x="1232" y="830" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">포스터 · 티켓 아트워크 원본</text>
+<text x="1232" y="847" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">호스트 Nginx alias 서빙 · 스크립트 확장자 404</text>
+<text x="1232" y="872" font-family='D2Coding, NanumGothicCoding, Consolas, monospace' font-size="10.5" font-weight="400" fill="#4A6070" text-anchor="start">~/app/uploads</text>
+<rect x="48" y="718" width="230" height="210" rx="16" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<text x="68" y="748" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="13" font-weight="700" fill="#25313A" text-anchor="start">요청 흐름</text>
+<circle cx="79" cy="768" r="9" fill="#FFFFFF" stroke="#3D7BD9" stroke-width="1.5"/>
+<text x="79" y="772" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="700" fill="#3D7BD9" text-anchor="middle">1</text>
+<text x="96" y="765" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11" font-weight="400" fill="#25313A" text-anchor="start">브라우저 → HTTPS 443</text>
+<text x="96" y="780" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10" font-weight="400" fill="#8A9AA4" text-anchor="start">Nginx 단일 진입점</text>
+<circle cx="79" cy="803" r="9" fill="#FFFFFF" stroke="#3D7BD9" stroke-width="1.5"/>
+<text x="79" y="807" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="700" fill="#3D7BD9" text-anchor="middle">2</text>
+<text x="96" y="800" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11" font-weight="400" fill="#25313A" text-anchor="start">/api/ → router → 활성 색</text>
+<text x="96" y="815" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10" font-weight="400" fill="#8A9AA4" text-anchor="start">/ → frontend 정적 빌드</text>
+<circle cx="79" cy="838" r="9" fill="#FFFFFF" stroke="#2E7A52" stroke-width="1.5"/>
+<text x="79" y="842" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="700" fill="#2E7A52" text-anchor="middle">3</text>
+<text x="96" y="835" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11" font-weight="400" fill="#25313A" text-anchor="start">지갑 서명 → Spring</text>
+<text x="96" y="850" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10" font-weight="400" fill="#8A9AA4" text-anchor="start">서명된 RLP만 전달(키 없음)</text>
+<circle cx="79" cy="873" r="9" fill="#FFFFFF" stroke="#6B4FC8" stroke-width="1.5"/>
+<text x="79" y="877" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="700" fill="#6B4FC8" text-anchor="middle">4</text>
+<text x="96" y="870" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11" font-weight="400" fill="#25313A" text-anchor="start">Spring → Kairos</text>
+<text x="96" y="885" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10" font-weight="400" fill="#8A9AA4" text-anchor="start">대납 전송 · receipt 확인</text>
+<circle cx="79" cy="908" r="9" fill="#FFFFFF" stroke="#8B6FD0" stroke-width="1.5"/>
+<text x="79" y="912" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="700" fill="#8B6FD0" text-anchor="middle">5</text>
+<text x="96" y="905" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11" font-weight="400" fill="#25313A" text-anchor="start">Spring → 데이터 계층</text>
+<text x="96" y="920" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10" font-weight="400" fill="#8A9AA4" text-anchor="start">읽기 · 쓰기</text>
+<rect x="48" y="976" width="1604" height="72" rx="14" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="48" y="976" width="5" height="72" rx="2.5" fill="#6B4FC8"/>
+<text x="72" y="1004" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="13" font-weight="700" fill="#25313A" text-anchor="start">자금 경로 가드레일</text>
+<text x="280" y="1000" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="700" fill="#25313A" text-anchor="start">· 서버는 사용자 키를 받지 않는다</text>
+<text x="290" y="1020" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="400" fill="#8A9AA4" text-anchor="start">서명은 지갑에서 · 서버는 수수료만 대납</text>
+<text x="740" y="1000" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="700" fill="#25313A" text-anchor="start">· 정산은 컨트랙트가 계산한다</text>
+<text x="750" y="1020" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="400" fill="#8A9AA4" text-anchor="start">잠긴 규칙 × 온체인 선택 수 — 서버는 결과를 올리지 않는다</text>
+<text x="1200" y="1000" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="700" fill="#25313A" text-anchor="start">· 발행 키와 운영 키를 나눈다</text>
+<text x="1210" y="1020" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="400" fill="#8A9AA4" text-anchor="start">admin(콜드) · OPERATOR · MINTER 세 주소 상이 — 배포 어서션</text>
+<rect x="48" y="1076" width="1604" height="170" rx="16" fill="#E9A93B0A" stroke="#E9A93B55" stroke-width="1.4" stroke-dasharray="6 5"/>
+<text x="66" y="1104" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="12.5" font-weight="700" fill="#E9A93B" text-anchor="start" letter-spacing="1.4">CI / CD</text>
+<text x="66" y="1122" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="10.5" font-weight="400" fill="#8A9AA4" text-anchor="start">Jenkins Multibranch — develop 은 dev 배포, master 는 승인 후 prod · 컨트랙트 배포는 DEPLOY_CONTRACT 수동</text>
+<rect x="68" y="1136" width="290" height="76" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="70" y="1148" width="4" height="52" rx="2" fill="#E9A93B"/>
+<text x="88" y="1166" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">GitLab</text>
+<text x="88" y="1188" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">MR · 푸시 웹훅</text>
+<path d="M358 1174 L382 1174" fill="none" stroke="#5B7185" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 5" marker-end="url(#ah-5B7185)"/>
+<rect x="386" y="1136" width="290" height="76" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="388" y="1148" width="4" height="52" rx="2" fill="#E9A93B"/>
+<text x="406" y="1166" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">Jenkins Test</text>
+<text x="406" y="1188" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">backend · frontend · contract 병렬</text>
+<path d="M676 1174 L700 1174" fill="none" stroke="#5B7185" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 5" marker-end="url(#ah-5B7185)"/>
+<rect x="704" y="1136" width="290" height="76" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="706" y="1148" width="4" height="52" rx="2" fill="#E9A93B"/>
+<text x="724" y="1166" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">Image Build</text>
+<text x="724" y="1188" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">태그 = 커밋 SHA 8자리</text>
+<path d="M994 1174 L1018 1174" fill="none" stroke="#5B7185" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 5" marker-end="url(#ah-5B7185)"/>
+<rect x="1022" y="1136" width="290" height="76" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="1024" y="1148" width="4" height="52" rx="2" fill="#E9A93B"/>
+<text x="1042" y="1166" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">Blue-Green Deploy</text>
+<text x="1042" y="1188" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">유휴 색 기동 → 헬스체크</text>
+<path d="M1312 1174 L1336 1174" fill="none" stroke="#5B7185" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 5" marker-end="url(#ah-5B7185)"/>
+<rect x="1340" y="1136" width="290" height="76" rx="11" fill="#FFFFFF" stroke="#E3E6E1" stroke-width="1.2"/>
+<rect x="1342" y="1148" width="4" height="52" rx="2" fill="#E9A93B"/>
+<text x="1360" y="1166" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="15.5" font-weight="700" fill="#25313A" text-anchor="start">router 스위치</text>
+<text x="1360" y="1188" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">active_color reload · 1초 롤백</text>
+<path d="M258 498 L326 498" fill="none" stroke="#3D7BD9" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-3D7BD9)"/>
+<circle cx="292" cy="498" r="10.5" fill="#FFFFFF" stroke="#3D7BD9" stroke-width="1.6"/>
+<text x="292" y="502" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="700" fill="#3D7BD9" text-anchor="middle">1</text>
+<path d="M560 498 L628 498" fill="none" stroke="#3D7BD9" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-3D7BD9)"/>
+<path d="M560 610 L628 610" fill="none" stroke="#3D7BD9" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-3D7BD9)"/>
+<circle cx="594" cy="498" r="10.5" fill="#FFFFFF" stroke="#3D7BD9" stroke-width="1.6"/>
+<text x="594" y="502" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="700" fill="#3D7BD9" text-anchor="middle">2</text>
+<path d="M822 498 L848 498" fill="none" stroke="#3D7BD9" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-3D7BD9)"/>
+<path d="M163 542 L163 562" fill="none" stroke="#2E7A52" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-2E7A52)" marker-start="url(#as-2E7A52)"/>
+<circle cx="196" cy="553" r="10.5" fill="#FFFFFF" stroke="#2E7A52" stroke-width="1.6"/>
+<text x="196" y="557" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="700" fill="#2E7A52" text-anchor="middle">3</text>
+<path d="M1000 450 L1000 324 L1132 324 L1132 292" fill="none" stroke="#6B4FC8" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-6B4FC8)"/>
+<path d="M1000 324 L792 324 L792 292" fill="none" stroke="#6B4FC8" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-6B4FC8)"/>
+<circle cx="1000" cy="386" r="10.5" fill="#FFFFFF" stroke="#6B4FC8" stroke-width="1.6"/>
+<text x="1000" y="390" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="700" fill="#6B4FC8" text-anchor="middle">4</text>
+<path d="M236 450 L236 318 L1472 318 L1472 292" fill="none" stroke="#6B4FC8" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="6 5" marker-end="url(#ah-6B4FC8)"/>
+<path d="M1067 670 L1067 774" fill="none" stroke="#8B6FD0" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-8B6FD0)"/>
+<circle cx="1067" cy="700" r="10.5" fill="#FFFFFF" stroke="#8B6FD0" stroke-width="1.6"/>
+<text x="1067" y="704" font-family='Pretendard, NanumSquare, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="700" fill="#8B6FD0" text-anchor="middle">5</text>
+<path d="M1282 560 L1320 560 L1320 489 L1352 489" fill="none" stroke="#5B7185" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 5" marker-end="url(#ah-5B7185)"/>
+<line x1="48" y1="1290" x2="82" y2="1290" stroke="#3D7BD9" stroke-width="2.4" stroke-linecap="round"/>
+<text x="92" y="1294" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">사용자 요청 (HTTPS)</text>
+<line x1="300" y1="1290" x2="334" y2="1290" stroke="#2E7A52" stroke-width="2.4" stroke-linecap="round"/>
+<text x="344" y="1294" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">지갑 서명</text>
+<line x1="444" y1="1290" x2="478" y2="1290" stroke="#6B4FC8" stroke-width="2.4" stroke-linecap="round"/>
+<text x="488" y="1294" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">체인 전송 · 조회</text>
+<line x1="648" y1="1290" x2="682" y2="1290" stroke="#6B4FC8" stroke-width="2.4" stroke-dasharray="5 4" stroke-linecap="round"/>
+<text x="692" y="1294" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">독립 검증</text>
+<line x1="792" y1="1290" x2="826" y2="1290" stroke="#8B6FD0" stroke-width="2.4" stroke-linecap="round"/>
+<text x="836" y="1294" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">데이터 읽기 · 쓰기</text>
+<line x1="1008" y1="1290" x2="1042" y2="1290" stroke="#5B7185" stroke-width="2.4" stroke-dasharray="5 4" stroke-linecap="round"/>
+<text x="1052" y="1294" font-family='Pretendard, NanumGothic, "Malgun Gothic", sans-serif' font-size="11.5" font-weight="400" fill="#5D6E78" text-anchor="start">지표 수집 · 배포</text>
+</svg>

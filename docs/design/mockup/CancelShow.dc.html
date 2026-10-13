@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <style>
+    :root{--ink:#17141f;--ink2:#3a3548;--muted:#6f6880;--line:#e3dfe9;--ground:#f5f3f7;--surface:#fff;
+      --amber:#e39b2b;--amber-soft:#fbf1de;--amber-line:#efdcb8;--amber-deep:#8a5510;
+      --ok:#2e7d5b;--ok-soft:#e4f1ea;--crit:#b3243c;--crit-soft:#fbe7ea;
+      --ease-out:cubic-bezier(.23,1,.32,1);}
+    *{box-sizing:border-box;}
+    body{margin:0;background:var(--ground);color:var(--ink);
+      font-family:Archivo,"Noto Sans KR",system-ui,sans-serif;font-size:14px;line-height:1.5;
+      -webkit-font-smoothing:antialiased;}
+    a{color:var(--amber-deep);text-decoration:none;} a:hover{color:#6b4009;}
+    h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:balance;}
+    .mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;}
+    .eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;}
+    .tap{transition:transform 160ms var(--ease-out);}
+    .tap:active{transform:scale(.985);}
+    .btn{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:8px;
+      border:1px solid var(--ink);background:var(--ink);color:#fff;
+      font:600 15px Archivo,"Noto Sans KR",sans-serif;transition:transform 160ms var(--ease-out);}
+    .btn:active{transform:scale(.97);}
+    .btn.ghost{background:var(--surface);color:var(--ink);}
+    .btn.amber{background:var(--amber);border-color:var(--amber);color:#2a1b04;}
+    .btn.off{background:var(--line);border-color:var(--line);color:#9b95a6;}
+    .btn.off:active{transform:none;}
+    @media (hover:hover) and (pointer:fine){
+      .btn.ghost:hover{background:var(--ground);}
+      .card.tap:hover{border-color:#cfc8da;}
+    }
+    @media (prefers-reduced-motion:reduce){ .tap,.btn{transition:none;} .tap:active,.btn:active{transform:none;} }
+    .badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:600;
+      background:var(--amber-soft);color:var(--amber-deep);}
+    .badge.ok{background:var(--ok-soft);color:var(--ok);}
+    .badge.crit{background:var(--crit-soft);color:var(--crit);}
+    .badge.plain{background:var(--ground);color:var(--muted);}
+    .sub{color:var(--muted);font-size:12px;}
+    .rule{height:1px;background:var(--line);}
+    .poster{background:linear-gradient(160deg,#2c2540,#5d4a2e 70%,#8a6a2c);border-radius:8px;}
+  </style>
+</helmet>
+<div style="min-height:100%;background:var(--ground);"><div style="min-height:100%;background:#17141f;display:flex;align-items:center;justify-content:center;padding:60px 24px;"><div class="card" style="width:480px;padding:24px;display:flex;flex-direction:column;gap:16px;"><h1 style="font-size:19px;">공연을 취소하시겠어요?</h1><div class="sub" style="line-height:1.7;">전 티켓이 수수료 없이 관객 지갑으로 환불되며 정산이 중단됩니다. 일괄 환불이 끝나면 보증금 ₩50,000이 반환됩니다.</div><div class="card" style="padding:14px;display:flex;flex-direction:column;gap:8px;"><div style="display:flex;justify-content:space-between;"><span class="sub">환불 진행</span><span class="mono" style="font-weight:600;">42 / 80</span></div><div style="height:5px;background:var(--line);border-radius:3px;overflow:hidden;"><div style="width:52%;height:100%;background:var(--amber);"></div></div><div style="display:flex;justify-content:space-between;align-items:center;"><span class="sub">보증금</span><span class="badge plain">반환 대기</span></div></div><div style="display:flex;gap:10px;justify-content:flex-end;"><div class="btn ghost" style="min-height:42px;padding:0 18px;">닫기</div><div class="btn" style="min-height:42px;padding:0 18px;background:var(--crit);border-color:var(--crit);">취소 확정</div></div></div></div></div>
+</x-dc>
+</body>
+</html>

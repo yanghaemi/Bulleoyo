@@ -1,0 +1,188 @@
+# B204 단일 EC2 배포 compose
+# - 바깥 Nginx는 호스트에 설치된 것을 쓴다(exec/nginx/j15b204.p.ssafy.io.conf).
+# - 백엔드는 블루/그린 2세트다. 호스트 Nginx는 router 컨테이너(127.0.0.1:8080)만 보고,
+#   색 전환은 router 안에서 끝난다 — 호스트 설정은 안 바뀌므로 수동 reload가 없다.
+#   (Jenkins는 컨테이너 안이라 호스트 systemctl을 못 부른다.)
+# - 이미지 태그는 커밋 SHA. 배포는 exec/deploy/blue-green.sh, 롤백은 exec/deploy/rollback.sh.
+# - 서버에서는 ~/app/docker-compose.yml + ~/app/.env(Jenkins가 생성) 조합으로 뜬다.
+
+# 블루·그린이 공유하는 백엔드 정의. 다른 것은 이미지 태그·이름·체인 instance-id 뿐이다 —
+# 두 벌을 손으로 맞추면 언젠가 한쪽만 고쳐진다.
+#
+# 환경 맵은 따로 앵커로 둔다. YAML 병합(<<:)은 한 단계만 합쳐서, 서비스에서 environment: 를
+# 다시 쓰면 공통 env 가 통째로 사라진다 — 색별 값(B204_CHAIN_INSTANCE_ID)을 더하려면
+# environment: { <<: *backend-env, ... } 로 그 맵 안에서 합쳐야 한다.
+x-backend-env: &backend-env
+  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+  # 응답의 절대 URL 베이스. application.yml 기본값은 명세 예시 도메인이라 여기서 실제 도메인으로 덮는다.
+  APP_BASE_URL: ${APP_BASE_URL:-https://j15b204.p.ssafy.io}
+  DB_URL: ${DB_URL:?}
+  DB_USERNAME: ${DB_USERNAME:?}
+  DB_PASSWORD: ${DB_PASSWORD:?}
+  REDIS_HOST: ${REDIS_HOST:-redis}
+  REDIS_PORT: ${REDIS_PORT:-6379}
+  JWT_SECRET: ${JWT_SECRET:?}
+  OPERATOR_PRIVATE_KEY: ${OPERATOR_PRIVATE_KEY}
+  MINTER_PRIVATE_KEY: ${MINTER_PRIVATE_KEY}
+  # OPERATOR 지갑 주소(공개). §0.4 prepare 응답의 feePayer. 비어도 기동은 된다 — 그 필드만 빠진다.
+  OPERATOR_ADDRESS: ${OPERATOR_ADDRESS}
+  KAIA_RPC_URL: ${KAIA_RPC_URL:-https://public-en-kairos.node.kaia.io}
+  KAIA_CHAIN_ID: ${KAIA_CHAIN_ID:-1001}
+  CONTRACT_YOYO_ADDRESS: ${CONTRACT_YOYO_ADDRESS}
+  CONTRACT_SPLITTER_ADDRESS: ${CONTRACT_SPLITTER_ADDRESS}
+  # chain_job 워커 스위치. MINTER 로테이션처럼 체인 전송을 잠시 멈출 때만 false (exec/README.md).
+  # :-true 인 이유는 SETTLEMENT_DISPUTE_PERIOD 주석과 같다 — :- 뒤가 비면 빈 문자열이 들어간다.
+  CHAIN_WORKER_ENABLED: ${CHAIN_WORKER_ENABLED:-true}
+  # 정산 공유 링크 베이스(API v6 §11). 기본값이 실제 도메인. 프론트 공개 정산 라우트 경로는 화면 v6 확정 후 조정.
+  SETTLEMENT_SHARE_BASE_URL: ${SETTLEMENT_SHARE_BASE_URL:-https://j15b204.p.ssafy.io/settlement/share}
+  # 정산 이의제기 기간. 리허설·시연은 PT1M 처럼 줄여 쓴다.
+  # ${VAR:-48h} 로 두는 이유 — ${VAR:-} 는 "미설정"이 아니라 빈 문자열을 넣어서
+  # application.yml 의 :48h 기본값이 영영 발동하지 않는다(빈 값도 해결된 값으로 본다).
+  SETTLEMENT_DISPUTE_PERIOD: ${SETTLEMENT_DISPUTE_PERIOD:-48h}
+  WEB3AUTH_CLIENT_ID: ${WEB3AUTH_CLIENT_ID}
+  # 운영 알림(서버 결함 revert·발행량 halt) Mattermost 웹훅. Jenkins 가 MATTERMOST_WEBHOOK 으로 채운다. 비면 로그만.
+  ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+  # 패스키 본인 확인(API v7 §7.W — 결제·규칙 동의·보증금·정산 동의·정산금 지급). 기본 꺼짐. :- 뒤에 값을 두는 이유는 SETTLEMENT_DISPUTE_PERIOD 주석과 같다.
+  STEP_UP_ENABLED: ${STEP_UP_ENABLED:-false}
+  WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-localhost}
+  WEBAUTHN_ORIGINS: ${WEBAUTHN_ORIGINS:-http://localhost:5173}
+  # 업로드 저장 루트(포스터 이미지). 아래 바인드 마운트의 컨테이너 쪽 경로와 같아야 한다.
+  UPLOAD_DIR: ${UPLOAD_DIR:-/app/uploads}
+  TZ: Asia/Seoul
+
+x-backend: &backend
+  restart: unless-stopped
+  depends_on:
+    mysql:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  # 호스트 포트를 열지 않는다. 바깥에서 오는 길은 router 하나뿐이다 —
+  # 두 색이 같은 포트를 두고 다투지 않는 것이 블루/그린이 성립하는 조건이다.
+  # 지표는 prometheus 가 app_default 네트워크에서 컨테이너 이름으로 긁는다(exec/monitoring).
+  expose:
+    - "8080"
+  # named volume 이 아니라 **바인드**인 이유: 같은 파일을 호스트 Nginx 가 직접 읽어
+  # /uploads/ 로 정적 서빙한다(exec/nginx/j15b204.p.ssafy.io.conf).
+  # 블루·그린이 같은 디렉토리를 봐야 색을 바꿔도 올려 둔 이미지가 그대로 보인다.
+  # 호스트 디렉토리는 사람이 1회 만든다 — `sudo install -d -o 10001 -m 755 ~/app/uploads`
+  # (백엔드 컨테이너 실행 유저가 uid 10001). 재배포·롤백으로 사라지면 안 되는
+  # 유일한 상태 파일이다(exec/README.md 백업 대상).
+  volumes:
+    - /home/ubuntu/app/uploads:/app/uploads
+  # **상한이 없으면 JVM 이 호스트 전체를 자기 몫으로 본다.** backend/Dockerfile 이
+  # -XX:MaxRAMPercentage=70 으로 뜨는데, 이 옵션은 컨테이너 상한을 전제로 한 것이다.
+  # 상한이 없으면 70% 의 기준이 호스트 메모리(15.4GB)가 되어 한 JVM 이 최대 ~10.8GB 까지
+  # 힙을 키울 수 있고, **블루/그린은 그런 JVM 을 둘 띄운다.** 상한을 두면 그제야
+  # MaxRAMPercentage 가 의미를 갖는다 — 3g 면 힙 상한 2.1g, 비힙까지 3g 안이다.
+  mem_limit: ${BACKEND_MEM_LIMIT:-3g}
+  healthcheck:
+    # 전환 판정의 근거다. 이것이 healthy 가 되기 전에는 트래픽을 넘기지 않는다.
+    test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/actuator/health"]
+    interval: 5s
+    timeout: 5s
+    retries: 24
+    start_period: 60s
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: b204-mysql
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+09:00
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-b204}
+      MYSQL_USER: ${MYSQL_USER:?}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?}
+      TZ: Asia/Seoul
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: b204-redis
+    restart: unless-stopped
+    # AOF 를 켠다. 무영속이면 재기동에서 **chain:owner 가 사라지고**, 두 색이 상시 떠 있으므로
+    # ChainOwnership.isOwner() 의 setIfAbsent 를 쉬는 옛 색이 먼저 이길 수 있다 — 그러면 옛
+    # 이미지가 tx 전송·확정을 맡아 새 빌드의 job 이 조용히 PENDING 으로 남는다(리뷰 !93 🔴).
+    # 로그인 세션(auth:refresh:{jti}, TTL 14일)도 같은 이유로 살아남아야 한다.
+    # RDB(--save)는 끈 채 둔다 — AOF 하나면 충분하고 둘 다 켜면 같은 데이터를 두 번 쓴다.
+    # TTL 은 AOF 복원 뒤에도 남은 시간으로 이어진다(만료 시각이 기록된다).
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--save", ""]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # 블루·그린. 배포는 "쉬고 있는 색을 새 태그로 띄우고, healthy 를 본 뒤 전환" 이다.
+  # 한쪽만 떠 있어도 정상이다(최초 배포). 태그가 비어 있으면 그 색은 만들지 않는다.
+  #
+  # B204_CHAIN_INSTANCE_ID = 색 이름. Redis chain:owner 를 가진 색만 체인 tx 를 보낸다
+  # (ChainOwnership). 전환 때 배포 스크립트가 이 키를 새 색으로 넘긴다(deploy/blue-green.sh).
+  # **색 이름이 인스턴스마다 고유한 근거는 container_name 고정이다** — 같은 색이 동시에 둘
+  # 뜰 수 없다(recreate 는 옛 것을 먼저 멈춘다). --scale 이나 container_name 제거 금지:
+  # 같은 색이 둘 뜨면 둘 다 소유자이고 DB claim 도 둘 다 통과한다(claimed_by 가 같다).
+  backend-blue:
+    <<: *backend
+    image: b204-backend:${BLUE_TAG:-missing}
+    container_name: b204-backend-blue
+    environment:
+      <<: *backend-env
+      B204_CHAIN_INSTANCE_ID: blue
+    profiles: ["blue"]
+
+  backend-green:
+    <<: *backend
+    image: b204-backend:${GREEN_TAG:-missing}
+    container_name: b204-backend-green
+    environment:
+      <<: *backend-env
+      B204_CHAIN_INSTANCE_ID: green
+    profiles: ["green"]
+
+  # 호스트 Nginx 가 보는 유일한 백엔드 주소. 색 전환이 여기서 끝난다.
+  router:
+    image: nginx:1.27-alpine
+    container_name: b204-router
+    restart: unless-stopped
+    volumes:
+      - ./nginx/router.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/active_color.conf:/etc/nginx/b204/active_color.conf:ro
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/router/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+
+  frontend:
+    image: b204-frontend:${IMAGE_TAG:?}
+    container_name: b204-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  redis_data:
+    name: redis_data
+  mysql_data:
+    name: mysql_data

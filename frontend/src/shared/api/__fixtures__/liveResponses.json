@@ -1,0 +1,92 @@
+{
+  "coin_01": {
+    "code": "SUCCESS",
+    "data": {
+      "totalSupply": 600000,
+      "escrowTotal": 0,
+      "walletTotal": 100000,
+      "grantCount": 1,
+      "supplyMatched": false,
+      "currency": "KRW",
+      "issuer": {
+        "type": "MOCK",
+        "label": "Platform (demo grant)",
+        "replaceable": true
+      },
+      "mintHalted": true,
+      "releaseHalted": true,
+      "network": "kaia-kairos",
+      "chainId": 1001,
+      "tokenAddress": "0xA5d7031D70DAab33EACDfC912baC0668D5776e5b",
+      "tokenSymbol": "YoYo",
+      "tokenDecimals": 0,
+      "explorerUrl": "https://kairos.kaiascan.io/address/0xA5d7031D70DAab33EACDfC912baC0668D5776e5b",
+      "invariants": [
+        {
+          "no": 1,
+          "name": "SUPPLY_EQUALS_MINTED",
+          "expected": 100000,
+          "actual": 600000,
+          "matched": false,
+          "note": "totalSupply = Sum of Minted - mint only, so supply never decreases"
+        },
+        {
+          "no": 2,
+          "name": "ESCROW_PER_SHOW",
+          "checkedShows": 0,
+          "mismatchedShows": 0,
+          "matched": true,
+          "note": "escrowOf = purchase - refund - release (deposit accounted separately)"
+        },
+        {
+          "no": 3,
+          "name": "RELEASED_EQUALS_RULE_RECALC",
+          "checkedShows": 0,
+          "mismatchedShows": 0,
+          "maxDiff": 0,
+          "matched": true,
+          "note": "아직 실행된 정산이 없습니다 — 검사 대상 0건"
+        },
+        {
+          "no": 4,
+          "name": "SUPPLY_EQUALS_WALLETS_PLUS_ESCROW",
+          "expected": 100000,
+          "actual": 600000,
+          "matched": true,
+          "note": "totalSupply = registered wallet balances + escrow/deposits; difference 500000 is held by addresses outside LINKED wallets (unregistered or SUSPENDED) (1 registered wallets read from node)"
+        }
+      ],
+      "perPerformanceEscrow": [],
+      "asOf": "2026-09-16T11:23:00.309384913+09:00",
+      "nextRefreshAt": "2026-09-16T11:24:00.309384913+09:00",
+      "stale": false,
+      "disclosure": "A testnet demo set in a future where money is a coin. No real assets or currency. Coins are granted by the platform for the demo; balance figures are read through the platform server.",
+      "grantNotice": "Every coin in circulation came from a demo grant: 100,000 on sign-up, plus manual admin grants."
+    },
+    "msg": ""
+  },
+  "coin_02": {
+    "code": "SUCCESS",
+    "data": {
+      "rates": [],
+      "usageNotice": "Rates are for display only. All payments, refunds and settlements are calculated in Korean won.",
+      "refreshedAt": "2026-09-16T11:23:28.622990016+09:00"
+    },
+    "msg": ""
+  },
+  "coin_01_404_public_settlement": {
+    "code": "COMMON_NOT_FOUND",
+    "data": null,
+    "msg": "요청한 정보를 찾을 수 없습니다."
+  },
+  "common_401": {
+    "code": "COMMON_UNAUTHORIZED",
+    "data": null,
+    "msg": "로그인이 필요합니다."
+  },
+  "coin_04_500": {
+    "code": "COMMON_INTERNAL_ERROR",
+    "data": null,
+    "msg": "미구현: API-coin-04 체인·컨트랙트 설정(P1)"
+  }
+}

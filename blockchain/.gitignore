@@ -1,0 +1,20 @@
+node_modules/
+artifacts/
+cache/
+typechain-types/
+# Hardhat 3 toolbox 는 typechain 결과를 types/ 에 낸다(v2 의 typechain-types/ 아님). 빌드 산출물이므로 제외.
+types/
+coverage/
+coverage.json
+dist/
+
+# 배포 산출물 — kairos.json·abi/는 커밋한다(CI가 주소를 읽는다). 로컬 배포 결과만 제외.
+deployments/localhost/
+
+# 비밀값. configVariable()은 .env를 읽지 않지만(환경변수·keystore) 실수 방지로 남긴다.
+.env
+.env.*
+!.env.example
+
+# verify.ts 원자적 쓰기의 임시 파일 — 프로세스가 rename 전에 죽으면 남는다. 오커밋 방지.
+deployments/*.tmp-*

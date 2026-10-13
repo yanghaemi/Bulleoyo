@@ -1,0 +1,70 @@
+# Jenkins 컨트롤러 기동 파일 — 서버 /home/ubuntu/jenkins/ 에 두고 여기서 up 한다.
+#
+#   DOCKER_GID=$(stat -c %g /var/run/docker.sock) \
+#     docker compose -f docker-compose.jenkins.yml up -d --build
+#
+# 앱 compose(~/app/docker-compose.yml)와는 다른 프로젝트다. 같이 뜨고 서로 건드리지 않는다.
+name: jenkins
+
+services:
+  jenkins:
+    build:
+      context: .
+    image: b204-jenkins:lts
+    container_name: jenkins
+    restart: unless-stopped
+
+    # 외부 노출은 호스트 Nginx의 /jenkins/ (HTTPS)만. ufw에 새 포트를 열지 않는다.
+    # 에이전트 포트(50000)는 컨트롤러가 곧 실행 노드라 열지 않는다.
+    ports:
+      - "127.0.0.1:9090:8080"
+
+    environment:
+      # 리버스 프록시 하위 경로. Nginx는 proxy_pass에 경로를 붙이지 않고 이 값이 처리한다.
+      JENKINS_OPTS: --prefix=/jenkins
+      TZ: Asia/Seoul
+      # Testcontainers(백엔드 통합 테스트)가 띄우는 MySQL·Redis·Ryuk 은 호스트의 형제 컨테이너라
+      # 기본값 localhost 로는 닿지 않는다(그 localhost 는 이 컨테이너). 호스트 주소로 바꾼다.
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+      # 호스트 엔진 29.x(MinAPIVersion 1.40)는 낮은 API 버전 요청을 400 으로 거부한다. 고정한다.
+      DOCKER_API_VERSION: "1.44"
+
+    # Linux 는 host.docker.internal 을 기본 해석하지 않는다. 도커 게이트웨이로 매핑한다.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    volumes:
+      - /home/ubuntu/jenkins-data:/var/jenkins_home
+      # 호스트 도커에 빌드·배포를 시킨다.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # 배포 디렉토리는 호스트와 같은 경로로 마운트한다. 경로가 같아야 compose 프로젝트
+      # 이름(디렉토리명 app)이 동일해져서 기존 컨테이너·볼륨을 그대로 이어받는다.
+      - /home/ubuntu/app:/home/ubuntu/app
+
+    # 도커 소켓 접근 권한. 호스트 docker 그룹 GID를 넘긴다(stat -c %g /var/run/docker.sock).
+    group_add:
+      - "${DOCKER_GID:?DOCKER_GID 를 호스트 docker 그룹 GID로 지정하라 - stat -c %g /var/run/docker.sock}"
+
+    # 15G 중 Jenkins 몫. 나머지는 백엔드·MySQL·빌드가 쓴다.
+    # 2g 에서 Hardhat 테스트(Phase B 이후 실제 컨트랙트 + 가스 소진 시나리오)가 OOM kill(exit 137,
+    # 2026-09-08 feat/bc/contract #9). Node 는 cgroup 한도를 모르고 힙을 잡으므로 한도를 4g 로 올리고
+    # Jenkinsfile contract 스테이지가 NODE_OPTIONS 로 힙을 3g 에 묶어 조용히 실패하게 한다.
+    mem_limit: 4g
+
+  # GitLab 웹훅 → Mattermost 알림(MR 생성·머지·코멘트, MR 작성자 @태그). notify/server.js.
+  # Nginx 가 /hooks/gitlab 을 127.0.0.1:9092 로 넘긴다(9091 은 Prometheus). 설정은 같은 디렉토리의 .env.notify(미커밋):
+  #   MM_WEBHOOK=…  GITLAB_HOOK_TOKEN=…  MM_USERS=30574=mm아이디,30549=…
+  # 파일이 없으면 notify 만 3회 재시작 뒤 멈춘다(on-failure:3). jenkins 는 영향 없다. env_file 장문법은 Compose v2.24+.
+  notify:
+    build:
+      context: ./notify
+    image: b204-notify:1
+    container_name: b204-notify
+    restart: on-failure:3
+    ports:
+      - "127.0.0.1:9092:8080"
+    env_file:
+      - path: .env.notify
+        required: false
+    mem_limit: 128m
+

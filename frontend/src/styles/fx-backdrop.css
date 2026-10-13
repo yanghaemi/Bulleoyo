@@ -1,0 +1,247 @@
+/*
+ * 앰비언트 배경 — 전 페이지 공통. 콘텐츠 뒤 고정 레이어 한 장.
+ *
+ * ── 컨셉 (2026-09-08 3차): 무대 위 안개에 조명이 배어든 "워시" ────────────
+ * 1차는 원형 블롭 4개, 2차는 위에서 떨어지는 조명 콘 3줄기였다. 콘은 "SaaS 랜딩 블롭"을
+ * 피하려던 선택이었는데, 실제 화면에서 보니 배경에 줄기 셋이 서 있는 것이 도형으로 읽혔다
+ * ("스포트라이트 3줄기는 좀 별로다, 더 깔끔하게" — 강병구). 그래서 **형태를 전부 지웠다.**
+ *
+ * 남긴 것은 형태가 없는 빛 둘과 커서 스팟 하나다:
+ *   · 워시(wash) — 화면 위쪽 전체에 넓게 배어드는 보라 안개. 조명기가 아니라 조명이 안개에
+ *     번진 결과다. 가장자리가 없어서 어디서 시작하고 끝나는지 알 수 없다. 90초 주기로 아주 느리게 숨 쉰다.
+ *   · 온기(warm) — 우하단 저 멀리, 자홍이 아주 옅게. 보라 하나뿐이면 화면이 차갑다.
+ *   · 스팟(spot) — 커서를 따라오는 팔로우 스팟. 유일하게 "반응"하는 층. 좌표는 JS(AmbientBackdrop)가 준다.
+ *   · 그레인 — 큰 그라데이션의 밴딩을 흩는다.
+ * 리프트(밝은 테마의 본문 대비 보호층)는 남긴다. 다크에서는 끈다.
+ *
+ * ── 롤백 ──────────────────────────────────────────────────────────
+ * ① 시각 효과만 끄기(한 줄): `styles.css`의 `@import "./styles/fx-backdrop.css";` 삭제.
+ *    컴포넌트(`shared/fx/AmbientBackdrop`)는 CSS 변수 `--fx-cx/--fx-cy`만 세팅하므로
+ *    이 파일이 없으면 아무도 읽지 않는 변수를 쓰는 빈 div가 남을 뿐이다. 화면은 단색 ground로 복귀.
+ * ② 완전 제거: 위 한 줄 + `app/providers.tsx`의 import·`<AmbientBackdrop />` 두 줄 삭제,
+ *    그리고 이 파일과 `shared/fx/AmbientBackdrop.tsx` 삭제.
+ *
+ * ── 색은 만들지 않는다 ─────────────────────────────────────────────
+ * 팀 토큰(`docs/design/14_디자인_토큰_v1.md`)만 `color-mix`로 묽게 타서 쓴다. 워시는
+ * `--effect-primary-bright`, 온기는 `--color-sel`. 테마를 바꾸면 따라간다.
+ * ⚠ `color-mix(...)`를 gradient 안에 직접 쓰지 않고 `--fx-tint`로 한 번 물린다 — Lightning CSS가
+ * gradient 안의 color-mix에 원색 100% 폴백을 만들어 미지원 브라우저에서 화면이 보라 덩어리가 된다.
+ * 변수로 물리면 폴백이 생기지 않고, 미지원 브라우저는 선언째 버려 단색 ground로 남는다.
+ *
+ * ── z 축 ──────────────────────────────────────────────────────────
+ * `document.body` 직계 자식, `z-index: -1`. body 배경 위, `#root` 콘텐츠 아래.
+ * ⚠ 페이지 루트 래퍼에 불투명 `bg-ground`가 있으면 이 층이 통째로 가려진다 — 2026-09-08에
+ * 12개 화면의 래퍼에서 걷어냈다(body가 같은 색을 이미 칠하고 루트 캔버스로 전파된다).
+ * 카드·입력의 작은 `bg-ground`는 무관하다. 새 화면을 만들 때 래퍼는 `min-h-dvh`만 둔다.
+ *
+ * ── 대비 ─────────────────────────────────────────────────────────
+ * 캔버스에 직접 놓인 `text-muted`만 영향을 받는다. 워시는 화면 위 1/3에서 가장 진하고 본문이 지나가는
+ * 중간 띠에서는 절반 아래로 떨어진다. 알파 상한은 아래 네 줄 — 여기서 올리지 않는다.
+ * 다크(muted #a4a6b6 / ground 8.13:1): 워시 피크 14%에서 ≈6.6:1, 본문 띠 ≈7.4:1.
+ * 라이트(muted #6f7280 / ground 4.47:1 기준선): 워시 7% 피크 ≈4.2:1, 본문 띠(리프트 포함) ≈4.4:1.
+ */
+
+/*
+ * ── 공연색 주입 지점 (2026-09-09) ──────────────────────────────────
+ * 배경의 큰 워시(와 커서 스팟)는 평소 브랜드 토큰이지만, **A-02 공연 상세에서는 그 공연
+ * 포스터의 색**이 된다.
+ * 새 레이어를 얹지 않고 이미 있는 워시·온기의 색만 갈아 끼운다 — 레이어를 더하면 알파가
+ * 겹쳐 본문 대비가 흔들리고, 위 주석의 대비 계산이 통째로 무의미해진다.
+ *
+ * `--fx-show-a`는 `useShowBackdrop`이 문서 루트에 넣고 화면을 떠날 때 지운다.
+ * 없으면 토큰으로 되돌아간다(var의 두 번째 인자) — 즉 다른 화면은 오늘과 완전히 같다.
+ *
+ * ⚠ 알파는 건드리지 않는다. 색만 바뀌고 세기는 위 네 줄 그대로다. 포스터가 노란 공연이라고
+ * 배경이 더 밝아지면 안 된다 — `ticketTheme`이 이미 명도를 WCAG 상한으로 잘라서 준다.
+ */
+/*
+ * ⚠ 여기에 `@property` + `transition`을 쓰지 않는다 — 2026-09-09에 시도했다가 되돌렸다.
+ * 등록한 커스텀 속성의 값을 `var()`로 받게 해 두고 전환을 걸면, 크롬에서 그 값이 **첫 계산에
+ * 얼어붙어 다시는 갱신되지 않는다.** 공연을 바꿔도 배경색이 그대로였다(실측: --fx-show-a는
+ * 붉은색인데 실제 칠해지는 색은 이전 공연의 초록에 멈춤). 전환을 끄면 즉시 정상 동작한다.
+ * `fx-ticket.css`의 --tk-a가 멀쩡한 이유는 JS가 **등록된 그 변수 자체를** 직접 넣기 때문이다.
+ *
+ * 그래서 색 전환은 CSS로 하지 않고, 대신 **색이 한 번만 바뀌게** 만들었다 —
+ * `useShowBackdrop`이 시드 색은 넣지 않고 포스터에서 실제로 뽑은 색만 넣는다.
+ */
+
+/*
+ * 워시·커서 스팟·히어로 조명이 함께 보는 색. 공연색이 있으면 그것, 없으면 브랜드 토큰.
+ *
+ * ⚠ **반드시 `:root`에 둔다. `.fx-ambient` 안에 두면 안 된다.**
+ * `.fx-ambient`는 `AmbientBackdrop`이 `document.body`로 포털해 `#root`의 **형제**로 붙인다.
+ * 그 안에 변수를 두면 `#root` 안에 있는 `.fx-hero-glow`(fx-hero.css)가 상속받지 못한다.
+ * 커스텀 속성에 폴백이 없으면 `--fx-tint`가 guaranteed-invalid가 되고, 그 값을 쓰는
+ * `background: radial-gradient(…, var(--fx-tint), …)`가 **invalid at computed-value time으로
+ * 통째로 버려진다** — 오류 없이 히어로 조명이 사라진다. 2026-09-09에 실제로 그렇게 깨뜨렸고
+ * MR !61 자동 리뷰가 잡았다. 앰비언트는 멀쩡해서 눈으로는 배경만 보고 넘어가기 쉽다.
+ *
+ * ⚠ **온기(우하단 구석)는 이 색을 쓰지 않는다.** 이 배경의 깊이는 "반대편 구석의 반대색"에서
+ * 나온다. 워시와 온기를 같은 공연색으로 칠하면 화면이 한 온도로 평평해진다.
+ */
+:root {
+  --fx-hue-a: var(--fx-show-a, var(--effect-primary-bright));
+}
+
+.fx-ambient {
+  /* ── 튜닝 지점: 이 네 줄이 강도의 전부다 ── */
+  --fx-wash: 7%; /* 상단 워시 — primary-bright */
+  --fx-warm: 4%; /* 우하단 온기 — sel */
+  --fx-lift: 26%; /* 중앙 리프트 — surface(흰색)로 본문 띠 휘도를 되올린다(라이트 전용) */
+  --fx-spot: 5%; /* 커서 팔로우 스팟 */
+
+  /* 커서 좌표 기본값. JS가 못 붙거나(터치) 붙기 전에도 그림이 완성돼 있어야 한다. */
+  --fx-cx: 50%;
+  --fx-cy: 42%;
+
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  contain: layout paint style;
+}
+
+/* ── 워시: 화면 위쪽에 넓게 배어드는 빛 ──────────────────────────────
+   타원 한 장. 중심을 뷰포트 위(−30%)에 두어 가장자리가 화면 안에 들어오지 않는다 — 가장자리가
+   보이면 "빛"이 아니라 "타원"이다. 폭 160vw로 좌우도 화면 밖에서 끝난다.
+   90초 주기로 아주 조금(±2%) 부풀고 가라앉는다. 알아채면 실패, 멈춰 있으면 사진이다. */
+.fx-ambient__wash {
+  position: absolute;
+  left: 50%;
+  top: -30vh;
+  width: 160vw;
+  height: 110vh;
+  transform: translate3d(-50%, 0, 0);
+  --fx-tint: color-mix(in srgb, var(--fx-hue-a) var(--fx-wash), transparent);
+  background: radial-gradient(closest-side ellipse at 50% 40%, var(--fx-tint), transparent 100%);
+  animation: fx-breathe 90s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* ── 온기: 우하단 멀리, 자홍 한 점 ─────────────────────────────────
+   보라 하나뿐이면 화면 전체가 한 온도다. 반대편 구석에 반대색을 아주 옅게 두면 깊이가 생긴다.
+   워시와 주기가 다르게(70s) 숨 쉰다 — 둘이 같은 박자로 움직이면 한 덩어리로 읽힌다. */
+.fx-ambient__warm {
+  position: absolute;
+  left: 78%;
+  top: 74%;
+  width: 90vw;
+  height: 90vw;
+  transform: translate3d(-50%, -50%, 0);
+  --fx-tint: color-mix(in srgb, var(--color-sel) var(--fx-warm), transparent);
+  background: radial-gradient(closest-side circle, var(--fx-tint), transparent 100%);
+  animation: fx-breathe 70s ease-in-out infinite reverse;
+  will-change: transform;
+}
+
+/* ── 리프트: 본문 띠의 휘도를 되올리는 층(라이트 전용) ─────────────────
+   흔들지 않는다 — 대비를 지키는 층이 움직이면 대비도 같이 흔들린다. */
+.fx-ambient__lift {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 120vw;
+  height: 80vh;
+  transform: translate3d(-50%, -50%, 0);
+  --fx-tint: color-mix(in srgb, var(--color-surface) var(--fx-lift), transparent);
+  background: radial-gradient(closest-side ellipse, var(--fx-tint), transparent 75%);
+}
+
+/* ── 커서 팔로우 스팟 ──────────────────────────────────────────────
+   반경 420px. 좌표는 JS가 px로 넣고(--fx-cx/--fx-cy) 보간은 JS의 rAF lerp(0.12)가 맡는다.
+   WebGPU가 필요 없어서 히어로 캔버스가 꺼지는 환경에서도 남는다. */
+.fx-ambient__spot {
+  position: absolute;
+  inset: 0;
+  --fx-tint: color-mix(in srgb, var(--fx-hue-a) var(--fx-spot), transparent);
+  background: radial-gradient(420px circle at var(--fx-cx) var(--fx-cy), var(--fx-tint), transparent 70%);
+}
+
+/* ── 미세 노이즈 ──────────────────────────────────────────────────
+   큰 그라데이션은 8bit 채널에서 밴딩(줄무늬)이 생긴다. 이 한 겹이 계단을 흩어 없애고 덤으로
+   종이 질감을 준다. feTurbulence data-URI, 네트워크 요청 0. */
+.fx-ambient__grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.035;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 140px 140px;
+}
+
+/* 숨쉬기 — transform만 쓴다(레이아웃 없음). ±2%는 1440px에서 30px 남짓. */
+@keyframes fx-breathe {
+  0%,
+  100% {
+    transform: translate3d(-50%, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-50%, 0, 0) scale(1.02);
+  }
+}
+/* 온기는 중심 정렬 translate가 다르므로 별도 키프레임 */
+.fx-ambient__warm {
+  animation-name: fx-breathe-warm;
+}
+@keyframes fx-breathe-warm {
+  0%,
+  100% {
+    transform: translate3d(-50%, -50%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-50%, -50%, 0) scale(1.04);
+  }
+}
+
+/* ── 사용자 환경설정 3종 ─────────────────────────────────────────── */
+
+/* 모션 축소 — 숨쉬기를 끈다. 스팟은 남기되 JS가 lerp 없이 즉시 좌표를 쓴다 */
+@media (prefers-reduced-motion: reduce) {
+  .fx-ambient__wash,
+  .fx-ambient__warm {
+    animation: none;
+  }
+}
+
+/* 투명도 축소 — 알파를 0으로 내려 단색 ground로 되돌린다 */
+@media (prefers-reduced-transparency: reduce) {
+  .fx-ambient,
+  :root[data-theme='dark'] .fx-ambient {
+    --fx-wash: 0%;
+    --fx-warm: 0%;
+    --fx-lift: 0%;
+    --fx-spot: 0%;
+  }
+  .fx-ambient__grain,
+  :root[data-theme='dark'] .fx-ambient__grain {
+    opacity: 0;
+  }
+}
+
+/* 대비 강화 — 레이어째 숨긴다 */
+@media (prefers-contrast: more) {
+  .fx-ambient {
+    display: none;
+  }
+}
+
+/* ── 다크 테마 보정 ────────────────────────────────────────────────
+   밝은 바닥에 빛을 얹는 건 이미 밝은 것을 더 밝게 하는 일이라 알파를 낮게 잡았다.
+   어두운 바닥에서는 얹을 여유가 남아 있어 두 배쯤 올린다 — 그래도 "얼룩"이 아니라 "안개"여야
+   하므로 14%가 상한이다. 리프트는 끈다(다크에서는 회색 타원을 하나 더 그릴 뿐이다).
+   히어로의 StageFlare 빔과 같은 자리에 겹치므로 그보다 항상 옅어야 한다. */
+:root[data-theme='dark'] .fx-ambient {
+  --fx-wash: 14%;
+  --fx-warm: 8%;
+  --fx-lift: 0%;
+  --fx-spot: 9%;
+}
+
+/* 그레인 — multiply는 near-black에서 누를 것이 없다. screen으로 어두운 계조의 계단을 흩는다.
+   0.05가 상한(그 위로는 바닥이 뿌옇게 뜬다) */
+:root[data-theme='dark'] .fx-ambient__grain {
+  opacity: 0.045;
+  mix-blend-mode: screen;
+}

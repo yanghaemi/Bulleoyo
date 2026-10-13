@@ -1,0 +1,83 @@
+/*
+ * 무대 컨셉 소품 — 지금은 **A-08 티켓의 절취선** 하나뿐이다.
+ *
+ * ── 왜 이것만 있나 ────────────────────────────────────────────────
+ * 배경(fx-backdrop)이 "조명", 호버(fx-hover)가 "무대 위 카드"를 맡는다. 남은 은유가
+ * "손에 쥔 실물 티켓"이고, 그걸 말하는 장치는 **절취선 하나면 충분하다.**
+ * 그래서 점선은 이 화면의 이 한 줄에만 쓴다 — 다른 곳에 점선을 더 쓰면 이 줄은
+ * 티켓이 아니라 그냥 구분선이 된다. (필요해 보였던 티켓 모서리 톱니·스탬프·홀로그램은
+ * 전부 만들지 않았다. 하나가 은유고 둘부터는 장식이다.)
+ *
+ * ── 롤백은 한 줄이다 ──────────────────────────────────────────────
+ * `styles.css`의 `@import "./styles/fx-stage.css";` 한 줄을 지우면 된다.
+ * `TicketDetail`의 구분선 요소는 Tailwind `border-b border-line`을 함께 달고 있어서,
+ * 이 파일이 없으면 **높이 0의 평범한 실선 구분선**으로 돌아간다(원래 모습 그대로).
+ * 이 파일이 있으면 아래 `border-bottom: 0`이 그 폴백을 덮고 절취선으로 바꾼다.
+ * (Tailwind v4 유틸리티는 `@layer utilities` 안에 있고 이 파일은 레이어 밖이라
+ *  특이도와 무관하게 이 파일이 이긴다 — `!important`가 필요 없다.)
+ *
+ * ── 만드는 법: 배경 세 겹, 가상요소 0개 ────────────────────────────
+ * 좌우 반원 노치를 `::before/::after`로 만들면 요소 밖으로 10px 삐져나가야 하는데,
+ * 오른쪽으로 삐져나간 원이 **모바일에서 가로 스크롤바를 만든다.** 그래서 노치도 배경으로
+ * 그린다 — 배경은 요소 밖으로 나가지 않는다. 겹치는 순서는 먼저 적은 층이 위다:
+ *   ① 왼쪽 노치(ground색 원)  ② 오른쪽 노치  ③ 점선
+ * 노치가 점선보다 위라서 점선의 양 끝이 노치에 정확히 잘린다 — 진짜 뜯는 자리처럼 보인다.
+ * 노치 색이 `--color-ground`인 이유: 이 줄 뒤에 있는 것이 페이지 배경이라 "구멍"으로 읽힌다.
+ * 테마를 바꾸면 구멍 색도 따라간다(hex 하드코딩 없음).
+ */
+
+.fx-ticket-perf {
+  /* 위아래 여백이 대칭이 되게 26px. 점선은 그 한가운데(12~14px)에 놓는다 */
+  height: 26px;
+  border-bottom: 0; /* 위 주석의 Tailwind 폴백을 덮는다 */
+  background-color: var(--color-surface);
+  /* 노치 반지름 11px. 가장자리 0.6px는 흘려서 원 테두리에 계단이 보이지 않게 한다 */
+  background-image:
+    radial-gradient(circle 11px at 0 13px, var(--color-ground) 10.4px, transparent 11px),
+    radial-gradient(circle 11px at 100% 13px, var(--color-ground) 10.4px, transparent 11px),
+    repeating-linear-gradient(
+      to right,
+      var(--color-line) 0 6px,
+      transparent 6px 12px
+    );
+  background-repeat: no-repeat;
+  background-position:
+    0 0,
+    0 0,
+    0 12px;
+  background-size:
+    auto,
+    auto,
+    100% 2px;
+}
+
+/*
+ * ── 홈 → 공연 상세: 포스터 모핑 (View Transitions API) ────────────────
+ * 캐러셀 중앙 카드의 포스터(2:3)·그리드 카드의 포스터·Book now가 가리키는 카드가, 상세(A-02)의
+ * 히어로 포스터(16:9) 자리로 **늘어나며** 화면이 바뀐다. 티켓의 `ticket-morph`와 같은 장치고
+ * 이름만 `show-poster`다. react-router `<Link viewTransition>`이 전환을 연다.
+ *
+ * 비율이 다르므로(2:3 → 16:9) 스냅샷을 그대로 늘리면 얼굴이 찌그러진다. 높이에 맞추고
+ * 가로로 넘치는 부분을 잘라 "종이가 자리를 옮긴다"로 보이게 한다. 미지원 브라우저는 즉시 이동.
+ */
+::view-transition-group(show-poster) {
+  animation-duration: 520ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+::view-transition-old(show-poster),
+::view-transition-new(show-poster) {
+  height: 100%;
+  width: auto;
+  object-fit: cover;
+  overflow: clip;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 260ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(show-poster) {
+    animation: none !important;
+  }
+}

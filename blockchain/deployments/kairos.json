@@ -1,0 +1,55 @@
+{
+  "network": "kaia-kairos",
+  "chainId": 1001,
+  "deployedAt": "2026-09-08T11:22:32.514Z",
+  "deployer": "0x1dC59a570C658fa9225E627f3C80921dD19307de",
+  "contracts": {
+    "YoYo": {
+      "address": "0xA5d7031D70DAab33EACDfC912baC0668D5776e5b",
+      "txHash": "0x0e3e1fc8fcdf33f6c30df0d347ed9d7fa709ace06f8d7e33a5832ddcda044747",
+      "blockNumber": 227223343,
+      "abi": "abi/YoYo.json",
+      "explorerUrl": "https://kairos.kaiascan.io/address/0xA5d7031D70DAab33EACDfC912baC0668D5776e5b",
+      "verification": {
+        "verifiedAt": "2026-09-16T02:38:54.508Z",
+        "compiler": "0.8.28",
+        "optimizer": {
+          "enabled": true,
+          "runs": 200
+        },
+        "viaIR": true,
+        "kaiascan": "https://kairos.kaiascan.io/address/0xA5d7031D70DAab33EACDfC912baC0668D5776e5b#code",
+        "sourcify": "https://repo.sourcify.dev/1001/0xA5d7031D70DAab33EACDfC912baC0668D5776e5b",
+        "sourcifyMatch": "exact_match"
+      }
+    },
+    "RevenueSplitter": {
+      "address": "0xa1ca24ECD6adCd29a8998031fd52Cf17F9541738",
+      "txHash": "0x41d38ac71521ccfb040be3803faf036e1dc96b9e7e09182537be1f36706271b2",
+      "blockNumber": 227223344,
+      "abi": "abi/RevenueSplitter.json",
+      "explorerUrl": "https://kairos.kaiascan.io/address/0xa1ca24ECD6adCd29a8998031fd52Cf17F9541738",
+      "verification": {
+        "verifiedAt": "2026-09-16T02:39:02.202Z",
+        "compiler": "0.8.28",
+        "optimizer": {
+          "enabled": true,
+          "runs": 200
+        },
+        "viaIR": true,
+        "kaiascan": "https://kairos.kaiascan.io/address/0xa1ca24ECD6adCd29a8998031fd52Cf17F9541738#code",
+        "sourcify": "https://repo.sourcify.dev/1001/0xa1ca24ECD6adCd29a8998031fd52Cf17F9541738",
+        "sourcifyMatch": "exact_match"
+      }
+    }
+  },
+  "roles": {
+    "minter": "0xDFf6220506315FBd71b104C8693e9b458EB8d0a7",
+    "operator": "0xfbB324CC674dD2FF21Dff670404391e78F4a199f",
+    "admin": "0x1dC59a570C658fa9225E627f3C80921dD19307de"
+  },
+  "invariants": {
+    "yoyoDecimals": 0,
+    "splitterToken": "0xA5d7031D70DAab33EACDfC912baC0668D5776e5b"
+  }
+}

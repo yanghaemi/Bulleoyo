@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "lib": ["es2023"],
+    "module": "nodenext",
+    "target": "es2023",
+    "moduleResolution": "nodenext",
+    "strict": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "types": ["node", "mocha"],
+    "verbatimModuleSyntax": true
+  },
+  "exclude": ["node_modules", "dist", "spike", "spike-java", "spike-web"]
+}

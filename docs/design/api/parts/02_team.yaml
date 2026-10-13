@@ -1,0 +1,596 @@
+paths:
+  /api/v1/teams:
+    post:
+      operationId: team_01
+      tags: [team]
+      summary: 팀 생성
+      description: >-
+        팀을 만든 회원이 자동으로 리더가 되고 PERFORMER 역할을 얻는다. 팀 지갑 = 리더 지갑이라 지갑을 새로
+        만들지 않으며, 리더 지갑 등록(status=LINKED)이 선행 조건이다. 보증금·동의·결제 서명은 전부 수수료
+        대납이라 리더 지갑의 KAIA 잔액도 0이면 된다. 요청·응답에 금전 수단 필드는 없다(정산 수신처는 리더
+        지갑 하나). genre는 장르 코드 10종 enum 중 1개, 필수다(v7 변경 — 기존 자유 문자열 폐기).
+      x-priority: P0
+      x-role: MEMBER
+      x-screens: [P-02]
+      x-features: [F-team-01]
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamCreateRequest'
+            examples:
+              default:
+                value:
+                  teamName: 블루노트
+                  genre: INDIE
+                  introduction: 합정 기반 3인조
+                  contactEmail: bluenote@ssafy.io
+      responses:
+        '201':
+          description: 팀 생성 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TeamCreateResponse'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      teamId: 7
+                      teamName: 블루노트
+                      leaderMemberId: 1024
+                      walletAddress: '0x7a3f9c1d2e4b5a6c8d0e1f2a3b4c5d6e7f809a1b'
+                      walletProvider: EXTERNAL
+                      explorerUrl: https://kairos.kaiascan.io/address/0x7a3f9c1d2e4b5a6c8d0e1f2a3b4c5d6e7f809a1b
+                      createdAt: '2026-09-02T14:40:00+09:00'
+                    msg: 팀이 생성되었습니다.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 이름 길이·형식 위반, genre 누락 또는 허용값 밖
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 인증 헤더 없음
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_FORBIDDEN — 지갑이 관리자 정지 상태(SUSPENDED)
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            WALLET_NOT_FOUND — 요청자 지갑 미연결(전용 코드 WALLET_NOT_LINKED는 §16.1 신설 제안)
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_CONFLICT — 같은 리더가 같은 이름의 팀을 중복 생성
+
+  /api/v1/teams/me:
+    get:
+      operationId: team_02
+      tags: [team]
+      summary: 내 팀 목록
+      description: >-
+        로그인 회원이 리더인 팀을 전부 준다. 팀이 없으면 빈 배열과 pageInfo를 반환한다(404 아님). 잔액은
+        Redis wallet:balance 캐시값이며 노드를 조회하지 않는다. 금액은 축약형(응답 루트에 rate 하나,
+        항목에는 amount만)이다.
+      x-priority: P0
+      x-role: MEMBER
+      x-screens: [P-01]
+      x-features: [F-team-02]
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TeamListResponse'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      rate:
+                        currency: USD
+                        rate: 1350.0
+                        asOf: '2026-09-02T09:00:00+09:00'
+                      items:
+                        - teamId: 7
+                          teamName: 블루노트
+                          genre: INDIE
+                          leader: true
+                          walletAddress: '0x7a3f9c1d2e4b5a6c8d0e1f2a3b4c5d6e7f809a1b'
+                          balanceAmount: 572942
+                      pageInfo:
+                        page: 0
+                        size: 20
+                        totalElements: 1
+                        hasNext: false
+                    msg: ''
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — size 100 초과
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 인증 헤더 없음
+
+  /api/v1/teams/search:
+    get:
+      operationId: team_06
+      tags: [team]
+      summary: 팀 검색(초대 자동완성)
+      description: >-
+        공동 공연에 초대할 팀을 이름으로 찾는다(P-04 초대 콤보박스, 2026-09-26 신설). q는 앞뒤 공백을
+        제거한 뒤 1~50자이며, 팀 이름 부분 일치(대소문자 무시)로 찾고 q가 숫자면 팀 ID 정확 일치도
+        포함한다. LIKE 와일드카드(%·_)는 글자 그대로 검색된다. 해산한 팀(DISBANDED)은 제외한다.
+        정렬은 팀 ID 정확 일치 → 이름 정확 일치 → 이름 오름차순이며 최대 10건이다. 결과는 이미 공개되는
+        최소 필드(teamId·teamName·genre)만 담는다 — 지갑 주소·리더 개인정보는 주지 않는다. 초대 자체는
+        기존처럼 API-performance-07에 teamId로 보낸다. v3에서 삭제된 팀원 초대 수락(API-team-06) 번호를
+        이어받았다(API-team-05 해산과 같은 방식).
+      x-priority: P0
+      x-role: MEMBER
+      x-screens: [P-04]
+      x-features: [F-performance-05]
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: 검색어. 앞뒤 공백 제거 후 1~50자. 숫자만이면 팀 ID 정확 일치도 함께 찾는다.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 50
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10
+            default: 10
+      responses:
+        '200':
+          description: 조회 성공. 결과가 없으면 빈 배열이다(404 아님).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TeamSearchResponse'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      items:
+                        - teamId: 7
+                          teamName: 블루노트
+                          genre: INDIE
+                        - teamId: 12
+                          teamName: 블루스 브라더스
+                          genre: ROCK
+                    msg: ''
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — q 누락·공백뿐·50자 초과, size 1~10 밖
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 인증 헤더 없음
+
+  /api/v1/teams/{teamId}:
+    get:
+      operationId: team_03
+      tags: [team]
+      summary: 팀 상세
+      description: >-
+        팀 정보와 리더 지갑(주소·provider 배지·익스플로러 링크)을 준다. 잔액·거래 이력은 wallet 도메인이
+        담당한다. 팀 리더가 아니면 조회할 수 없다. walletAddress는 leader_member_id → wallet으로
+        파생한 값이며 team 테이블에 지갑 컬럼은 없다.
+      x-priority: P0
+      x-role: PERFORMER (해당 팀 리더)
+      x-screens: [P-02]
+      x-features: [F-team-03]
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TeamDetail'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      teamId: 7
+                      teamName: 블루노트
+                      genre: INDIE
+                      introduction: 합정 기반 3인조
+                      contactEmail: bluenote@ssafy.io
+                      leaderMemberId: 1024
+                      wallet:
+                        provider: EXTERNAL
+                        address: '0x7a3f9c1d2e4b5a6c8d0e1f2a3b4c5d6e7f809a1b'
+                        status: LINKED
+                        explorerUrl: https://kairos.kaiascan.io/address/0x7a3f9c1d2e4b5a6c8d0e1f2a3b4c5d6e7f809a1b
+                    msg: ''
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 인증 헤더 없음
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_FORBIDDEN — 해당 팀 리더가 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            TEAM_NOT_FOUND — 존재하지 않는 teamId
+            WALLET_NOT_FOUND — 리더 지갑 레코드가 없음(비정상 상태, 관리자 확인)
+
+    patch:
+      operationId: team_04
+      tags: [team]
+      summary: 팀 수정
+      description: >-
+        리더만 팀 이름·장르·소개·연락처를 수정한다. 전달된 필드만 바꾼다. 리더와 지갑 주소는 이 API로 바꿀 수
+        없다(지갑 교체는 관리자 처리, 리더 교체는 불가). 판매가 시작된 공연에 참여 중이어도 팀 프로필 수정은
+        허용한다. genre를 전달하면 team_01과 같은 장르 코드 10종 enum이어야 한다(선택, 미전달 시 유지, v7 변경).
+      x-priority: P0
+      x-role: PERFORMER (리더)
+      x-screens: [P-02]
+      x-features: [F-team-04]
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamUpdateRequest'
+            examples:
+              default:
+                value:
+                  genre: ROCK
+                  introduction: 합정 기반 4인조로 변경
+      responses:
+        '200':
+          description: 수정 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TeamUpdateResponse'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      teamId: 7
+                      teamName: 블루노트
+                      genre: ROCK
+                    msg: 팀 정보가 수정되었습니다.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 형식 위반, leaderMemberId·walletAddress 등 변경 불가 필드 전달, genre 허용값 밖
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_FORBIDDEN — 리더가 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            TEAM_NOT_FOUND — 존재하지 않는 teamId
+
+    delete:
+      operationId: team_05
+      tags: [team]
+      summary: 팀 해산
+      description: >-
+        팀 리더가 팀을 해산한다. 소프트 삭제다 — status=DISBANDED + deleted_at 을 쓰고 행은 남긴다(공연·티켓·정산이
+        팀을 참조하고 FK 가 RESTRICT 라 물리 삭제할 수 없다). 해산한 팀은 내 팀 목록·내 공연 목록에서 빠진다.
+        종료·취소되지 않은 공연에 주최·참여로 엮여 있거나, 주최 공연의 보증금이 반환되지 않았거나,
+        RELEASED 에 닿지 않은 정산이 있으면 해산할 수 없다(세 경우 모두 TEAM_HAS_ACTIVE_PERFORMANCE, 이유는 msg).
+        ⚠️ v6 §2 말미의 API-team-05(팀원 초대)는 v3 에서 삭제돼 번호가 비어 있었고 해산이 이어받았다 — 문서 개정 대상.
+      x-priority: P0
+      x-role: PERFORMER (리더)
+      x-screens: [P-02]
+      x-features: [F-team-05]
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 해산 완료
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TeamDisbandResponse'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      teamId: 7
+                      teamName: 블루노트
+                      status: DISBANDED
+                      disbandedAt: '2026-09-22T11:20:00+09:00'
+                    msg: 팀을 해산했습니다.
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 인증 헤더 없음
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_FORBIDDEN — 리더가 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            TEAM_NOT_FOUND — 존재하지 않는 teamId
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_CONFLICT — 이미 해산한 팀
+            TEAM_HAS_ACTIVE_PERFORMANCE — 진행 중 공연 · 미반환 보증금 · 미정산이 남아 있음(이유는 msg)
+
+components:
+  schemas:
+    TeamCreateRequest:
+      type: object
+      required: [teamName, genre]
+      properties:
+        teamName:
+          type: string
+          minLength: 1
+          maxLength: 30
+        genre:
+          allOf:
+            - $ref: '#/components/schemas/Genre'
+          description: 대표 장르 코드(단일). v7부터 필수 — 자유 문자열은 더 이상 허용하지 않는다.
+        introduction:
+          type: string
+          maxLength: 500
+        contactEmail:
+          type: string
+          format: email
+
+    TeamCreateResponse:
+      type: object
+      properties:
+        teamId:
+          type: integer
+          format: int64
+        teamName:
+          type: string
+        leaderMemberId:
+          type: integer
+          format: int64
+        walletAddress:
+          allOf:
+            - $ref: '#/components/schemas/Address'
+          description: 리더 지갑 주소를 파생해 보여주는 값. team 테이블 컬럼이 아니다.
+        walletProvider:
+          type: string
+          enum: [WEB3AUTH, EXTERNAL]
+        explorerUrl:
+          type: string
+          format: uri
+        createdAt:
+          type: string
+          format: date-time
+
+    TeamRateInfo:
+      type: object
+      properties:
+        currency:
+          type: string
+        rate:
+          type: number
+        asOf:
+          type: string
+          format: date-time
+
+    TeamListItem:
+      type: object
+      required: [leader]
+      properties:
+        teamId:
+          type: integer
+          format: int64
+        teamName:
+          type: string
+        genre:
+          $ref: '#/components/schemas/Genre'
+        leader:
+          type: boolean
+        walletAddress:
+          $ref: '#/components/schemas/Address'
+        balanceAmount:
+          $ref: '#/components/schemas/Money'
+
+    TeamSearchItem:
+      type: object
+      required: [teamId, teamName, genre]
+      properties:
+        teamId:
+          type: integer
+          format: int64
+        teamName:
+          type: string
+        genre:
+          $ref: '#/components/schemas/Genre'
+
+    TeamSearchResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/TeamSearchItem'
+
+    TeamListResponse:
+      type: object
+      properties:
+        rate:
+          $ref: '#/components/schemas/TeamRateInfo'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamListItem'
+        pageInfo:
+          $ref: '#/components/schemas/PageMeta'
+
+    TeamWalletSummary:
+      type: object
+      properties:
+        provider:
+          type: string
+          enum: [WEB3AUTH, EXTERNAL]
+        address:
+          $ref: '#/components/schemas/Address'
+        status:
+          type: string
+          enum: [LINKED, SUSPENDED]
+        explorerUrl:
+          type: string
+          format: uri
+
+    TeamDetail:
+      type: object
+      properties:
+        teamId:
+          type: integer
+          format: int64
+        teamName:
+          type: string
+        genre:
+          $ref: '#/components/schemas/Genre'
+        introduction:
+          type: string
+        contactEmail:
+          type: string
+        leaderMemberId:
+          type: integer
+          format: int64
+        wallet:
+          $ref: '#/components/schemas/TeamWalletSummary'
+
+    TeamDisbandResponse:
+      type: object
+      properties:
+        teamId:
+          type: integer
+          format: int64
+        teamName:
+          type: string
+        status:
+          type: string
+          enum: [DISBANDED]
+        disbandedAt:
+          type: string
+          format: date-time
+
+    TeamUpdateRequest:
+      type: object
+      properties:
+        teamName:
+          type: string
+          minLength: 1
+          maxLength: 30
+        genre:
+          allOf:
+            - $ref: '#/components/schemas/Genre'
+          description: 대표 장르 코드(단일). 미전달 시 기존 값 유지.
+        introduction:
+          type: string
+          maxLength: 500
+        contactEmail:
+          type: string
+          format: email
+
+    TeamUpdateResponse:
+      type: object
+      properties:
+        teamId:
+          type: integer
+          format: int64
+        teamName:
+          type: string
+        genre:
+          $ref: '#/components/schemas/Genre'

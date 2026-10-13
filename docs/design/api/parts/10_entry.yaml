@@ -1,0 +1,244 @@
+paths:
+  /api/v1/entries/verify:
+    post:
+      operationId: entry_01
+      tags: [entry]
+      summary: QR 검증·입장 처리
+      description: >
+        스캔한 동적 QR(30초 회전, 유효 60초)의 서명·만료를 검증해 즉시 입장 처리한다. Redis SETNX 원타임으로
+        중복 입장을 막고, 판정을 1초 안에 표시할 수 있도록 최소 필드만 응답한다. 인증은 검표 링크 토큰
+        (X-Entry-Token, 권장) 또는 참여팀 소속 회원의 Authorization 둘 중 하나이며 온체인·코인과 무관하다.
+        [2026-09-16 — S15P21B204-101] QR 이미지의 페이로드는 qrToken 문자열 그대로다(포장·접두 없음).
+        검표(S-02)는 읽은 문자열을 entry_01의 qrToken에 그대로 넣고, performanceId는 QR이 아니라
+        검표 진입 URL /entry/{performanceId}에서 가져온다. 검표 링크의 ?token=(STAFF 기기 인증,
+        performance_10이 발급)과는 다른 토큰이다.
+      x-priority: P0
+      x-role: [PERFORMER]
+      x-screens: [S-02]
+      x-features: [F-entry-01]
+      security:
+        - entryToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: entryToken
+          in: query
+          required: false
+          schema: { type: string }
+          description: 헤더(X-Entry-Token)를 못 쓰는 클라이언트용 대체. 헤더가 있으면 헤더 우선
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntryRequest'
+            examples:
+              default:
+                value:
+                  performanceId: 12
+                  qrToken: eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjkwMjExLCJleHAiOjE3ODk...
+                  scannedAt: '2026-09-19T18:42:03+09:00'
+      responses:
+        '200':
+          description: 입장 처리 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/EntryResult'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      ticketId: 90211
+                      status: USED
+                      ticketTypeName: 일반
+                      holderNameMasked: 김*객
+                      enteredAt: '2026-09-19T18:42:03+09:00'
+                      enteredCount: 41
+                      totalIssuedCount: 64
+                    msg: 입장 완료
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — qrToken 누락·형식 위반
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            ENTRY_QR_EXPIRED — 토큰 유효기간(60초) 경과
+            ENTRY_QR_SIGNATURE_INVALID — 서명 검증 실패(캡처·복제 QR)
+            COMMON_UNAUTHORIZED — X-Entry-Token·Authorization 둘 다 없음
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            ENTRY_SCANNER_NOT_AUTHORIZED — 검표 토큰이 무효·만료·다른 공연의 것이거나 참여팀 소속도 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_NOT_FOUND — 토큰이 가리키는 티켓 없음
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            ENTRY_ALREADY_ENTERED — Redis 원타임 중복 감지
+            ENTRY_NOT_IN_TIME_WINDOW — 입장 허용 시간대 밖
+            TICKET_CANCELED — 취소된 티켓
+        '429':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_TOO_MANY_REQUESTS — IP당 60회/분 초과(SEC-10)
+
+  /api/v1/performances/{performanceId}/entries:
+    get:
+      operationId: entry_02
+      tags: [entry]
+      summary: 입장 현황·이력
+      description: >
+        입장 수/총 발급 수와 최근 검표 이력(성공·실패 모두)을 준다. 요약값은 5초 캐시하며 관객 개인정보는
+        담지 않는다. 인증은 API-entry-01과 같다 — 검표 링크 토큰 또는 참여팀 소속 회원.
+      x-priority: P0
+      x-role: [PERFORMER]
+      x-screens: [S-03]
+      x-features: [F-entry-02]
+      security:
+        - entryToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: 공연 PK
+        - name: entryToken
+          in: query
+          required: false
+          schema: { type: string }
+          description: 헤더 대체 경로
+        - name: result
+          in: query
+          required: false
+          schema: { type: string, enum: [SUCCESS, FAILED] }
+          description: 미지정 시 전체
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: 입장 현황·이력 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          performanceId: { type: integer, format: int64 }
+                          summary:
+                            $ref: '#/components/schemas/EntrySummary'
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/EntryLogItem'
+                          pageInfo:
+                            $ref: '#/components/schemas/PageMeta'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      performanceId: 12
+                      summary: { enteredCount: 41, totalIssuedCount: 64, duplicateAttemptCount: 3, expiredQrCount: 5 }
+                      items:
+                        - { entryLogId: 77012, ticketId: 90211, holderNameMasked: 김*객, result: SUCCESS, failureCode: null, scannedAt: '2026-09-19T18:42:03+09:00', scannerSource: ENTRY_LINK }
+                        - { entryLogId: 77013, ticketId: 90211, holderNameMasked: 김*객, result: FAILED, failureCode: ENTRY_ALREADY_ENTERED, scannedAt: '2026-09-19T18:42:31+09:00', scannerSource: ENTRY_LINK }
+                      pageInfo: { page: 0, size: 20, totalElements: 49, hasNext: true }
+                    msg: ''
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 허용되지 않는 result, size 100 초과
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — X-Entry-Token·Authorization 둘 다 없음
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            ENTRY_SCANNER_NOT_AUTHORIZED — 검표 토큰이 무효·만료·다른 공연의 것이거나 참여팀 소속도 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+
+components:
+  schemas:
+    EntryRequest:
+      type: object
+      required: [performanceId, qrToken]
+      properties:
+        performanceId:
+          type: integer
+          format: int64
+          description: 검표 중인 공연. 검표 토큰의 공연과 일치해야 한다
+        qrToken:
+          type: string
+          maxLength: 1024
+          description: 스캔한 서명 토큰
+        scannedAt:
+          type: string
+          format: date-time
+          description: 스캐너 단말 시각(로그용, 판정 기준은 서버 시각)
+
+    EntryResult:
+      type: object
+      properties:
+        ticketId: { type: integer, format: int64 }
+        status:
+          type: string
+          enum: [USED]
+          description: 입장 처리 후 티켓 상태
+        ticketTypeName: { type: string }
+        holderNameMasked: { type: string }
+        enteredAt: { type: string, format: date-time }
+        enteredCount: { type: integer }
+        totalIssuedCount: { type: integer }
+
+    EntrySummary:
+      type: object
+      properties:
+        enteredCount: { type: integer }
+        totalIssuedCount: { type: integer }
+        duplicateAttemptCount: { type: integer }
+        expiredQrCount: { type: integer }
+
+    EntryLogItem:
+      type: object
+      properties:
+        entryLogId: { type: integer, format: int64 }
+        ticketId: { type: integer, format: int64 }
+        holderNameMasked: { type: string }
+        result:
+          type: string
+          enum: [SUCCESS, FAILED]
+        failureCode:
+          type: string
+          nullable: true
+          description: 'result=FAILED일 때 실패 사유 코드(ENTRY_ALREADY_ENTERED 등)'
+        scannedAt: { type: string, format: date-time }
+        scannerSource:
+          type: string
+          description: '스캔 경로. 문서 예시값은 ENTRY_LINK(검표 링크) — 참여팀 회원 경로의 값은 미상세'
+          example: ENTRY_LINK

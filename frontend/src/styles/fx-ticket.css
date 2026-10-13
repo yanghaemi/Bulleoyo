@@ -1,0 +1,325 @@
+/*
+ * 실물 티켓 — A-07 목록 카드 · A-08 상세 등장.
+ *
+ * ── 켜고 끄는 법 ───────────────────────────────────────────────────
+ * `styles.css`에 `@import "./styles/fx-ticket.css";` 한 줄로 켠다 / 그 줄 삭제가 롤백이다.
+ * 이 파일이 없어도 화면은 그대로 동작한다 — 티켓 바탕색(테마 그라디언트)과 배치는
+ * 컴포넌트의 인라인 스타일·Tailwind가 들고 있고, 여기에는 **광택·절취선·연출**만 있다.
+ * 롤백하면 색은 남고 움직임만 사라진다. JS도 이 사실을 안다: `TicketStub`은 클릭 시
+ * `--fx-ticket-on` 값을 읽어 이 파일이 꺼져 있으면 연출을 건너뛰고 바로 이동한다
+ * (연출이 없는데 800ms를 기다리면 그건 그냥 느린 앱이다).
+ *
+ * ── 왜 CSS가 다 갖고 있나 ──────────────────────────────────────────
+ * `fx-hover.css`와 같은 규약이다. JS는 `data-fx` 속성만 토글하고 시간·각도·이징은
+ * 전부 여기 있다. 타이밍을 고치려고 컴포넌트를 열 일이 없어야 한다.
+ *
+ * ── 타이밍 (한 곳에 모아 둔다) ─────────────────────────────────────
+ *   등장(목록)   720ms  cubic-bezier(.16,1,.3,1)   · 70ms 스태거, 최대 8장 — 우하단 뒤에서 커지며 대각선 진입
+ *   탭 전환      220ms  ease-out                   · 페이드만, 스태거 없음
+ *   색 전환      400ms  ease                       · 포스터 분석이 끝나 --tk-a/--tk-b가 바뀔 때
+ *   클릭 광택    380ms  ease-out                   · 0ms에 시작
+ *   클릭 확대    520ms  cubic-bezier(.2,.8,.2,1)   · 0ms 시작 → 520ms에 끝. 나머지 장은 같은 시간에 뒤로 물러난다
+ *   상세 안착    420ms  cubic-bezier(.22,1,.36,1)
+ * JS의 이동 시각(540ms)은 `TicketStub.tsx`의 `FX_TOTAL_MS`이고 위 확대 끝(520ms)에 맞춰 둔 값이다.
+ * 여기 숫자를 고치면 그 상수도 같이 고쳐야 한다 — 둘을 잇는 자동 장치는 없다(일부러).
+ */
+
+/*
+ * 테마색을 **보간 가능한 값**으로 등록한다.
+ *
+ * 커스텀 속성은 기본이 문자열이라 `--tk-a`가 바뀌면 색이 툭 바뀐다. `@property`로
+ * `<color>`라고 알려 주면 브라우저가 두 색 사이를 보간하고, 이 변수를 참조하는
+ * `background-image`도 매 프레임 다시 계산된다 → 그라디언트 전체가 400ms에 걸쳐 건너간다.
+ * (포스터 분석은 비동기다. 시드 색으로 먼저 그린 뒤 실제 색으로 갈아타는 그 순간을 위한 것.)
+ *
+ * `initial-value`에는 `var()`를 쓸 수 없다(계산 독립값이어야 한다). 그래서 여기 hsl 리터럴이
+ * 하나 있다 — 토큰 위반이 아니라 **변수가 비었을 때의 자리값**이고, 실제로는 컴포넌트가
+ * 항상 값을 넣어 준다. 남색 계열로 둔 이유는 브랜드 primary와 가장 가까워서다.
+ */
+@property --tk-a {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: hsl(240 58% 32%);
+}
+
+@property --tk-b {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: hsl(240 58% 56%);
+}
+
+@property --tk-hue {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 240;
+}
+
+/* ── 티켓 본체 ──────────────────────────────────────────────────── */
+
+.fx-ticket {
+  /* JS가 읽는 스위치. 이 파일이 없으면 빈 문자열이라 연출을 건너뛴다 */
+  --fx-ticket-on: 1;
+
+  transition:
+    --tk-a 400ms ease,
+    --tk-b 400ms ease,
+    box-shadow 320ms ease,
+    filter 400ms ease;
+  /* 강조색 — 밝은 종이 위에서는 진한 a, 어두운 종이 위에서는 밝은 b. 컴포넌트는
+     `var(--tk-accent, var(--tk-a))`로 읽으므로 이 파일이 없어도 a로 떨어진다 */
+  --tk-accent: var(--tk-a);
+
+  /* 그림자는 티켓 자신의 색을 아주 옅게 띤다 — 종이가 무대 조명 아래 놓인 정도 */
+  box-shadow: 0 2px 10px hsl(var(--tk-hue) 40% 25% / 0.08);
+}
+
+:root[data-theme='dark'] .fx-ticket {
+  --tk-accent: var(--tk-b);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .fx-ticket:hover,
+  .fx-ticket:focus-visible {
+    box-shadow: 0 10px 28px hsl(var(--tk-hue) 40% 25% / 0.16);
+    border-color: color-mix(in srgb, var(--tk-accent) 45%, var(--color-line));
+  }
+}
+
+/* 홀로그램 광택은 2026-09-08 재디자인에서 지웠다 — 채도 높은 색면과 함께 "쿠폰 앱" 인상의 원인이었다.
+   클릭 때 한 번 스치는 빛(.fx-ticket-shine)만 남긴다. */
+
+/*
+ * 절취선 — 세로판. `fx-stage.css`의 A-08 가로 절취선과 **같은 방식**이다:
+ * 가상요소를 쓰지 않고 배경 세 겹으로 그린다(요소 밖으로 삐져나온 원이 모바일에서
+ * 가로 스크롤바를 만든다). 먼저 적은 층이 위라 노치가 점선의 양 끝을 잘라 낸다.
+ * 노치 색이 페이지 배경(`--color-ground`)이라 "뚫린 구멍"으로 읽힌다.
+ *
+ * 티켓 바탕이 종이(surface)가 됐으므로 점선은 `--color-line`이다. 노치는 페이지 배경색으로
+ * 뚫는다. 컴포넌트의 `border-l border-dashed`(이 파일이 없을 때의 폴백)를 아래에서 지운다.
+ */
+.fx-ticket-tear {
+  border-left: 0;
+  background-image:
+    radial-gradient(circle 9px at 11px 0, var(--color-ground) 8.4px, transparent 9px),
+    radial-gradient(circle 9px at 11px 100%, var(--color-ground) 8.4px, transparent 9px),
+    repeating-linear-gradient(to bottom, var(--color-line) 0 5px, transparent 5px 11px);
+  background-repeat: no-repeat;
+  background-position:
+    0 0,
+    0 0,
+    10px 0;
+  background-size:
+    auto,
+    auto,
+    2px 100%;
+}
+
+/* ── 등장: 목록 — apple.com/kr/ipad-air 히어로 영상(2026-09-08 프레임 확인)을 따른다 ──
+ *
+ * 그 영상에서 iPad는 화면 **우하단 밖**에서 기울어진 채 작게 나타나, 대각선으로 올라오며
+ * 커져서(카메라 쪽으로 다가와서) 자리를 잡고, 뒤에서 두 번째 기기가 따라 나와 부채처럼 겹친다.
+ * 우리 버전: 각 티켓이 우하단 뒤(scale .55 · +60px/+90px · -7°)에서 출발해 제자리로 커지며 들어오고
+ * 스태거가 "뒤에서 하나씩 따라 나오는" 겹침을 만든다. 끝에서 1.015까지 살짝 넘치고 돌아온다(슈웅).
+ *
+ * 부모가 perspective를 갖는다. 자식마다 perspective를 주면 카드마다 소실점이 달라져
+ * 같은 방향으로 기울어도 제각각으로 보인다. 하나의 무대에서 한 시점으로 본다.
+ *
+ * 스태거는 8장까지만(`--i`는 컴포넌트가 7에서 자른다). 20장짜리 목록에서 55ms씩 밀면
+ * 마지막 장이 1.1초 뒤에 나타나 "느린 앱"이 된다. 8장이면 스크롤 첫 화면과 거의 같다.
+ */
+[data-fx='ticket-enter'] {
+  perspective: 800px;
+}
+
+[data-fx='ticket-enter'] > * {
+  animation: fx-ticket-rise 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+  transform-origin: 80% 100%;
+}
+
+@keyframes fx-ticket-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(60px, 90px, -420px) rotate(-7deg) scale(0.55);
+  }
+  35% {
+    opacity: 1;
+  }
+  82% {
+    transform: translate3d(0, -4px, 0) rotate(0.6deg) scale(1.015);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * 탭 전환은 페이드만. 같은 등장 연출을 다시 쓰면 탭을 누를 때마다 무대가 다시 서고,
+ * 세 번째 전환쯤에는 "예쁘다"가 "느리다"로 바뀐다. 등장은 처음 한 번이어야 사건이다.
+ */
+[data-fx='ticket-swap'] {
+  perspective: 800px;
+}
+
+[data-fx='ticket-swap'] > * {
+  animation: fx-ticket-fade 220ms ease-out both;
+}
+
+@keyframes fx-ticket-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ── 클릭: 광택이 스치고, 그 장만 앞으로 확 커지고, 나머지는 뒤로 물러난다 → 상세로 빨려든다 ──
+ *
+ * 처음엔 rotateY 한 바퀴였다. 바꾼 이유 — 회전은 방향이 두 번 바뀌어(앞면→뒷면→앞면) 어지럽고,
+ * 다음에 오는 View Transition 모핑(카드 → 상세 패널)과 이어지지 않는다. 확대는 한 방향 동작이고
+ * 커진 카드가 그대로 패널로 늘어나므로 "빨려들어간다"로 읽힌다. 이 규칙은 등장 규칙보다 뒤에
+ * 적혀 있어 등장이 끝나기 전에 눌러도 이긴다(명시도 동일).
+ */
+[data-fx='ticket-zoom'] {
+  z-index: 2;
+  animation: fx-ticket-zoom 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  will-change: transform;
+}
+
+@keyframes fx-ticket-zoom {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(0, -6px, 120px) scale(1.16);
+  }
+}
+
+/* 눌린 장이 앞으로 나오는 동안 나머지 장은 뒤로 물러나 흐려진다 — 깊이가 생겨야 "앞으로"가 보인다.
+   MyTickets가 연출 중 그리드에 data-busy를 붙인다 */
+[data-busy] > :not([data-fx='ticket-zoom']) {
+  animation: fx-ticket-recede 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes fx-ticket-recede {
+  to {
+    transform: translate3d(0, 4px, -160px) scale(0.96);
+    opacity: 0.45;
+    filter: blur(2px);
+  }
+}
+
+/* 광택 한 줄기가 왼쪽에서 오른쪽으로 스친다. 확대와 같이 시작해 "빛이 스치며 다가온다"로 읽힌다 */
+.fx-ticket-shine {
+  background-image: linear-gradient(
+    100deg,
+    transparent 0%,
+    hsl(0 0% 100% / 0.3) 50%,
+    transparent 100%
+  );
+  opacity: 0;
+}
+
+[data-fx='ticket-zoom'] .fx-ticket-shine {
+  animation: fx-ticket-sweep 380ms ease-out both;
+}
+
+@keyframes fx-ticket-sweep {
+  0% {
+    opacity: 0;
+    transform: translateX(-160%);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(360%);
+  }
+}
+
+/* ── 등장: 상세(A-08) ───────────────────────────────────────────
+ * 목록에서는 아래에서 떠오르고 상세에서는 **위에서 내려앉는다.** 방향이 반대인 게 핵심이다 —
+ * 목록의 티켓이 화면을 향해 올라왔다가, 다음 화면에서 손 안으로 떨어지는 한 동작으로 읽힌다.
+ */
+[data-fx='ticket-stage'] {
+  perspective: 800px;
+}
+
+[data-fx='ticket-drop'] {
+  animation: fx-ticket-drop 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes fx-ticket-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-24px) rotateX(-8deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * 모션을 줄인다 — 이동·회전·기울기는 전부 없애고 나타나기만 한다.
+ *
+ * `styles.css`의 전역 규칙이 이미 `animation-duration: .01ms !important`로 시간을 없앤다.
+ * 그래서 여기서 150ms를 적어도 실제로는 즉시 나타난다. 그래도 남겨 두는 이유는 두 가지다 —
+ * ① 전역 규칙이 언젠가 완화돼도 이 파일만으로 안전하고 ② `animation-name`을 페이드로
+ * 바꿔 놓지 않으면 회전 키프레임의 첫 프레임(`rotateY(0) scale(1)`)이 `both`로 남는다.
+ * 회전 자체는 아예 끈다 — JS도 같은 미디어 쿼리를 보고 연출 없이 바로 이동한다.
+ */
+@media (prefers-reduced-motion: reduce) {
+  [data-fx='ticket-enter'] > *,
+  [data-fx='ticket-swap'] > *,
+  [data-fx='ticket-drop'] {
+    animation: fx-ticket-fade 150ms linear both;
+  }
+
+  [data-fx='ticket-zoom'],
+  [data-busy] > * {
+    animation: none;
+  }
+
+  .fx-ticket-shine {
+    transition: none;
+    animation: none;
+  }
+}
+
+/*
+ * ── View Transitions: 목록 카드 → 상세 패널 모핑 ─────────────────────
+ * 이동은 `MyTicketsPage`가 `navigate(…, { viewTransition: true })`로 시작한다(react-router 7).
+ * 클릭된 카드(`TicketStub`, 회전 중)와 상세의 공연 정보 패널이 같은 `view-transition-name:
+ * ticket-morph`를 가져 브라우저가 둘 사이의 위치·크기를 보간한다. 나머지 화면은 root 크로스페이드.
+ *
+ * 두 상자의 비율이 다르다(카드 ~3:1, 패널 ~5:1). 기본값이면 스냅샷 이미지가 늘어나 보이므로
+ * old/new 스냅샷을 높이에 맞추고 넘치는 폭은 자른다 — "종이가 늘어난다"가 아니라 "종이가 자리를 옮긴다".
+ * 미지원 브라우저(Firefox)에서는 이 블록이 통째로 무시되고 즉시 이동한다.
+ */
+::view-transition-group(ticket-morph) {
+  animation-duration: 480ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+::view-transition-old(ticket-morph),
+::view-transition-new(ticket-morph) {
+  height: 100%;
+  width: auto;
+  object-fit: cover;
+  overflow: clip;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 260ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

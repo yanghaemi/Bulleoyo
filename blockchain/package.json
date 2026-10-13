@@ -1,0 +1,27 @@
+{
+  "name": "b204-blockchain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "B204 공연 공동정산 온체인 — YoYo(ERC-20, decimals 0, mint만) + RevenueSplitter",
+  "scripts": {
+    "build": "hardhat build",
+    "test": "hardhat test",
+    "node": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
+    "deploy:kairos": "hardhat run scripts/deploy.ts --network kairos",
+    "verify:kairos": "hardhat run scripts/verify.ts --network kairos",
+    "check:selectors": "node scripts/check-selectors.mjs"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.7",
+    "@types/chai": "^5.2.3",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.10.0",
+    "hardhat": "^3.15.0",
+    "typescript": "~5.8.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.6.1"
+  }
+}

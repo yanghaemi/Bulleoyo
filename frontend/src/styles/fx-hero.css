@@ -1,0 +1,151 @@
+/*
+ * 히어로 무대 조명 — **CSS 기본층**. 캐러셀 중앙 카드 뒤를 늘 비춘다.
+ *
+ * ── 왜 생겼나 (2026-09-09) ────────────────────────────────────────
+ * 히어로 조명을 WebGPU 셰이더 하나에만 맡겨 뒀다. `HeroBackdrop`(밝은 테마)·`StageFlare`(다크)
+ * 둘 다 `navigator.gpu`가 없으면 캔버스를 아예 만들지 않는다 — **그러면 히어로에 조명이 하나도 없다.**
+ * WebGPU는 Firefox 미지원, Safari 26+, 비보안 컨텍스트(LAN IP)에서 통째로 빠지고, GPU 블록리스트나
+ * 원격 데스크톱에서도 어댑터가 안 잡힌다. 즉 **꺼지는 게 흔한 경로**인데 그때 화면이 맨바닥이 됐다.
+ * 셰이더는 있으면 좋은 것이지 조명의 유일한 출처여서는 안 된다.
+ *
+ * 그래서 층을 둘로 나눈다:
+ *   · 이 파일 = **언제나 켜지는 기본 조명.** CSS 그라디언트 두 겹, 의존성 0
+ *   · 셰이더  = 그 위에 얹히는 향상. 볼류메트릭 빔·커서 반응은 GPU가 있을 때만
+ * 셰이더가 실제로 돌기 시작하면 `StageFlare`/`HeroBackdrop`이 부모에 `data-gpu="on"`을 달고,
+ * 그때 이 기본층을 40%로 낮춘다 — 둘이 겹쳐 과하게 밝아지지 않게.
+ *
+ * ── 롤백 ─────────────────────────────────────────────────────────
+ * `styles.css`의 `@import "./styles/fx-hero.css";` 한 줄. 지우면 기본 조명만 사라지고
+ * 셰이더는 그대로 돈다(마크업의 빈 span 하나가 남을 뿐이다).
+ *
+ * ── 형태 ─────────────────────────────────────────────────────────
+ * ① 무대 풀 — 중앙 카드 뒤 타원. 카드가 불투명해서 실제로 보이는 건 카드 가장자리로 새는 후광이다
+ * ② 오버헤드 빔 — 위에서 내려와 카드 어깨에 걸치는 아주 넓은 원뿔 하나. "조명기 3줄기"(2026-09-08에
+ *    도형으로 읽혀 지웠다)와 달리 하나이고 훨씬 넓어 형태가 아니라 분위기로 읽힌다
+ * 색은 효과 토큰(`--effect-primary-bright`·`--color-sel`)만 쓴다. 테마를 바꾸면 따라간다.
+ */
+
+.fx-hero-glow {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  /* 강도는 이 두 줄이 전부다 */
+  --fx-pool: 10%;
+  --fx-beam: 5%;
+  transition: opacity 400ms ease;
+}
+
+/* ① 무대 풀 — 카드 뒤 타원. 중심을 카드 세로 중앙(39%)에 맞춘다 */
+.fx-hero-glow::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 39%;
+  width: min(680px, 92%);
+  height: 76%;
+  transform: translate(-50%, -50%);
+  /* 공연 상세(A-02)에서는 그 공연 포스터의 색. 홈에서는 --fx-show-a가 없어 브랜드색이다
+     (정의는 fx-backdrop.css의 :root 한 곳) */
+  --fx-tint: color-mix(in srgb, var(--fx-hue-a) var(--fx-pool), transparent);
+  background: radial-gradient(closest-side ellipse, var(--fx-tint), transparent 100%);
+}
+
+/* ② 오버헤드 빔 — 위에서 내려오는 넓은 원뿔 하나.
+   conic으로 각도를 만들고 mask로 아래쪽을 지운다(fx-backdrop의 옛 콘과 같은 기법이지만
+   폭이 3배 넓고 하나뿐이라 줄기로 보이지 않는다) */
+.fx-hero-glow::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -30%;
+  width: 150%;
+  height: 130%;
+  transform: translateX(-50%);
+  --fx-tint: color-mix(in srgb, var(--color-sel) var(--fx-beam), transparent);
+  background: conic-gradient(
+    from 150deg at 50% 0%,
+    transparent 0deg,
+    var(--fx-tint) 14deg,
+    var(--fx-tint) 46deg,
+    transparent 60deg
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0.9) 0%,
+    rgb(0 0 0 / 0.35) 55%,
+    transparent 88%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0.9) 0%,
+    rgb(0 0 0 / 0.35) 55%,
+    transparent 88%
+  );
+}
+
+/* ── 밖으로 번지는 변형 (A-02 공연 상세) ─────────────────────────────
+   히어로(A-01)의 조명은 캐러셀 영역 전체를 덮고 그 안에서 카드가 빛을 가린다 — 카드 주위로
+   빛이 새는 그림이 된다. 상세의 포스터는 컨테이너를 꽉 채우므로 같은 방식으로 두면 조명이
+   포스터 뒤에 통째로 가려 아무것도 안 보인다("조명이 약하다", 2026-09-09).
+   그래서 이 변형은 상자 **밖으로** 번진다. 포스터가 무대 위에 놓인 것처럼 읽힌다.
+   부모에 overflow:hidden이 없어야 한다 — 상세는 md에서 포스터 div에만 걸려 있어 괜찮다. */
+.fx-hero-glow[data-spill] {
+  inset: -18% -12%;
+  --fx-pool: 16%;
+  --fx-beam: 0%; /* 빔은 끈다 — 위에서 내려오는 원뿔이 헤더와 겹쳐 띠처럼 보인다 */
+  /* ⚠ 33줄의 `overflow: hidden`을 여기서 되돌린다(MR !61 자동 리뷰 지적).
+     위 93줄이 "부모에 overflow:hidden이 없어야 한다"고 적어 놓고, 정작 자기 요소가
+     그것을 걸고 있었다. `::before`가 118%라 요소 경계에서 잘리고, `closest-side`
+     그라디언트가 그 지점에서 완전히 투명해지지 않아 다크(`--fx-pool: 30%`)에서는
+     직사각형 이음선이 남는다. 히어로(A-01)는 캐러셀이 넘치면 안 되므로 기본값은 그대로 둔다. */
+  overflow: visible;
+}
+/* ⚠ 다크 값을 **여기서 전부 다시 적어야 한다.** 아래 `:root[data-theme='dark'] .fx-hero-glow`는
+   특이도가 (0,3,0)이라 위 `[data-spill]` 블록 (0,2,0)을 선언 순서와 무관하게 이긴다.
+   처음에 `--fx-pool`만 덮고 `--fx-beam`을 빠뜨려서, 다크 A-02에서 끄려던 원뿔이 10%로 그대로
+   켜져 있었다(실측). MR !61 자동 리뷰가 잡았다. 이 블록에 값을 더할 때 아래 다크 블록에
+   같은 변수가 있는지 반드시 확인한다. */
+:root[data-theme='dark'] .fx-hero-glow[data-spill] {
+  --fx-pool: 30%;
+  --fx-beam: 0%;
+}
+.fx-hero-glow[data-spill]::before {
+  /* 상자보다 크게, 포스터 가장자리 바깥에서 가장 밝게 */
+  width: 118%;
+  height: 118%;
+  top: 50%;
+}
+
+/* 다크에서는 얹을 여유가 있어 두 배 가까이 올린다. 밝은 바닥에서 같은 값을 쓰면 본문 대비를 깎는다 */
+:root[data-theme='dark'] .fx-hero-glow {
+  --fx-pool: 20%;
+  --fx-beam: 10%;
+}
+
+/* 셰이더가 실제로 도는 동안에는 기본층을 낮춘다 — 두 조명이 같은 자리에서 더해지지 않게 */
+[data-gpu='on'] .fx-hero-glow {
+  opacity: 0.4;
+}
+
+/* 배경 효과를 끄는 사용자 설정은 여기도 따른다(fx-backdrop과 같은 규칙).
+   ⚠ **변형 선택자를 여기에도 전부 적어야 한다**(MR !61 자동 리뷰 지적).
+   미디어 쿼리는 특이도를 올려 주지 않는다. `.fx-hero-glow`(0,1,0)만 적어 두면
+   `[data-spill]`(0,2,0)·다크 변형(0,4,0)이 이겨서, **배경 효과를 끈 사용자에게도 A-02
+   조명이 그대로 켜진다.** 위 89~93줄에 적어 둔 특이도 함정과 같은 형태다.
+   조명 변형을 새로 만들면 이 블록에도 같은 선택자를 더한다. */
+@media (prefers-reduced-transparency: reduce) {
+  .fx-hero-glow,
+  .fx-hero-glow[data-spill],
+  :root[data-theme='dark'] .fx-hero-glow,
+  :root[data-theme='dark'] .fx-hero-glow[data-spill] {
+    --fx-pool: 0%;
+    --fx-beam: 0%;
+  }
+}
+@media (prefers-contrast: more) {
+  .fx-hero-glow {
+    display: none;
+  }
+}

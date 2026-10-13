@@ -1,0 +1,86 @@
+# application-local.yml 예시 — 이 파일을 복사해 쓴다.
+#
+#   cp src/main/resources/application-example.yml src/main/resources/application-local.yml
+#
+# application-local.yml 은 .gitignore 대상이다(커밋되지 않는다).
+# 대부분의 경우 이 파일은 필요 없다 — `application.yml`의 local 프로파일에 이미 로컬 기본값이 있어
+# `docker compose -f docker-compose.local.yml up -d` 만 해두면 아무것도 안 채우고 기동된다.
+#
+#   ./gradlew bootRun --args='--spring.profiles.active=local'
+#   curl http://localhost:8080/actuator/health   → {"status":"UP"}
+#
+# 이 파일이 필요한 때는 둘이다.
+#   1) 로컬 DB 계정·포트를 기본값과 다르게 쓸 때(노트북에 이미 MySQL이 3306을 쓰는 경우 등)
+#   2) 체인 키·컨트랙트 주소를 넣고 체인 경로를 실제로 돌려볼 때
+#
+# 환경변수 이름의 정본은 저장소 루트 `.env.example`이다. 이름을 바꾸려면
+# backend·frontend·docker-compose.yml·Jenkinsfile 네 곳을 함께 고친다.
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/b204?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: b204
+    password: b204
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+b204:
+  app:
+    # 응답에 담는 절대 URL(검증 페이지·검표 링크)의 베이스. 프론트가 조립하지 않는다(§0.7).
+    # 배포에서는 환경변수 APP_BASE_URL 이 채운다(.env.example 이 이름의 정본).
+    # 로컬에서 검표 링크를 브라우저로 열려면 자기 프론트 주소로 바꾼다.
+    base-url: http://localhost:5173
+
+  alert:
+    # 운영자 알림 Mattermost 웹훅. 비워 두면 알림은 로그로만 남는다. 배포 환경변수 ALERT_WEBHOOK_URL(비밀 값).
+    webhook-url: ''
+
+  jwt:
+    secret: 로컬-개발용-임의-문자열-32바이트-이상
+
+  web3auth:
+    # Web3Auth 대시보드(Sapphire Devnet) Client ID. 프론트 담당이 발급한다.
+    # 비워 두면 Web3Auth 로그인(API-member-01)만 동작하지 않고 기동은 정상이다.
+    client-id: ''
+    jwks-uri: https://api-auth.web3auth.io/jwks
+    issuer: https://api-auth.web3auth.io
+
+  webauthn:
+    # 패스키 본인 확인(API v7 §7.W — 결제·규칙 동의·보증금·정산 동의·정산금 지급). 기본 꺼짐 — 배포 환경변수 STEP_UP_ENABLED.
+    # 켤 때 rp-id 는 브라우저로 여는 도메인, origins 는 그 페이지의 정확한 origin 이어야 한다.
+    # 배포 환경변수: WEBAUTHN_RP_ID · WEBAUTHN_ORIGINS(쉼표 구분)
+    enabled: false
+    rp-id: localhost
+    rp-name: BULLEOYO
+    origins: http://localhost:5173
+
+  entry:
+    # 검표(§10) 값. 전부 기본값이 있어 비워 둬도 된다.
+    qr-ttl: 60s
+    # ERD v5에 performance.end_at 이 없어 입장 종료를 이 길이로 추정한다(V2 후보).
+    default-duration: 3h
+    link-grace: 2h
+
+  chain:
+    # ⚠️ 전부 비워 둬도 애플리케이션은 기동된다(개발 환경 안내 v1 §3.1).
+    # 값이 비면 체인 빈을 만들지 않고, 체인을 타는 API만 COMMON_INTERNAL_ERROR로 떨어진다.
+    # 키가 없는 팀원도 나머지 API를 개발할 수 있어야 하므로 이 동작을 바꾸지 않는다.
+    rpc-url: https://public-en-kairos.node.kaia.io
+    chain-id: 1001
+    # 0x 포함 66자. 운영 키를 로컬에 두지 않는다 — 개인 테스트 키만 쓴다.
+    # 배포 환경변수 이름: OPERATOR_PRIVATE_KEY · MINTER_PRIVATE_KEY (비밀 값)
+    operator-private-key: ''
+    minter-private-key: ''
+    # 개인키가 아니라 "주소"다(공개 정보). deployments/kairos.json 의 roles.operator.
+    # API v6 §0.4 signRequests[].feePayer 로 응답에 나가므로 prepare 를 쓰려면 채워야 한다.
+    # 배포 환경변수 이름: OPERATOR_ADDRESS — 반드시 위 OPERATOR_PRIVATE_KEY 에 대응하는 주소다.
+    operator-address: ''
+    contract:
+      # blockchain/deployments/kairos.json 의 contracts.YoYo.address / contracts.RevenueSplitter.address
+      yoyo-address: ''
+      splitter-address: ''
+    # chain_job 워커. 위 값이 비어 있으면 워커는 매 주기 아무 일도 하지 않는다(기동은 정상).
+    worker:
+      enabled: true

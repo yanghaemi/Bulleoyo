@@ -1,0 +1,98 @@
+.stage-gallery {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.6fr) minmax(0, 1.4fr);
+  align-items: center;
+  min-height: 620px;
+  margin-block: 28px 46px;
+  border-block: 1px solid var(--color-line);
+}
+
+.stage-gallery__copy {
+  position: relative;
+  z-index: 2;
+  padding: 48px 0 48px clamp(0px, 2vw, 28px);
+}
+
+.stage-gallery__kicker {
+  margin: 0 0 16px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.stage-gallery__copy h1,
+.stage-gallery__copy h2 {
+  margin: 0;
+  max-width: 12ch;
+  color: var(--color-ink);
+  font-size: clamp(38px, 5vw, 72px);
+  font-weight: 760;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.stage-gallery__copy > p:not(.stage-gallery__kicker) {
+  margin: 14px 0 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.stage-gallery__copy > p + p {
+  margin-top: 4px;
+}
+
+.stage-gallery__copy > strong {
+  display: block;
+  margin-top: 22px;
+  color: var(--color-ink);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stage-gallery__copy > a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 28px;
+  border-bottom: 1px solid currentColor;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.stage-gallery__carousel {
+  min-width: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 58%, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 36%),
+    linear-gradient(110deg, transparent 18%, color-mix(in srgb, var(--color-surface) 76%, transparent) 52%, transparent 82%);
+}
+
+@media (max-width: 900px) {
+  .stage-gallery {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .stage-gallery__copy {
+    padding: 24px 0 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .stage-gallery {
+    margin-block: 20px 34px;
+  }
+
+  .stage-gallery__copy h1,
+  .stage-gallery__copy h2 {
+    font-size: 34px;
+    line-height: 1.12;
+  }
+}

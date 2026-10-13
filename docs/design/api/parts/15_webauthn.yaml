@@ -1,0 +1,283 @@
+# 2026-09-24: 패스키 본인 확인(step-up) — 결제 + 공연자 동작 4개. API v7 §7.W, 결정 v2 §14-41. 스위치 STEP_UP_ENABLED 기본 off.
+paths:
+  /api/v1/webauthn/registration/options:
+    post:
+      operationId: webauthn_01
+      tags: [webauthn]
+      x-priority: P1
+      x-screens: [A-05]
+      x-role: MEMBER
+      summary: 기기 등록 옵션 발급
+      description: >-
+        navigator.credentials.create에 넘길 옵션. userVerification required · attestation none ·
+        authenticatorAttachment platform · residentKey preferred, 알고리즘 ES256(-7)·RS256(-257).
+        챌린지는 Redis webauthn:challenge:{memberId}:registration(300초, 1회용). 모든 바이너리는 base64url(패딩 없음).
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      responses:
+        '200':
+          description: 등록 옵션
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WebauthnRegistrationOptions'
+        '401':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_UNAUTHORIZED — 비로그인"
+
+  /api/v1/webauthn/registration:
+    post:
+      operationId: webauthn_02
+      tags: [webauthn]
+      x-priority: P1
+      x-screens: [A-05]
+      x-role: MEMBER
+      summary: 기기 등록
+      description: >-
+        navigator.credentials.create 결과를 검증하고 공개키(COSE)·signCount·transports만 저장한다
+        (webauthn_credential). 생체 정보·attestation 인증서는 받지 않는다. 챌린지는 검증 전에 GETDEL.
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebauthnRegistrationRequest'
+      responses:
+        '201':
+          description: 등록 완료
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WebauthnRegistrationResult'
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 필수 필드 누락, base64url 형식 위반
+            WEBAUTHN_VERIFICATION_FAILED — 챌린지 없음·만료·재사용, origin·rpId 불일치, UV 없음, 서명·형식 검증 실패
+        '401':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_UNAUTHORIZED — 비로그인"
+        '409':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_CONFLICT — 이미 등록된 credential"
+
+  /api/v1/webauthn/authentication/options:
+    post:
+      operationId: webauthn_03
+      tags: [webauthn]
+      x-priority: P1
+      x-screens: [A-05]
+      x-role: MEMBER
+      summary: 본인 확인 옵션 발급
+      description: >-
+        navigator.credentials.get에 넘길 옵션. allowCredentials = 그 회원의 credential 전부, userVerification required.
+        등록된 기기가 없으면 에러가 아니라 registered=false만 준다(챌린지 없음). 프론트는 버튼을 보이기 전에 미리 받아 둔다
+        — credentials.get은 클릭 직후(사용자 활성화 안)에 불러야 한다. 본문 {action, targetId}가 토큰 범위다 — 챌린지에
+        붙여 두고 그 챌린지로 서명된 인증(webauthn_04)만 이 범위의 토큰을 받는다. 여기서는 대상 소유를 검사하지 않는다(토큰을
+        쓰는 API가 권한·소유를 먼저 검사하고 범위만 비교한다).
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebauthnAuthenticationOptionsRequest'
+            examples:
+              default:
+                value: { action: DEPOSIT, targetId: 12 }
+      responses:
+        '200':
+          description: 인증 옵션(또는 registered=false)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WebauthnAuthenticationOptions'
+        '400':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_VALIDATION_FAILED — 본문 없음, action 목록 밖, targetId 누락·0 이하"
+        '401':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_UNAUTHORIZED — 비로그인"
+
+  /api/v1/webauthn/authentication:
+    post:
+      operationId: webauthn_04
+      tags: [webauthn]
+      x-priority: P1
+      x-screens: [A-05]
+      x-role: MEMBER
+      summary: 본인 확인 → step-up 토큰
+      description: >-
+        assertion을 검증하고(챌린지 1회용 · origin · rpIdHash · UP·UV · 공개키 서명 · 요청 회원의 credential ·
+        signCount 증가 — 둘 다 0이면 생략) stepUpToken(120초·1회용, Redis webauthn:stepup:{token} = memberId|action|targetId)을
+        준다. 범위는 webauthn_03 이 받은 동작·대상이다. 보호 API(payment_03 · rule_05 · performance_14 · settlement_05 ·
+        settlement_08) 헤더 X-Step-Up-Token에 싣는다.
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebauthnAuthenticationRequest'
+      responses:
+        '200':
+          description: 본인 확인 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WebauthnStepUpToken'
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 필수 필드 누락, base64url 형식 위반
+            WEBAUTHN_VERIFICATION_FAILED — 챌린지 없음·만료·재사용, 등록되지 않았거나 남의 credential, origin·rpId 불일치, UV 없음, 서명 불일치, signCount 역행
+        '401':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_UNAUTHORIZED — 비로그인"
+
+components:
+  schemas:
+    StepUpAction:
+      type: string
+      enum: [PAYMENT, RULE_AGREE, DEPOSIT, SETTLEMENT_APPROVE, SETTLEMENT_RELEASE]
+      description: "본인 확인이 지키는 동작. 대상 id — PAYMENT 는 주문 그룹 id, 나머지는 공연 id"
+
+    WebauthnAuthenticationOptionsRequest:
+      type: object
+      additionalProperties: false
+      required: [action, targetId]
+      properties:
+        action: { $ref: '#/components/schemas/StepUpAction' }
+        targetId: { type: integer, format: int64, minimum: 1, description: "대상 id(주문 그룹 또는 공연)" }
+
+    WebauthnCredentialDescriptor:
+      type: object
+      required: [type, id]
+      properties:
+        type: { type: string, enum: [public-key] }
+        id: { type: string, description: "credential ID (base64url)" }
+        transports:
+          type: array
+          items: { type: string }
+
+    WebauthnRegistrationOptions:
+      type: object
+      required: [challenge, rp, user, pubKeyCredParams, timeout, attestation, authenticatorSelection, excludeCredentials]
+      properties:
+        challenge: { type: string, description: "base64url 32바이트. 300초·1회용" }
+        rp:
+          type: object
+          required: [id, name]
+          properties:
+            id: { type: string, description: "rpId = WEBAUTHN_RP_ID" }
+            name: { type: string }
+        user:
+          type: object
+          required: [id, name, displayName]
+          properties:
+            id: { type: string, description: "user handle(base64url) — memberId 8바이트 big-endian" }
+            name: { type: string }
+            displayName: { type: string }
+        pubKeyCredParams:
+          type: array
+          items:
+            type: object
+            required: [type, alg]
+            properties:
+              type: { type: string, enum: [public-key] }
+              alg: { type: integer, description: "COSE 알고리즘. -7 ES256 · -257 RS256" }
+        timeout: { type: integer, description: "밀리초" }
+        attestation: { type: string, enum: [none] }
+        authenticatorSelection:
+          type: object
+          required: [authenticatorAttachment, residentKey, userVerification]
+          properties:
+            authenticatorAttachment: { type: string, enum: [platform] }
+            residentKey: { type: string, enum: [preferred] }
+            userVerification: { type: string, enum: [required] }
+        excludeCredentials:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebauthnCredentialDescriptor'
+
+    WebauthnRegistrationRequest:
+      type: object
+      additionalProperties: false
+      required: [credentialId, clientDataJSON, attestationObject]
+      properties:
+        credentialId: { type: string, description: "PublicKeyCredential.rawId (base64url)" }
+        clientDataJSON: { type: string, description: "base64url" }
+        attestationObject: { type: string, description: "base64url" }
+        transports:
+          type: array
+          items: { type: string }
+          description: "getTransports() 결과"
+
+    WebauthnRegistrationResult:
+      type: object
+      required: [credentialId, registered, createdAt]
+      properties:
+        credentialId: { type: string }
+        registered: { type: boolean, enum: [true] }
+        createdAt: { type: string, format: date-time }
+
+    WebauthnAuthenticationOptions:
+      type: object
+      required: [registered]
+      description: "registered=false면 나머지 필드가 없다(전역 non_null)"
+      properties:
+        registered: { type: boolean, description: "등록된 기기가 하나라도 있는가. false면 등록(webauthn_01·02)으로 분기" }
+        challenge: { type: string, description: "base64url 32바이트. 300초·1회용" }
+        rpId: { type: string }
+        allowCredentials:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebauthnCredentialDescriptor'
+        timeout: { type: integer, description: "밀리초" }
+        userVerification: { type: string, enum: [required] }
+
+    WebauthnAuthenticationRequest:
+      type: object
+      additionalProperties: false
+      required: [credentialId, clientDataJSON, authenticatorData, signature]
+      properties:
+        credentialId: { type: string, description: "base64url" }
+        clientDataJSON: { type: string, description: "base64url" }
+        authenticatorData: { type: string, description: "base64url" }
+        signature: { type: string, description: "base64url" }
+        userHandle: { type: string, description: "base64url. 선택" }
+
+    WebauthnStepUpToken:
+      type: object
+      required: [stepUpToken, expiresAt]
+      properties:
+        stepUpToken: { type: string, description: "32바이트 난수 base64url. 120초·1회용. 범위 = 회원 + 동작 + 대상(webauthn_03 본문)" }
+        expiresAt: { type: string, format: date-time }

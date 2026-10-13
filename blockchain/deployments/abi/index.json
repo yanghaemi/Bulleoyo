@@ -1,0 +1,26 @@
+{
+  "note": "컴파일 산출물에서 ABI만 추출한 것. 직접 편집하지 말고 scripts/extract-abi.mjs 로 다시 만든다.",
+  "generatedFrom": "npx hardhat build (solc 0.8.28)",
+  "contracts": [
+    {
+      "name": "YoYo",
+      "abiHash": "457b40a46d89b7041282f3ecee5ee99a721d6a3015242aacf7b0afae762d6b89",
+      "counts": {
+        "constructor": 1,
+        "error": 16,
+        "event": 9,
+        "function": 24
+      }
+    },
+    {
+      "name": "RevenueSplitter",
+      "abiHash": "26ca7d05bd23030a7817fee93e1a49bc43e8778a4506800a1a63b19e8815eea1",
+      "counts": {
+        "constructor": 1,
+        "error": 41,
+        "event": 18,
+        "function": 45
+      }
+    }
+  ]
+}

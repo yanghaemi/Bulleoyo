@@ -1,0 +1,296 @@
+# B204 백엔드 설정 (정본)
+#
+# 환경변수 이름은 저장소 루트 `.env.example`이 정본이다. 이름을 바꾸려면
+# backend·frontend·docker-compose.yml·Jenkinsfile 네 곳을 함께 고치고 인프라 담당에게 알린다.
+#
+# 프로파일은 `local`(노트북)·`prod`(EC2) 둘이다. 프로파일별 문서를 이 파일 안에 `---`로 둔 이유는
+# 저장소 .gitignore가 `backend/src/main/resources/application-*.yml`을 제외하기 때문이다
+# (application.yml·application-example.yml만 예외). 별도 application-prod.yml을 두면 커밋되지 않는다.
+# 개인 비밀값 오버라이드가 필요하면 gitignore 대상인 application-local.yml에 두면 이 파일 위에 덮인다.
+
+spring:
+  application:
+    name: b204
+
+  task:
+    scheduling:
+      # @Scheduled 는 기본 스레드 1개다. 워커(1초·1.5초, 블로킹 RPC)·발행량 대사(30초)·정산(60초)·
+      # 공연 상태·주문 만료 등 11개 메서드가 한 스레드를 나눠 쓰면, 느린 노드에 물린 receipt 폴링이
+      # 대사를 밀어 "게이트 판정 지연 상한 30초"가 안 지켜진다(!101 리뷰). 주기 메서드 사이의
+      # 동시 실행은 안전하다 — 전송은 지갑별 단일 스레드 executor(ChainWalletQueue)가 직렬화하고
+      # inFlight 는 ConcurrentHashMap 이며, 같은 메서드는 fixedDelay 라 겹치지 않는다.
+      pool:
+        size: 4
+      thread-name-prefix: b204-sched-
+    execution:
+      # @Async 는 지금 추천 노출 로그(RecommendationLogWriter) 하나다. Boot 기본 executor 는
+      # 큐 용량이 무제한이라 홈 트래픽이 몰리면 로그 작업이 메모리에 끝없이 쌓인다(!192 리뷰).
+      # 큐가 차면 제출이 TaskRejectedException 으로 거절되고, 호출부가 잡아 경고만 남긴다 —
+      # 학습 데이터 몇 세션을 잃을 뿐 추천 응답은 그대로 나간다.
+      pool:
+        core-size: 2
+        max-size: 4
+        queue-capacity: 500
+      thread-name-prefix: b204-async-
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 3000
+
+  jpa:
+    hibernate:
+      # 스키마 정본은 Flyway다. validate도 쓰지 않는다 — Hibernate 6.3+ ENUM 매핑이
+      # MySQL ENUM 컬럼과 충돌해 정상 스키마에서도 기동이 실패한다(컨벤션 §4).
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: Asia/Seoul
+          batch_size: 50
+        default_batch_fetch_size: 100
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+    locations: classpath:db/migration
+    # V1이 ERD v5 전체 스키마다. 되돌릴 수 없으므로 out-of-order는 막는다.
+    out-of-order: false
+    validate-on-migrate: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      timeout: 2s
+
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      # 명세가 "요청 본문에 개인키·니모닉류 필드가 오면 COMMON_VALIDATION_FAILED 로 거부한다
+      # (알 수 없는 필드 거부)"고 정했다(API v6 §1 API-member-01 · §2 API-team-04).
+      # Spring Boot 기본값은 false 라 켜 주지 않으면 그 요구사항이 조용히 통과한다.
+      fail-on-unknown-properties: true
+
+  messages:
+    basename: messages
+    encoding: UTF-8
+    # Accept-Language로 en/ko를 가른다(API v6 §0.6). 기본은 en.
+    fallback-to-system-locale: false
+
+  mvc:
+    problemdetails:
+      # 실패 응답은 전부 ApiResponse 래퍼({code,data,msg})로만 내린다. ProblemDetail을 쓰지 않는다.
+      enabled: false
+
+  servlet:
+    multipart:
+      # 이미지 업로드(POST /api/v1/files). 앱 상한 5MB 와 같은 값이다 — 여기서 먼저 걸리면
+      # MaxUploadSizeExceededException 이고 GlobalExceptionHandler 가 FILE_TOO_LARGE 로 매핑하므로
+      # 어느 쪽에 걸리든 클라이언트가 보는 코드는 하나다.
+      # 두 업로드 경로의 합집합이다 — POST /api/v1/files(앱 상한 5MB)와
+      # POST .../media/{kind}(앱 상한 5MB) 둘 다 앱에서 5MB 를 판정하므로 서블릿 상한은
+      # 그보다 커야 한다. 여기서 먼저 걸리면 MaxUploadSizeExceededException 이고
+      # GlobalExceptionHandler 가 FILE_TOO_LARGE 로 매핑해 클라이언트가 보는 코드는 하나다.
+      max-file-size: 6MB
+      # 요청 전체 상한은 호스트 Nginx 의 client_max_body_size 10m 과 맞춘다. 파일 상한보다
+      # 크게 둬야 multipart 경계·필드 오버헤드가 있는 정확히 5MB 파일이 통과한다.
+      max-request-size: 10MB
+
+server:
+  port: 8080
+  forward-headers-strategy: framework
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # health는 compose healthcheck, prometheus는 서버 안 Prometheus가 127.0.0.1:8080으로 긁는다.
+        # 호스트 Nginx가 외부에서 /actuator/** 를 404로 막는다(개발 환경 안내 v1 §4).
+        include: health,prometheus
+  endpoint:
+    health:
+      show-details: never
+  metrics:
+    tags:
+      application: b204
+
+b204:
+  app:
+    # 응답에 담는 절대 URL(검증 페이지·검표 링크)의 베이스. 프론트가 조립하지 않는다(§0.7).
+    base-url: ${APP_BASE_URL:https://b204.ssafy.io}
+
+  upload:
+    # 업로드 저장 루트(인프라 계약). 컨테이너에 바인드 마운트돼 있고 호스트 Nginx 가 같은
+    # 디렉토리를 /uploads/ 로 서빙한다. 저장 경로는 이 루트 기준 상대 경로 p/{yyyyMM}/{uuid}.{ext} 다.
+    # ⚠️ 디렉토리가 없어도 기동은 막지 않는다 — 첫 업로드 때 만들고, 못 만들면 그 요청만 실패한다.
+    dir: ${UPLOAD_DIR:/app/uploads}
+
+  alert:
+    # 운영자 알림(Mattermost incoming webhook) — 서버 결함 revert·발행량 halt 전환(S15P21B204-78).
+    # 비우면 비활성이고 알림은 로그로만 남는다(로컬·테스트 기본). URL 자체가 시크릿이라 로그에 찍지 않는다.
+    webhook-url: ${ALERT_WEBHOOK_URL:}
+
+  jwt:
+    # HS256 대칭키. 운영 값은 Jenkins Credentials(B204_ENV)에만 있다.
+    secret: ${JWT_SECRET}
+    # API v6 §0.1 — access 30분 / refresh 14일
+    access-token-ttl: 30m
+    refresh-token-ttl: 14d
+    issuer: b204
+
+  web3auth:
+    client-id: ${WEB3AUTH_CLIENT_ID:}
+    # Web3Auth idToken 검증용 JWKS. Sapphire Devnet 기준.
+    jwks-uri: ${WEB3AUTH_JWKS_URI:https://api-auth.web3auth.io/jwks}
+    # idToken 의 iss 클레임 기대값(API-member-01 시스템 처리 1). 비우면 iss 검사를 건너뛴다.
+    issuer: ${WEB3AUTH_ISSUER:https://api-auth.web3auth.io}
+
+  chain:
+    # ⚠️ 체인 변수는 비어 있어도 기동돼야 한다(개발 환경 안내 v1 §3.1).
+    # 키·주소가 없는 팀원이 API 개발을 하므로, 값이 비면 체인 빈을 만들지 않고
+    # 체인 호출 경로만 COMMON_INTERNAL_ERROR로 떨어진다. 기동은 막지 않는다.
+    # (규격에 없는 코드를 새로 만들지 않는다 — API v6 §16.1이 신설 제안 23개를 "본문 미사용"으로 고정)
+    rpc-url: ${KAIA_RPC_URL:}
+    chain-id: ${KAIA_CHAIN_ID:1001}
+    operator-private-key: ${OPERATOR_PRIVATE_KEY:}
+    minter-private-key: ${MINTER_PRIVATE_KEY:}
+    # OPERATOR 지갑 "주소"(공개 정보, deployments/kairos.json roles.operator).
+    # §0.4 signRequests[].feePayer 로 응답에 나가는 유일한 서버 주소다. 개인키가 아니다.
+    operator-address: ${OPERATOR_ADDRESS:}
+    # 이 인스턴스의 체인 작업 식별자. **비우면 지금과 똑같이 동작한다**(언제나 일함).
+    # 블루/그린처럼 인스턴스가 둘 이상일 때만 색 이름을 넣는다 — 그러면 Redis chain:owner 를
+    # 가진 하나만 tx 를 보낸다(ChainOwnership · S15P21B204-95). 여기 못 박아 두는 이유는
+    # 이름이 갈리면 **조용히 비활성이 되어 두 인스턴스가 모두 일하기** 때문이다.
+    instance-id: ${B204_CHAIN_INSTANCE_ID:}
+    # 발행량 대사가 "미평가"(stale·불변식 1·4를 못 읽음)로 halt 알림 판정을 건너뛴 연속 주기 수가
+    # 이 값에 닿으면 "판정 중단 중"을 1회 알린다(S15P21B204-78). 대사 주기 30초 × 20 = 10분 —
+    # RPC 깜빡임은 넘기고 지속되는 침묵만 잡는 선이다. 기본값은 SupplyReconciler 에도 있다.
+    supply-unevaluated-alert-cycles: 20
+    contract:
+      yoyo-address: ${CONTRACT_YOYO_ADDRESS:}
+      splitter-address: ${CONTRACT_SPLITTER_ADDRESS:}
+    # chain_job 워커(@Scheduled). 체인 빈이 없으면 매 주기 조용히 돌아 나가므로 켜 두어도 무해하다.
+    # 수치 근거는 API v6 §0.3 — receipt 재조회 최대 120초, OPERATOR job 최대 3회 재시도(REL-09).
+    worker:
+      enabled: ${CHAIN_WORKER_ENABLED:true}
+      poll-interval-ms: 1000
+      receipt-poll-interval-ms: 1500
+      receipt-timeout-seconds: 120
+      max-retry: 3
+      batch-size: 20
+      metrics-interval-ms: 60000
+
+  webauthn:
+    # 패스키 본인 확인(step-up) 스위치(API v7 §7.W) — 결제 보고·규칙 동의 보고·보증금 보고·정산 조기 동의·
+    # 정산금 지급 다섯 동작에 한 번에 걸린다. **기본 꺼짐** — 꺼져 있으면 모든 응답에 stepUpRequired 키가 없고
+    # 어느 API 도 X-Step-Up-Token 을 읽지 않아 이 기능이 없던 때와 같다.
+    enabled: ${STEP_UP_ENABLED:false}
+    # rpId 는 브라우저 주소창의 도메인(또는 그 상위 도메인)이어야 한다. 다르면 브라우저가 호출을 거부한다.
+    rp-id: ${WEBAUTHN_RP_ID:localhost}
+    rp-name: BULLEOYO
+    # clientDataJSON.origin 허용 목록(쉼표 구분). 스킴·포트까지 정확히 같아야 한다.
+    origins: ${WEBAUTHN_ORIGINS:http://localhost:5173}
+    challenge-ttl: 300s
+    step-up-ttl: 120s
+
+  entry:
+    # 동적 QR 유효 구간. Redis SETNX 마커 TTL과 같다(API v6 §0.12).
+    qr-ttl: 60s
+    # 입장 종료 추정 길이. API v6 §10의 입장 시간대는 "시작 60분 전 ~ 종료"인데
+    # performance 테이블에 end_at 컬럼이 없다(ERD v5 결손 — V2 마이그레이션 후보).
+    # entry_end_at 이 비어 있을 때만 performance_at + 이 값으로 종료를 대신한다.
+    # 3h 는 명세 예시(19:00 시작 · 22:00 종료)와 같은 값이다.
+    default-duration: 3h
+    # 검표 링크 토큰 수명 여유 — API-performance-10 "공연 종료 + 2시간"[권].
+    link-grace: 2h
+
+  ticket:
+    # 주문 생성 후 결제 만료까지. ticket_order.payment_expires_at 계산 기준.
+    # API v6 §6 API-ticket-01 "결제 전까지 15분 유효"가 정본이다(기존 10m 에서 정정).
+    payment-timeout: 15m
+
+  settlement:
+    # 정산 잠금 후 이의제기 기간. 운영 기본은 48시간(요구사항 v6 §7.4)이고,
+    # 리허설·시연에서는 기다릴 수 없어 환경변수로 줄인다(예: PT1M).
+    # 값이 없으면 48h — 값을 안 넣은 환경이 조용히 짧아지지 않는다.
+    dispute-period: ${SETTLEMENT_DISPUTE_PERIOD:48h}
+    # 정산 공유 링크(API-settlement-06)의 절대 URL 접두. 서버가 완성된 URL을 내려준다(§0.7).
+    # 배포 도메인이 정해지면 여기만 바꾼다 — 코드에 도메인을 박지 않는다.
+    share-base-url: ${SETTLEMENT_SHARE_BASE_URL:https://b204.ssafy.io/settlement/share}
+
+logging:
+  level:
+    root: INFO
+    com.ssafy.b204: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    # docker-compose.local.yml 이 띄우는 MySQL·Redis. 계정은 127.0.0.1 바인딩 로컬 전용 값이다.
+    # 포트 3307 은 그 compose 의 기본 공개 포트다 — 한쪽만 바꾸면 커넥션이 끊긴다.
+    # 컨테이너 안에서 도는 백엔드(--profile backend)는 이 기본값을 안 타고 DB_URL 로 mysql:3306 을 받는다.
+    url: ${DB_URL:jdbc:mysql://localhost:3307/b204?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:b204}
+    password: ${DB_PASSWORD:b204}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  jpa:
+    properties:
+      hibernate:
+        show_sql: true
+
+b204:
+  jwt:
+    # 로컬 전용 기본값. 운영에서는 반드시 환경변수로 덮인다(prod 프로파일은 기본값 없음).
+    secret: ${JWT_SECRET:b204-local-development-only-secret-key-do-not-use-in-production}
+
+  app:
+    # 서버가 만드는 절대 URL(업로드 이미지·검표·검증 링크)의 베이스. 전부 브라우저가 여는
+    # 주소라 로컬에서는 프론트 dev 서버(5173)를 가리켜야 한다 — application-example.yml 의
+    # 권장값과 같다. 기본값(https://b204.ssafy.io)인 채로 두면 POST /api/v1/files 가 돌려준
+    # url 이 존재하지 않는 호스트를 가리켜 미리보기가 뜨지 않는다.
+    # /uploads 는 vite 프록시가 8080 으로 넘긴다(frontend/vite.config.ts).
+    base-url: ${APP_BASE_URL:http://localhost:5173}
+
+  upload:
+    # 호스트에서 bootRun 으로 띄우면 윈도에 /app/uploads 가 없다. 저장소 상대 경로로 내린다.
+    # cwd 가 backend/ 라 실제 위치는 backend/uploads/ 다(.gitignore 의 `uploads/` 가 덮는다).
+    # 컨테이너로 띄우면 UPLOAD_DIR=/app/uploads 가 덮는다.
+    dir: ${UPLOAD_DIR:./uploads}
+
+logging:
+  level:
+    org.hibernate.orm.jdbc.bind: TRACE
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  jpa:
+    properties:
+      hibernate:
+        show_sql: false
+
+logging:
+  level:
+    root: INFO
+    com.ssafy.b204: INFO

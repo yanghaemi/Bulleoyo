@@ -1,0 +1,9 @@
+# Grafana 기동 시 데이터소스 자동 등록. 대시보드는 UI에서 ID 로 임포트(README).
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false

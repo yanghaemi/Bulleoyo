@@ -1,0 +1,35 @@
+-- ============================================================
+-- V4 — chain_job 복합 인덱스 (target_performance_id, tx_type, status)
+--
+-- 무엇을. "이 공연의 job 중 tx_type 이 X 이고 status 가 Y 인 것" 조회를 인덱스 하나로 좁힌다.
+--
+-- 왜. chain_job 에는 이 세 컬럼을 함께 좁히는 인덱스가 없었다.
+--   정정 — V1 CREATE TABLE(71~94행)에는 target_performance_id 인덱스도 FK 도 없지만,
+--   FK 는 파일 말미 ALTER TABLE 에 있다(V1 426행 fk_chain_job_performance). MySQL 이 FK 에
+--   자동 생성한 단일 컬럼 인덱스가 하나 있으므로 지금까지도 풀 테이블 스캔은 아니었다.
+--   다만 좁혀지는 것은 첫 컬럼뿐이라, 그 공연의 job 전체를 읽어 tx_type·status 를 행마다
+--   평가했다. 공연 하나의 job 수는 참여팀·판매 건수에 비례해 늘어난다(결제 APPROVE·PURCHASE,
+--   환불 REFUND 가 주문마다 쌓인다) — 아래 조회들이 전부 그 전체를 훑었다.
+--
+-- 이 인덱스로 이득 보는 기존 조회 (호출부 확인):
+--   · SettlementGates.aggregate  — AGGREGATE in-flight 검사 (existsBy…TxTypeAndStatusIn)
+--   · SettlementGates.lock       — LOCK in-flight 검사
+--   · SettlementGates.release    — RELEASE in-flight 검사
+--   · SettlementGates.coinMovementInFlight — PURCHASE·APPROVE·REFUND·MINT × PENDING·SUBMITTED
+--   · PerformanceService.cancel  — 진행 중 RELEASE 검사(공연 취소 게이트)
+--   · SettlementService.settlementTransactions — API-settlement-01 transactions[]
+--                                  (AGGREGATE·LOCK·RELEASE·DEPOSIT_RETURN·HALT × CONFIRMED)
+--   · VerifySnapshotLoader       — 검증 스냅샷의 확정 tx (AGREE·RELEASE·DEPOSIT·DEPOSIT_RETURN)
+--   · ShowCreationService.latestUpdateRules — (target_performance_id, tx_type) 앞 두 컬럼만 사용
+--
+-- 컬럼 순서. 등가 조건인 target_performance_id·tx_type 이 앞, IN 목록이 오는 status 가 뒤다.
+-- 뒤집으면 status 범위 안에서 tx_type 을 다시 훑는다.
+--
+-- FK 자동 인덱스는 지우지 않는다 — FK 제약이 인덱스를 요구하고, 이 복합 인덱스가 같은
+-- 접두를 가져 대체할 수 있더라도 굳이 바꿀 이유가 없다(ALTER 비용만 든다).
+-- ENUM 은 건드리지 않는다. 이 마이그레이션은 인덱스 추가뿐이다(V2·V3 이 tx_type ENUM 을
+-- 다뤘고, 값 추가는 반드시 맨 뒤에 붙인다는 규칙은 여기서 해당 없음).
+-- ============================================================
+
+CREATE INDEX idx_chain_job_performance_type_status
+    ON chain_job (target_performance_id, tx_type, status);

@@ -1,0 +1,22 @@
+{
+  "common": {
+    "loading": "Loading…",
+    "error": "Something went wrong.",
+    "retry": "Try again",
+    "close": "Close",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "empty": "Nothing here yet.",
+    "notFound": "Page not found.",
+    "goHome": "Go to home"
+  },
+  "chain": {
+    "notConfigured": "Chain features are unavailable until deployment settings are provided."
+  },
+  "placeholder": {
+    "title": "Not built yet",
+    "body": "This screen is a placeholder from the project skeleton."
+  }
+}

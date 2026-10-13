@@ -1,0 +1,67 @@
+.scan-workbench {
+  border-inline: 1px solid color-mix(in srgb, var(--color-line) 82%, transparent);
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      color-mix(in srgb, var(--color-primary) 13%, transparent),
+      transparent 33%
+    ),
+    var(--color-ground);
+  box-shadow: 0 30px 90px rgb(0 0 0 / 0.34);
+}
+
+.scan-workbench__camera {
+  margin: 0.75rem;
+  border: 1px solid color-mix(in srgb, white 16%, transparent);
+  border-radius: 1.25rem;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.04),
+    0 20px 60px rgb(0 0 0 / 0.38);
+}
+
+.entry-ledger__header {
+  background:
+    linear-gradient(
+      110deg,
+      color-mix(in srgb, var(--color-primary) 8%, transparent),
+      transparent 54%
+    ),
+    color-mix(in srgb, var(--color-surface) 95%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.entry-ledger > section,
+.entry-ledger > div > section {
+  min-width: 0;
+}
+
+.entry-ledger table {
+  font-variant-numeric: tabular-nums;
+}
+
+.entry-ledger :where(button, a),
+.scan-workbench :where(button, a) {
+  min-height: 2.75rem;
+}
+
+.entry-ledger :where(button, a):active,
+.scan-workbench :where(button, a):active {
+  transform: scale(0.97);
+}
+
+@media (max-width: 22rem) {
+  .scan-workbench__camera {
+    margin-inline: 0.5rem;
+  }
+
+  .entry-ledger {
+    padding-inline: 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entry-ledger :where(button, a),
+  .scan-workbench :where(button, a) {
+    transition-duration: 0.01ms;
+  }
+}

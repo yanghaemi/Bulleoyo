@@ -1,0 +1,61 @@
+# 스크랩 대상 4개. 백엔드만 호스트 경유(127.0.0.1:8080 → host.docker.internal).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# 메모리 알림. 규칙 자체와 "왜 죽이지 않고 알리기만 하는가" 는 alerts.yml 머리말에 있다.
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  # 알림 경로 자체의 건강. 이 잡이 없으면 alerts.yml 의 AlertDeliveryFailing 이 쓰는
+  # alertmanager_notifications_failed_total 을 아무도 수집하지 않아 **알림이 고장나도
+  # 그것을 알리는 유일한 규칙이 영영 발화하지 않는다**(리뷰 !93 🔴 3).
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["alertmanager:9093"]
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+
+  # Spring Boot Actuator. 앱 네트워크(app_default)에서 **컨테이너 이름으로** 긁는다 —
+  # 호스트에 127.0.0.1 로 퍼블리시된 포트는 컨테이너에서 host-gateway IP 로 닿지 않아서,
+  # host.docker.internal 로 두면 이 잡이 영영 DOWN 이다(실측 2026-09-22).
+  # 호스트 Nginx 는 /actuator/ 를 404 로 막으므로 이 경로는 서버 안에서만 열린다.
+  #
+  # **router 경유다 = 활성 색의 지표다.** 색이 바뀌어도 시계열이 끊기지 않는 것이 이 잡의
+  # 목적이고, 대시보드와 알림 규칙은 이쪽을 본다.
+  - job_name: backend
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["b204-router:8080"]
+        labels:
+          app: b204-backend
+
+  # 색별. 위 잡만 있으면 **쉬는 색은 지표가 0건**이라, 쉬는 옛 색이 체인 작업을 맡아도
+  # b204_chain_job_* 에 아무 것도 안 보인다(리뷰 !93 🔴). 전환 때 카운터가 같은 시계열 안에서
+  # 리셋되는 것도 이 잡으로 구분된다.
+  #
+  # 뜨지 않은 색의 타깃은 DOWN 으로 남는다 — 정상이다(최초 배포는 한 색만 뜬다). alerts.yml
+  # 에 up==0 규칙이 없어 알림이 울리지 않는다.
+  - job_name: backend_color
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["b204-backend-blue:8080"]
+        labels: { app: b204-backend, color: blue }
+      - targets: ["b204-backend-green:8080"]
+        labels: { app: b204-backend, color: green }

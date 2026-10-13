@@ -1,0 +1,591 @@
+# 2026-09-08: 코인 개명 KRWS -> YoYo (name·symbol "YoYo", 로직 불변)
+paths:
+  /api/v1/orders/{orderId}/payment:
+    post:
+      operationId: payment_01
+      tags: [payment]
+      x-priority: P0
+      x-screens: [A-05]
+      x-features: [F-payment-01]
+      x-role: "AUDIENCE(주문자)"
+      summary: "결제 시작(잔액)"
+      description: >-
+        PENDING_PAYMENT(또는 PARTIALLY_PAID) 주문 그룹에 대해 결제를 시작한다. 결제 수단이 잔액 결제 하나이므로
+        요청 본문이 없다(빈 객체 허용). [v6.2] 경로의 {orderId}는 그룹의 어느 하위 주문이든 되며, 서버가
+        order_group_id로 그룹 전체를 찾는다. 서명·잔액 검사는 아직 결제되지 않은 하위 주문의 합계를 기준으로
+        한다. 서버가 YoYo.balanceOf(관객 지갑)을 조회해 잔액 ≥ 미결제 합계이면 §0.4 서명 파라미터(APPROVE? + 미결제
+        하위 주문마다 PURCHASE)를 내려주고 각 하위 주문의 payment를 AWAITING_SIGNATURE로 만든다. 잔액이 모자라면
+        409 COMMON_CONFLICT이며 payment 레코드는 만들지 않고 주문은 그대로 둔다. 이 API는 §0.4 사용자 서명 tx
+        규약(prepare 단계)의 대표 사례다. 서명 단계 카운터는 "1/3 → 2/3 → 3/3"처럼 표시한다(화면 v7.5).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: "주문 PK. v6.2 — 그룹의 어느 하위 주문이든 허용"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              description: "[v5] 본문 없음(빈 객체 {} 허용). 알 수 없는 필드(구 클라이언트의 mode 등)는 COMMON_VALIDATION_FAILED로 거부한다"
+            examples:
+              default:
+                value: {}
+      responses:
+        '200':
+          description: "서명 파라미터 발급 성공(잔액 충분)"
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PaymentStartResult'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      orderGroupId: 5501
+                      approveJobId: null
+                      payments:
+                        - { orderId: 5501, paymentId: 8801, paymentStatus: AWAITING_SIGNATURE, amount: 25000, teamName: "새벽세시", purchaseJobId: null }
+                        - { orderId: 5502, paymentId: 8802, paymentStatus: AWAITING_SIGNATURE, amount: 25000, teamName: "노을과기타", purchaseJobId: null }
+                      amount: 50000
+                      currency: KRW
+                      display: { currency: USD, approx: 37.04, rate: 1350.0, asOf: "2026-09-02T09:00:00+09:00" }
+                      walletBalance: 85000
+                      signRequests:
+                        - kind: APPROVE
+                          required: false
+                          txType: FEE_DELEGATED_SMART_CONTRACT_EXECUTION
+                          to: "0x5f1e2d3c4b5a69788796a5b4c3d2e1f009182736"
+                          data: "0x095ea7b3..."
+                          value: "0x0"
+                          chainId: "0x3e9"
+                          gas: "0x11170"
+                          feePayer: "0x9f8e7d6c5b4a39281706f5e4d3c2b1a098765432"
+                          summary: { title: "Allow ticket payment", amount: 50000, currency: KRW, spender: RevenueSplitter, spenderAddress: "0xa1b2c3d4e5f60718293a4b5c6d7e8f9012345678" }
+                        - kind: PURCHASE
+                          required: true
+                          txType: FEE_DELEGATED_SMART_CONTRACT_EXECUTION
+                          to: "0xa1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
+                          data: "0x3d7403a3..."
+                          value: "0x0"
+                          chainId: "0x3e9"
+                          gas: "0x30d40"
+                          feePayer: "0x9f8e7d6c5b4a39281706f5e4d3c2b1a098765432"
+                          summary: { orderId: 5501, title: "Confirm ₩25,000 payment", amount: 25000, currency: KRW, performanceId: 12, orderRef: "0x9a8b7c6d5e4f30211f2e3d4c5b6a798807162534435261708f9e0d1c2b3a4958", teamIndex: 1, teamName: "새벽세시" }
+                        - kind: PURCHASE
+                          required: true
+                          txType: FEE_DELEGATED_SMART_CONTRACT_EXECUTION
+                          to: "0xa1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
+                          data: "0x4e8514b4..."
+                          value: "0x0"
+                          chainId: "0x3e9"
+                          gas: "0x30d40"
+                          feePayer: "0x9f8e7d6c5b4a39281706f5e4d3c2b1a098765432"
+                          summary: { orderId: 5502, title: "Confirm ₩25,000 payment", amount: 25000, currency: KRW, performanceId: 12, orderRef: "0x1c2b3a4958f6a9d8e7c6b5a49382716f5e4d3c2b1a09887766554433221100f", teamIndex: 2, teamName: "노을과기타" }
+                      expiresAt: "2026-09-10T20:15:00+09:00"
+                    msg: ""
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — Idempotency-Key 없음, [v5] 알 수 없는 본문 필드(mode 등) 전달
+        '401':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_UNAUTHORIZED — 비로그인"
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_NOT_FOUND — 존재하지 않는 주문 또는 타인 주문
+            WALLET_NOT_FOUND — 지갑 미연결 회원
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_CONFLICT — [v5] 지갑 YoYo 잔액 < 미결제 하위 주문 합계(예: "Insufficient balance · ₩15,000 short"처럼 msg에만 부족액 담김, data는 null. 전용 코드 PAYMENT_INSUFFICIENT_BALANCE는 규격 v5 신설 제안), 같은 멱등키에 다른 본문, 주문 만료, 이미 서명 대기 중인 결제 존재
+            PAYMENT_ALREADY_PAID — 그룹 전체가 이미 결제 완료됨(더 결제할 하위 주문이 없음)
+            TICKET_SALE_CLOSED — 결제 시도 시점에 예매 마감
+        '502':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_EXTERNAL_SERVICE_ERROR — 잔액·allowance 조회 실패(서명 파라미터를 만들 수 없음)"
+
+    get:
+      operationId: payment_02
+      tags: [payment]
+      x-priority: P0
+      x-screens: [A-05]
+      x-features: [F-payment-02]
+      x-role: "AUDIENCE(주문자)"
+      summary: 결제 상태 조회
+      description: >-
+        A-05의 처리 중 상태(폴링)에서 쓰는 조회다. [v6.2] 응답은 그룹 뷰다 — orderGroupId·groupStatus(§5-1 파생
+        규칙)·approveJobId·payments[{orderId, paymentId, paymentStatus, amount, teamName, purchaseJobId}]·
+        paidCount/totalCount를 담는다. [v6.2 변경] purchaseJobId는 하위 주문마다 다르므로 payments[].purchaseJobId로
+        옮겼다. approveJobId는 그룹당 1건(미결제 합계에 대한 승인)이라 최상위에 그대로 둔다.
+        payments[] 중 하나라도 paymentStatus=AWAITING_SIGNATURE이면 응답에 미결제분만 다시 담은 signRequests를
+        함께 담아 별도 prepare 호출 없이 곧바로 서명을 요청할 수 있게 한다(원스텝 UX). 결제가 확정되면 발급된
+        ticketIds를 함께 준다. signRequests는 매 호출마다 현재 allowance·잔액을 다시 반영해(미결제 하위 주문만)
+        만들며, 잔액이 그 사이 줄었으면 blockedReason: INSUFFICIENT_BALANCE와 shortfall을 담고 signRequests를
+        null로 준다. 하위 주문 일부만 PAID이고 나머지가 PENDING_PAYMENT이거나 CANCELLED면 groupStatus = PARTIALLY_PAID다.
+        만료 전(15분 이내)에는 미결제분이 PENDING_PAYMENT로 남아 이 API 재호출로 재시도할 수 있고, 이때 expiresAt은
+        null이 아니라 남은 시간을 담는다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: "주문 PK. v6.2 — 그룹의 어느 하위 주문이든 허용"
+      responses:
+        '200':
+          description: "결제 상태 조회 성공(서명 대기 / 완료 / 잔액 부족으로 서명 불가)"
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PaymentStatusResult'
+              examples:
+                awaitingSignature:
+                  summary: 서명 대기
+                  value:
+                    code: SUCCESS
+                    data:
+                      orderGroupId: 5501
+                      groupStatus: PENDING_PAYMENT
+                      approveJobId: null
+                      payments:
+                        - { orderId: 5501, paymentId: 8801, paymentStatus: AWAITING_SIGNATURE, amount: 25000, teamName: "새벽세시", purchaseJobId: null }
+                        - { orderId: 5502, paymentId: 8802, paymentStatus: AWAITING_SIGNATURE, amount: 25000, teamName: "노을과기타", purchaseJobId: null }
+                      paidCount: 0
+                      totalCount: 2
+                      amount: 50000
+                      currency: KRW
+                      display: { currency: USD, approx: 37.04, rate: 1350.0, asOf: "2026-09-02T09:00:00+09:00" }
+                      walletBalance: 85000
+                      shortfall: 0
+                      signRequests:
+                        - kind: APPROVE
+                          required: true
+                          txType: FEE_DELEGATED_SMART_CONTRACT_EXECUTION
+                          to: "0x5f1e2d3c4b5a69788796a5b4c3d2e1f009182736"
+                          data: "0x095ea7b3..."
+                          value: "0x0"
+                          chainId: "0x3e9"
+                          gas: "0x11170"
+                          feePayer: "0x9f8e7d6c5b4a39281706f5e4d3c2b1a098765432"
+                          summary: { title: "Allow ticket payment", amount: 50000, currency: KRW, spender: RevenueSplitter, spenderAddress: "0xa1b2c3d4e5f60718293a4b5c6d7e8f9012345678" }
+                        - kind: PURCHASE
+                          required: true
+                          txType: FEE_DELEGATED_SMART_CONTRACT_EXECUTION
+                          to: "0xa1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
+                          data: "0x3d7403a3..."
+                          value: "0x0"
+                          chainId: "0x3e9"
+                          gas: "0x30d40"
+                          feePayer: "0x9f8e7d6c5b4a39281706f5e4d3c2b1a098765432"
+                          summary: { orderId: 5501, title: "Confirm ₩25,000 payment", amount: 25000, currency: KRW, performanceId: 12, orderRef: "0x9a8b7c6d5e4f30211f2e3d4c5b6a798807162534435261708f9e0d1c2b3a4958", teamIndex: 1, teamName: "새벽세시" }
+                        - kind: PURCHASE
+                          required: true
+                          txType: FEE_DELEGATED_SMART_CONTRACT_EXECUTION
+                          to: "0xa1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
+                          data: "0x4e8514b4..."
+                          value: "0x0"
+                          chainId: "0x3e9"
+                          gas: "0x30d40"
+                          feePayer: "0x9f8e7d6c5b4a39281706f5e4d3c2b1a098765432"
+                          summary: { orderId: 5502, title: "Confirm ₩25,000 payment", amount: 25000, currency: KRW, performanceId: 12, orderRef: "0x1c2b3a4958f6a9d8e7c6b5a49382716f5e4d3c2b1a09887766554433221100f", teamIndex: 2, teamName: "노을과기타" }
+                      blockedReason: null
+                      ticketIds: []
+                      pollAfterMs: null
+                      expiresAt: "2026-09-10T20:15:00+09:00"
+                    msg: ""
+                paid:
+                  summary: 결제 완료
+                  value:
+                    code: SUCCESS
+                    data:
+                      orderGroupId: 5501
+                      groupStatus: PAID
+                      approveJobId: chain_01J9GC5D6E
+                      payments:
+                        - { orderId: 5501, paymentId: 8801, paymentStatus: PAID, amount: 25000, teamName: "새벽세시", purchaseJobId: chain_01J9GC5D6F }
+                        - { orderId: 5502, paymentId: 8802, paymentStatus: PAID, amount: 25000, teamName: "노을과기타", purchaseJobId: chain_01J9GC5D71 }
+                      paidCount: 2
+                      totalCount: 2
+                      amount: 50000
+                      currency: KRW
+                      signRequests: null
+                      blockedReason: null
+                      feeDelegated: true
+                      ticketIds: [90211, 90212]
+                      paidAt: "2026-09-10T20:03:22+09:00"
+                      pollAfterMs: null
+                    msg: ""
+                insufficientBalance:
+                  summary: 잔액 부족으로 서명 불가
+                  value:
+                    code: SUCCESS
+                    data:
+                      orderGroupId: 5501
+                      groupStatus: PENDING_PAYMENT
+                      approveJobId: null
+                      payments:
+                        - { orderId: 5501, paymentId: 8801, paymentStatus: AWAITING_SIGNATURE, amount: 25000, teamName: "새벽세시", purchaseJobId: null }
+                        - { orderId: 5502, paymentId: 8802, paymentStatus: AWAITING_SIGNATURE, amount: 25000, teamName: "노을과기타", purchaseJobId: null }
+                      paidCount: 0
+                      totalCount: 2
+                      amount: 50000
+                      walletBalance: 35000
+                      shortfall: 15000
+                      signRequests: null
+                      blockedReason: INSUFFICIENT_BALANCE
+                      ticketIds: []
+                      pollAfterMs: 3000
+                      expiresAt: "2026-09-10T20:15:00+09:00"
+                    msg: "Insufficient balance · ₩15,000 short."
+                partiallyPaid:
+                  summary: "부분 결제(v6.2)"
+                  value:
+                    code: SUCCESS
+                    data:
+                      orderGroupId: 5501
+                      groupStatus: PARTIALLY_PAID
+                      approveJobId: chain_01J9GC5D6E
+                      payments:
+                        - { orderId: 5501, paymentId: 8801, paymentStatus: PAID, amount: 25000, teamName: "새벽세시", purchaseJobId: chain_01J9GC5D6F }
+                        - { orderId: 5502, paymentId: 8802, paymentStatus: FAILED, amount: 25000, teamName: "노을과기타", purchaseJobId: chain_01J9GC5D72 }
+                      paidCount: 1
+                      totalCount: 2
+                      amount: 50000
+                      currency: KRW
+                      signRequests: null
+                      blockedReason: null
+                      ticketIds: [90211]
+                      pollAfterMs: null
+                      expiresAt: "2026-09-10T20:15:00+09:00"
+                    msg: "2장 중 1장 결제됨 — 남은 1장은 다시 시도(payment-01 재호출)하거나 15분 뒤 자동 취소됩니다."
+        '401':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_UNAUTHORIZED — 비로그인"
+        '404':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_NOT_FOUND — 존재하지 않는 주문, 타인 주문, 결제 시작 이력 없음"
+
+  /api/v1/orders/{orderId}/payment/signed-tx:
+    post:
+      operationId: payment_03
+      tags: [payment]
+      x-priority: P0
+      x-screens: [A-05]
+      x-features: [F-payment-05, F-wallet-06]
+      x-role: "AUDIENCE(주문자)"
+      summary: 결제 서명 tx 보고
+      description: >-
+        관객이 만든 발신자 서명 RLP를 보고한다. 서버가 대납 서명(fee payer)을 붙여 전송하고 202 + jobId
+        (signerType=USER, feeDelegated=true)를 준다. kind=APPROVE면 allowance 확인만 하고, kind=PURCHASE의
+        receipt가 확정될 때 결제가 성립한다. §0.4 signed-tx 단계의 대표 사례다. [v6.2] kind=PURCHASE는 본문의
+        orderId로 어느 하위 주문의 서명인지 지정한다(필수). 서버는 calldata에서 디코드한 orderRef가 그 하위
+        주문의 order_ref와 같은지 대조하고, 다르면 PAYMENT_AMOUNT_MISMATCH로 거부한다. kind=APPROVE는 그룹
+        대표 주문에 귀속되므로 orderId를 생략할 수 있다. 상태 전이: PURCHASE 보고 즉시 그 하위 주문의 payment
+        AWAITING_SIGNATURE → PAYING, receipt 확정 시 PAID + 그 하위 주문 PAID + 티켓 ISSUED 발급. 다른 하위
+        주문의 상태는 영향받지 않는다(부분 실패 정책). tx가 revert되면(재고 소진·판매 잠금·allowance 부족) 그
+        하위 주문의 payment는 FAILED가 되지만 주문은 PENDING_PAYMENT로 남아 재시도할 수 있다(15분 만료까지).
+        이미 PAID가 된 다른 하위 주문은 되돌리지 않는다. 같은 senderSignedRlp의 진행 중·확정 job은 최초 jobId를
+        재생하고, 종단 FAILED job은 실패 이력을 보존한 채 새 job으로 다시 제출한다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: X-Step-Up-Token
+          in: header
+          required: false
+          schema: { type: string, maxLength: 128 }
+          description: "[2026-09-24] 결제 전 본인 확인 토큰(webauthn_04). 서버 스위치 STEP_UP_ENABLED 가 켜져 있으면 필수(abandoned=true 제외) — 없거나 만료·소비·다른 동작·다른 주문 그룹·다른 회원의 토큰이면 403 WEBAUTHN_STEP_UP_REQUIRED. 토큰 범위는 PAYMENT·주문 그룹(webauthn_03 본문). 첫 보고가 토큰을 소비해 범위에 묶고(120초) 같은 그룹의 이어지는 보고는 같은 토큰으로 통과한다. 꺼져 있으면 읽지 않는다"
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: "주문 PK. v6.2 — 그룹의 어느 하위 주문이든 허용(실제 대상은 본문 orderId)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentSignedTxRequest'
+            examples:
+              default:
+                value: { kind: PURCHASE, senderSignedRlp: "0x31f8c2a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182934a5b6c", orderId: 5502 }
+              abandoned:
+                value: { kind: PURCHASE, senderSignedRlp: "0x31f8c2a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182934a5b6c", orderId: 5502, abandoned: true }
+      responses:
+        '202':
+          description: >
+            대납 서명·전송 접수. receipt 검증(§0.4) 후 CONFIRMED 시 payment=PAID, 티켓이 발권된다.
+            [2026-09-16 — S15P21B204-92] 공용 ChainJobAccepted 를 참조하던 것을 PaymentSignedTxResponse
+            실제 12필드로 바꿨다. txHash 는 서버가 대납 서명 후 전송해서 얻은 해시이며 클라이언트가
+            보고한 값이 아니다.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [jobId, status, signerType, feeDelegated, pollAfterMs, orderId, orderGroupId, paymentId, kind, paymentStatus, expectedEvent, pendingOrderIds]
+                        properties:
+                          jobId: { type: string }
+                          status: { type: string, enum: [PENDING, SUBMITTED, CONFIRMED, FAILED] }
+                          signerType: { type: string, enum: [OPERATOR, USER] }
+                          feeDelegated: { type: boolean }
+                          pollAfterMs: { type: integer, default: 1200 }
+                          orderId:
+                            type: integer
+                            format: int64
+                            description: "[v6.2] 이 서명이 속한 하위 주문 id"
+                          orderGroupId:
+                            type: integer
+                            format: int64
+                            description: "[v6.2] 그룹 대표 주문 id"
+                          paymentId: { type: integer, format: int64 }
+                          kind: { type: string, enum: [APPROVE, PURCHASE] }
+                          paymentStatus:
+                            type: string
+                            enum: [REQUESTED, AWAITING_SIGNATURE, PAYING, PAID, FAILED, REFUNDED]
+                            description: 보고 직후의 payment 상태. PURCHASE 보고면 PAYING 이다.
+                          txHash:
+                            allOf: [{ $ref: '#/components/schemas/TxHash' }]
+                            description: 전송 전이면 키가 없다(non_null 직렬화).
+                          explorerUrl:
+                            type: string
+                            format: uri
+                            description: txHash 가 없으면 이 키도 없다.
+                          expectedEvent:
+                            type: string
+                            enum: [Approval, Purchased]
+                            description: receipt 에서 확인할 이벤트 이름. status 만 보지 않는다.
+                          pendingOrderIds:
+                            type: array
+                            items: { type: integer, format: int64 }
+                            description: "[v6.2] 그룹에서 아직 결제가 확정되지 않은 하위 주문 목록. 빈 배열이면 이 보고로 그룹이 완결됨"
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      jobId: chain_01J9GC5D6F
+                      status: SUBMITTED
+                      signerType: USER
+                      feeDelegated: true
+                      pollAfterMs: 1200
+                      orderId: 5502
+                      orderGroupId: 5501
+                      paymentId: 8802
+                      kind: PURCHASE
+                      paymentStatus: PAYING
+                      txHash: '0x5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182934a'
+                      explorerUrl: https://kairos.kaiascan.io/tx/0x5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182934a
+                      expectedEvent: Purchased
+                      pendingOrderIds: [5501]
+                    msg: 결제를 확인하고 있습니다.
+        '200':
+          description: "서명 취소 보고(abandoned: true) — payment는 AWAITING_SIGNATURE 유지, 잔액은 그대로 남는다"
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          orderId: { type: integer, format: int64 }
+                          orderGroupId: { type: integer, format: int64 }
+                          paymentId: { type: integer, format: int64 }
+                          paymentStatus:
+                            type: string
+                            enum: [AWAITING_SIGNATURE]
+                          orderStatus:
+                            type: string
+                            enum: [PENDING_PAYMENT]
+                          balanceKept: { type: boolean }
+                          expiresAt: { type: string, format: date-time }
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data: { orderId: 5502, orderGroupId: 5501, paymentId: 8802, paymentStatus: AWAITING_SIGNATURE, orderStatus: PENDING_PAYMENT, balanceKept: true, expiresAt: "2026-09-10T20:15:00+09:00" }
+                    msg: "결제가 완료되지 않았습니다. 잔액은 그대로 남아 있습니다."
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — [v5] RLP 형식 위반·디코드 실패, 허용되지 않는 kind, abandoned=false인데 senderSignedRlp 누락, [v6.2] kind=PURCHASE인데 orderId 누락
+        '401':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_UNAUTHORIZED — 비로그인"
+        '403':
+          $ref: '#/components/responses/Error'
+          description: "WEBAUTHN_STEP_UP_REQUIRED — [2026-09-24] 스위치 켜짐 + X-Step-Up-Token 없음·만료·이미 소비·다른 동작·다른 주문 그룹·다른 회원의 토큰"
+        '404':
+          $ref: '#/components/responses/Error'
+          description: "COMMON_NOT_FOUND — 존재하지 않는 주문, 타인 주문, 결제 시작 이력 없음(순서 위반), [v6.2] orderId가 이 그룹의 하위 주문이 아님"
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            PAYMENT_ALREADY_PAID — 이미 PAID인 하위 주문
+            COMMON_CONFLICT — 주문 만료(15분 경과), 같은 RLP가 다른 주문으로 보고됨(서명 거부 전용 코드 PAYMENT_SIGNATURE_REJECTED는 §16.1)
+            PAYMENT_AMOUNT_MISMATCH — [v5] RLP 발신자·to·data 불일치 또는 receipt·Purchased 이벤트 검증 실패(9개 항목 중 하나), [v6.2] calldata orderRef가 지정한 orderId와 다름(전용 코드 PAYMENT_TX_MISMATCH는 §16.1)
+            TICKET_SOLD_OUT — tx가 재고 부족으로 revert됨(컨트랙트·재고 대사 결과)
+            TICKET_SALE_CLOSED — tx가 판매 잠금(ON_SALE 아님)으로 revert됨
+        '500':
+          $ref: '#/components/responses/Error'
+          description: "CHAIN_GAS_INSUFFICIENT — [v5] 운영지갑(fee payer) 잔액 부족으로 대납 전송 불가 — 운영자 알림 대상"
+        '504':
+          $ref: '#/components/responses/Error'
+          description: "CHAIN_TX_TIMEOUT — 확정이 120초를 넘김 — jobId로 계속 폴링"
+
+components:
+  schemas:
+    PaymentBrief:
+      type: object
+      description: "[v6.2] 그룹 뷰에 담기는 하위 주문별 결제 요약"
+      properties:
+        orderId: { type: integer, format: int64 }
+        paymentId: { type: integer, format: int64 }
+        paymentStatus:
+          type: string
+          enum: [REQUESTED, AWAITING_SIGNATURE, PAYING, PAID, FAILED, REFUNDED]
+        amount: { type: integer }
+        teamName: { type: string }
+        purchaseJobId:
+          type: string
+          nullable: true
+          description: "[v6.2] 이 하위 주문의 PURCHASE job id. 하위 주문마다 다르므로 그룹 최상위가 아니라 여기 둔다. 서명 전이면 null"
+
+    PaymentStartResult:
+      description: >-
+        결제 시작 응답. [v6.2] 주문 그룹 결제 — §0.4 prepare 단계의 대표 사례로 PrepareResponse(signRequests·expiresAt)를 확장한다.
+      allOf:
+        - $ref: '#/components/schemas/PrepareResponse'
+        - type: object
+          properties:
+            orderGroupId: { type: integer, format: int64 }
+            approveJobId:
+              type: string
+              nullable: true
+              description: "그룹의 APPROVE job id(그룹당 1건, 미결제 합계 대상). 서명 전이면 null"
+            payments:
+              type: array
+              items:
+                $ref: '#/components/schemas/PaymentBrief'
+            amount:
+              type: integer
+              description: "미결제 하위 주문 합계"
+            currency:
+              type: string
+              enum: [KRW]
+            display:
+              $ref: '#/components/schemas/Display'
+            walletBalance: { type: integer }
+            stepUpRequired:
+              type: boolean
+              description: "[2026-09-24] 본인 확인 스위치(STEP_UP_ENABLED)가 켜졌을 때만 true 로 실린다. 꺼져 있으면 키가 없다(전역 non_null). 프론트는 이 값 하나로 본인 확인 단계를 분기한다"
+
+    PaymentStatusResult:
+      type: object
+      properties:
+        orderGroupId: { type: integer, format: int64 }
+        groupStatus:
+          type: string
+          enum: [PENDING_PAYMENT, PAID, PARTIALLY_PAID, CANCELLED, REFUNDED]
+          description: "[v6.2] §5-1 파생 규칙. AWAITING_SIGNATURE·FAILED는 payments[].paymentStatus에서만 노출한다"
+        approveJobId:
+          type: string
+          nullable: true
+          description: "그룹의 APPROVE job id(그룹당 1건, 미결제 합계 대상). 서명 전이면 null"
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentBrief'
+        paidCount: { type: integer }
+        totalCount: { type: integer }
+        amount: { type: integer }
+        currency:
+          type: string
+          enum: [KRW]
+        display:
+          $ref: '#/components/schemas/Display'
+        walletBalance:
+          type: integer
+          nullable: true
+        shortfall:
+          type: integer
+          description: "부족액(0 이상). 잔액이 충분하면 0"
+        signRequests:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/SignRequest'
+        blockedReason:
+          type: string
+          nullable: true
+          enum: [INSUFFICIENT_BALANCE, null]
+          description: "[v5] INSUFFICIENT_BALANCE 하나만 쓴다"
+        feeDelegated:
+          type: boolean
+          nullable: true
+        ticketIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+        pollAfterMs:
+          type: integer
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        stepUpRequired:
+          type: boolean
+          description: "[2026-09-24] payment_01 과 같은 규칙 — 스위치 켜짐이면 true, 꺼짐이면 키 없음. 새로고침 복원 경로가 이 값으로 본인 확인을 분기한다"
+
+    PaymentSignedTxRequest:
+      description: >-
+        결제 서명 tx 보고 요청. §0.4 signed-tx 규약의 SignedTxRequest를 확장해 abandoned(서명 취소 알림)·
+        [v6.2] orderId(하위 주문 지정) 필드를 더한다.
+      allOf:
+        - $ref: '#/components/schemas/SignedTxRequest'
+        - type: object
+          properties:
+            orderId:
+              type: integer
+              format: int64
+              description: "[v6.2] kind=PURCHASE면 필수 — 이 서명이 속한 하위 주문 id. kind=APPROVE는 미결제 하위 주문 중 orderId 오름차순 첫 행에 귀속하므로 생략 가능하고, 값이 와도 오류가 아니며 서버가 무시한다"
+            abandoned:
+              type: boolean
+              default: false
+              description: "true면 사용자가 서명을 취소했음을 알린다. payment는 AWAITING_SIGNATURE 유지, 주문은 만료 스케줄대로 처리"
+      required: [kind]

@@ -1,0 +1,34 @@
+.collector-ticket {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+.collector-ticket__receipt {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 14px 4px;
+  margin: 0;
+  color: var(--color-ink);
+}
+.collector-ticket__receipt div {
+  min-width: 0;
+}
+.collector-ticket__receipt dt {
+  font-size: 10px;
+  color: var(--color-muted);
+}
+.collector-ticket__receipt dd {
+  margin: 3px 0 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 64rem) {
+  .ticket-reveal-stage__viewport .collector-ticket__receipt {
+    color: #f4f2ed;
+  }
+  .ticket-reveal-stage__viewport .collector-ticket__receipt dt {
+    color: #b9b9cb;
+  }
+}

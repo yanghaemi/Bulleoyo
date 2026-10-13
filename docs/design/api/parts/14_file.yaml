@@ -1,0 +1,112 @@
+paths:
+  /api/v1/files:
+    post:
+      operationId: file_01
+      tags: [file]
+      summary: 이미지 업로드
+      description: >-
+        공연 포스터·티켓 아트워크 이미지를 올린다. 응답의 uploadId 를 공연 생성·수정
+        (posterUploadId · ticketArtworkUploadId)에 넣는다. url 은 미리보기 전용이며 공연 요청에
+        넣을 수 없다 — 클라이언트가 만든 임의 URL 이 poster_image_path 에 그대로 들어가면 서버가
+        "이 이미지는 이 회원이 올린 것"을 증명할 수 없다. 타입은 파일 시그니처(매직 바이트)로 판정하며
+        요청의 Content-Type·확장자는 믿지 않는다. 저장 파일명은 uuid 다(영구 캐시라 같은 이름으로
+        내용을 바꿀 수 없다). 업로드된 파일은 24시간 안에 공연에 매이지 않으면 행·파일이 함께 삭제된다.
+      x-priority: P0
+      x-role: MEMBER
+      x-screens: [P-03]
+      x-features: [F-performance-01]
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, purpose]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: >-
+                    image/jpeg · image/png · image/webp, 5MB 이하. 최소 해상도는 purpose 별로
+                    POSTER 600×800 · TICKET_ARTWORK 1000×400 이다. 가로세로 비율은 검사하지 않는다
+                    (프론트가 잘라서 올린다).
+                purpose:
+                  type: string
+                  enum: [POSTER, TICKET_ARTWORK]
+            encoding:
+              file:
+                contentType: image/jpeg, image/png, image/webp
+      responses:
+        '201':
+          description: 업로드 성공(status=TEMP)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/FileUploadResult'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      uploadId: 3f2b7c41-9a5e-4c8d-b2a1-70e6d9c4f815
+                      url: https://j15b204.p.ssafy.io/uploads/p/202609/3a9c1f80-52db-4b2e-9f71-0c6d8a4e2b13.png
+                      width: 1200
+                      height: 1600
+                      bytes: 482913
+                      contentType: image/png
+                      purpose: POSTER
+                      expiresAt: '2026-09-23T14:40:00+09:00'
+                    msg: 이미지를 업로드했습니다.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            FILE_TYPE_NOT_ALLOWED — 시그니처가 jpeg·png·webp 가 아니거나 본문이 깨져 크기를 읽을 수 없음
+            FILE_RESOLUTION_TOO_SMALL — purpose 별 최소 해상도 미만
+            FILE_PURPOSE_MISMATCH — purpose 값이 enum 밖
+            COMMON_VALIDATION_FAILED — file·purpose 파트 누락
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 인증 헤더 없음
+        '413':
+          $ref: '#/components/responses/Error'
+          description: |
+            FILE_TOO_LARGE — 5MB 초과. 호스트 Nginx 의 본문 상한 10MB 안쪽이라 앱까지 도달한다
+
+components:
+  schemas:
+    FileUploadResult:
+      type: object
+      properties:
+        uploadId:
+          type: string
+          format: uuid
+          description: >-
+            공연 생성·수정에 넣는 값. DB PK 가 아니라 추측 불가능한 UUID 다 — 남의 업로드를
+            번호로 훑을 수 없게 한다.
+        url:
+          type: string
+          format: uri
+          description: 미리보기용 절대 URL({APP_BASE_URL}/uploads/{상대경로}). 서버가 완성해 내려준다(§0.7).
+        width: { type: integer }
+        height: { type: integer }
+        bytes: { type: integer, format: int64 }
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp]
+          description: 파일 시그니처로 판정한 값. 요청의 Content-Type 이 아니다.
+        purpose:
+          type: string
+          enum: [POSTER, TICKET_ARTWORK]
+        expiresAt:
+          type: string
+          format: date-time
+          description: 공연에 매이지 않았을 때 이 업로드가 정리되는 시각(업로드 + 24시간).

@@ -1,0 +1,319 @@
+.concert-ticket {
+  --ticket-stub: max(64px, 15%);
+  position: relative;
+  isolation: isolate;
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1px minmax(0, var(--ticket-stub));
+  width: 100%;
+  min-width: 0;
+  min-height: 280px;
+  aspect-ratio: 2.8;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #3325ed;
+  color: #fff;
+  text-align: left;
+  /* Transparent cutouts work on both the printer and page backgrounds. */
+  mask-image:
+    radial-gradient(circle at calc(100% - var(--ticket-stub)) 0, transparent 9px, #000 10px),
+    radial-gradient(circle at calc(100% - var(--ticket-stub)) 100%, transparent 9px, #000 10px);
+  mask-composite: intersect;
+}
+.concert-ticket--entry {
+  --ticket-stub: clamp(108px, 19%, 152px);
+}
+.concert-ticket span {
+  min-width: 0;
+}
+.concert-ticket__art {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.concert-ticket__art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 35%;
+}
+.concert-ticket__typography {
+  position: absolute;
+  top: 1%;
+  left: -4%;
+  color: #8a80ff;
+  opacity: 0.76;
+  font: 900 clamp(180px, 36cqi, 420px)/0.9 sans-serif;
+  letter-spacing: -0.085em;
+  white-space: nowrap;
+  transform: rotate(-3deg);
+  text-transform: uppercase;
+}
+.concert-ticket__typography::before {
+  content: attr(data-title);
+}
+.concert-ticket__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, #2311bdbb, transparent 74%);
+}
+.concert-ticket__art[data-source='poster'] .concert-ticket__overlay {
+  background:
+    linear-gradient(90deg, rgb(7 8 18 / 0.76) 0%, rgb(7 8 18 / 0.42) 46%, transparent 74%),
+    linear-gradient(270deg, rgb(7 8 18 / 0.56) 0%, rgb(7 8 18 / 0.12) 22%, transparent 40%),
+    linear-gradient(0deg, rgb(7 8 18 / 0.5) 0%, transparent 62%);
+}
+.concert-ticket__art[data-source='artwork'] .concert-ticket__overlay {
+  background:
+    linear-gradient(90deg, rgb(7 8 18 / 0.7) 0%, rgb(7 8 18 / 0.34) 42%, transparent 70%),
+    linear-gradient(270deg, rgb(7 8 18 / 0.52) 0%, rgb(7 8 18 / 0.1) 20%, transparent 36%),
+    linear-gradient(0deg, rgb(7 8 18 / 0.34) 0%, transparent 54%);
+}
+.concert-ticket__ellipse {
+  position: absolute;
+  left: -10%;
+  top: 3%;
+  width: 125%;
+  height: 56%;
+  border: 1.5px solid #ffb4ec;
+  border-radius: 50%;
+  transform: rotate(-13deg);
+}
+.concert-ticket__content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: clamp(20px, 3.8cqi, 36px);
+  overflow-wrap: anywhere;
+}
+.concert-ticket__eyebrow {
+  font: 800 10px/1.4 sans-serif;
+  letter-spacing: 0.18em;
+}
+.concert-ticket__details {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  column-gap: 12px;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 64px;
+}
+.concert-ticket__title,
+.concert-ticket__date,
+.concert-ticket__venue {
+  grid-column: 1 / -1;
+}
+.concert-ticket__admission {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-top: 10px;
+}
+.concert-ticket__status {
+  align-self: end;
+  justify-self: end;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 0px;
+  background: #ffb4ec;
+  color: #281490;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+.concert-ticket__title {
+  display: block;
+  margin: 0 0 10px;
+  font-size: clamp(24px, 5.2cqi, 48px);
+  line-height: 1.04;
+  letter-spacing: -0.055em;
+  font-weight: 900;
+  text-wrap: balance;
+}
+.concert-ticket__date {
+  font-size: clamp(12px, 1.9cqi, 17px);
+  line-height: 1.5;
+  font-weight: 800;
+}
+.concert-ticket__venue {
+  font-size: clamp(12px, 1.9cqi, 17px);
+  line-height: 1.5;
+  font-weight: 700;
+}
+.concert-ticket__type,
+.concert-ticket__team {
+  font-size: 11px;
+  line-height: 1.5;
+}
+.concert-ticket__perforation {
+  border-left: 1px dashed #c8bfff99;
+  margin: 16px 0;
+}
+.concert-ticket__stub {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 28px 20px 12px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.concert-ticket__serial-block {
+  position: absolute;
+  inset: 28px 10px 28px auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  writing-mode: vertical-rl;
+}
+.concert-ticket__serial-label {
+  font-size: 9px;
+  line-height: 1.2;
+  opacity: 0.8;
+}
+.concert-ticket__serial {
+  writing-mode: vertical-rl;
+  font: 700 11px/1.3 monospace;
+  letter-spacing: 0.08em;
+  overflow-wrap: anywhere;
+}
+.concert-ticket__barcode {
+  display: block;
+  width: clamp(20px, 4cqi, 38px);
+  height: 72%;
+  min-height: 110px;
+  background: repeating-linear-gradient(
+    0deg,
+    #eee7ff 0 2px,
+    transparent 2px 4px,
+    #eee7ff 4px 5px,
+    transparent 5px 8px,
+    #eee7ff 8px 12px,
+    transparent 12px 15px
+  );
+}
+.concert-ticket--compact {
+  min-height: 240px;
+  aspect-ratio: 2.35;
+}
+.concert-ticket--compact .concert-ticket__content {
+  padding: 22px;
+}
+.concert-ticket--compact .concert-ticket__title {
+  font-size: clamp(24px, 5.4cqi, 32px);
+}
+.concert-ticket[data-status='used'] {
+  background: #353946;
+  color: #eef0f4;
+}
+.concert-ticket[data-status='used'] .concert-ticket__art img {
+  filter: grayscale(0.78) saturate(0.34) brightness(0.7);
+}
+.concert-ticket[data-status='used'] .concert-ticket__overlay {
+  background: linear-gradient(90deg, rgb(18 20 27 / 0.86), rgb(42 45 55 / 0.62));
+}
+.concert-ticket[data-status='used'] .concert-ticket__status {
+  background: #d7dbe4;
+  color: #272a33;
+}
+.concert-ticket[data-status='cancelled'] {
+  background: #4a1f32;
+  color: #fff2f5;
+}
+.concert-ticket[data-status='cancelled'] .concert-ticket__art img {
+  filter: grayscale(0.32) saturate(0.48) brightness(0.62) sepia(0.18) hue-rotate(300deg);
+}
+.concert-ticket[data-status='cancelled'] .concert-ticket__overlay {
+  background: linear-gradient(90deg, rgb(49 12 28 / 0.9), rgb(100 27 53 / 0.66));
+}
+.concert-ticket[data-status='cancelled'] .concert-ticket__status {
+  background: #ffd5df;
+  color: #8f153c;
+}
+/* 업로드한 완성 티켓 이미지는 상태 표현 때문에 다시 염색하지 않는다. */
+.concert-ticket[data-status='used'] .concert-ticket__art[data-source='artwork'] img,
+.concert-ticket[data-status='cancelled'] .concert-ticket__art[data-source='artwork'] img {
+  filter: none;
+}
+.concert-ticket[data-status='used'] .concert-ticket__art[data-source='artwork'] .concert-ticket__overlay,
+.concert-ticket[data-status='cancelled'] .concert-ticket__art[data-source='artwork'] .concert-ticket__overlay {
+  background:
+    linear-gradient(90deg, rgb(7 8 18 / 0.7) 0%, rgb(7 8 18 / 0.34) 42%, transparent 70%),
+    linear-gradient(270deg, rgb(7 8 18 / 0.52) 0%, rgb(7 8 18 / 0.1) 20%, transparent 36%),
+    linear-gradient(0deg, rgb(7 8 18 / 0.34) 0%, transparent 54%);
+}
+@media (max-width: 47.999rem) {
+  .concert-ticket {
+    --ticket-stub: 58px;
+    min-height: 184px;
+    aspect-ratio: 1.82;
+  }
+  .concert-ticket--entry {
+    --ticket-stub: 82px;
+  }
+  .concert-ticket--compact {
+    min-height: 168px;
+    aspect-ratio: 1.95;
+  }
+  .concert-ticket__content,
+  .concert-ticket--compact .concert-ticket__content {
+    padding: 14px 12px;
+  }
+  .concert-ticket__eyebrow {
+    font-size: 8px;
+    letter-spacing: 0.12em;
+  }
+  .concert-ticket__status {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+  .concert-ticket__details {
+    padding-top: 20px;
+    column-gap: 8px;
+  }
+  .concert-ticket__title,
+  .concert-ticket--compact .concert-ticket__title {
+    display: -webkit-box;
+    overflow: hidden;
+    margin-bottom: 6px;
+    font-size: 20px;
+    line-height: 1.08;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .concert-ticket__date,
+  .concert-ticket__venue {
+    font-size: 10px;
+  }
+  .concert-ticket__type,
+  .concert-ticket__team {
+    font-size: 9px;
+  }
+  .concert-ticket__status {
+    padding: 3px 6px;
+    font-size: 9px;
+  }
+  .concert-ticket__perforation {
+    margin-block: 10px;
+  }
+  .concert-ticket__stub {
+    padding: 10px 20px 10px 7px;
+  }
+  .concert-ticket__serial-block {
+    inset-block: 14px;
+    right: 5px;
+  }
+  .concert-ticket__serial {
+    font-size: 8px;
+  }
+  .concert-ticket__serial-label {
+    font-size: 7px;
+  }
+  .concert-ticket__barcode {
+    width: 18px;
+    min-height: 72px;
+  }
+}

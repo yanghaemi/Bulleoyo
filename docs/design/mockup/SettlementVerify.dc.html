@@ -1,0 +1,55 @@
+<!doctype html>
+<!-- 2026-09-08: 코인 개명 KRWS -> YoYo (name·symbol "YoYo", 로직 불변) -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <style>
+    :root{--ink:#17141f;--ink2:#3a3548;--muted:#6f6880;--line:#e3dfe9;--ground:#f5f3f7;--surface:#fff;
+      --amber:#e39b2b;--amber-soft:#fbf1de;--amber-line:#efdcb8;--amber-deep:#8a5510;
+      --ok:#2e7d5b;--ok-soft:#e4f1ea;--crit:#b3243c;--crit-soft:#fbe7ea;
+      --ease-out:cubic-bezier(.23,1,.32,1);}
+    *{box-sizing:border-box;}
+    body{margin:0;background:var(--ground);color:var(--ink);
+      font-family:Archivo,"Noto Sans KR",system-ui,sans-serif;font-size:14px;line-height:1.5;
+      -webkit-font-smoothing:antialiased;}
+    a{color:var(--amber-deep);text-decoration:none;} a:hover{color:#6b4009;}
+    h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:balance;}
+    .mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;}
+    .eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;}
+    .tap{transition:transform 160ms var(--ease-out);}
+    .tap:active{transform:scale(.985);}
+    .btn{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:8px;
+      border:1px solid var(--ink);background:var(--ink);color:#fff;
+      font:600 15px Archivo,"Noto Sans KR",sans-serif;transition:transform 160ms var(--ease-out);}
+    .btn:active{transform:scale(.97);}
+    .btn.ghost{background:var(--surface);color:var(--ink);}
+    .btn.amber{background:var(--amber);border-color:var(--amber);color:#2a1b04;}
+    .btn.off{background:var(--line);border-color:var(--line);color:#9b95a6;}
+    .btn.off:active{transform:none;}
+    @media (hover:hover) and (pointer:fine){
+      .btn.ghost:hover{background:var(--ground);}
+      .card.tap:hover{border-color:#cfc8da;}
+    }
+    @media (prefers-reduced-motion:reduce){ .tap,.btn{transition:none;} .tap:active,.btn:active{transform:none;} }
+    .badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:600;
+      background:var(--amber-soft);color:var(--amber-deep);}
+    .badge.ok{background:var(--ok-soft);color:var(--ok);}
+    .badge.crit{background:var(--crit-soft);color:var(--crit);}
+    .badge.plain{background:var(--ground);color:var(--muted);}
+    .sub{color:var(--muted);font-size:12px;}
+    .rule{height:1px;background:var(--line);}
+    .poster{background:linear-gradient(160deg,#2c2540,#5d4a2e 70%,#8a6a2c);border-radius:8px;}
+  </style>
+</helmet>
+<div style="min-height:100%;background:var(--ground);"><div style="background:var(--surface);border-bottom:1px solid var(--line);"><div style="max-width:1200px;margin:0 auto;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;"><div><div class="eyebrow">정산 검증</div><h1 style="font-size:20px;margin-top:3px;">Hongdae Night Vol.7</h1></div><span class="badge">참여팀 전용</span></div></div><div style="max-width:1200px;margin:0 auto;padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start;"><div style="display:flex;flex-direction:column;gap:18px;"><div class="card" style="padding:15px;display:flex;flex-direction:column;gap:8px;"><div class="eyebrow">Contracts</div><div style="display:flex;justify-content:space-between;"><span class="sub">Splitter</span><span class="mono">0x9c02…5d31</span></div><div style="display:flex;justify-content:space-between;"><span class="sub">YoYo</span><span class="mono">0x31ab…08f7</span></div><div style="display:flex;justify-content:space-between;"><span class="sub">chainId</span><span class="mono">1001 (0x3e9)</span></div></div><div class="card" style="padding:15px;display:flex;flex-direction:column;gap:8px;"><div class="eyebrow">Escrow</div><div><span class="mono" style="font-size:22px;font-weight:600;">₩2,000,000</span></div><div class="sub">Σ purchase − Σ refund − Σ release</div><div><span class="badge ok">Matched</span></div></div><div class="card" style="padding:15px;display:flex;flex-direction:column;gap:8px;"><div class="eyebrow">Locked rules</div><div style="display:flex;justify-content:space-between;"><span class="sub">bp_f / bp_s</span><span class="mono">5000 / 5000</span></div><div style="display:flex;justify-content:space-between;"><span class="sub">w_i</span><span class="mono">3334 / 3333 / 3333</span></div><div style="display:flex;justify-content:space-between;"><span class="sub">rule hash</span><span class="mono">0x4f1c…82ab</span></div></div><div class="card" style="padding:15px;display:flex;flex-direction:column;gap:8px;"><div class="eyebrow">On-chain picks</div><div style="display:flex;justify-content:space-between;"><span>Salt &amp; Static</span><span class="mono">60</span></div><div style="display:flex;justify-content:space-between;"><span>Room 302</span><span class="mono">44</span></div><div style="display:flex;justify-content:space-between;"><span>Neon Alley</span><span class="mono">30</span></div><div class="sub">유효 티켓 134 · 총 매출 ₩2,000,000</div></div></div><div style="display:flex;flex-direction:column;gap:18px;"><div class="card" style="padding:20px 22px;"><h2 style="font-size:16px;margin-bottom:8px;">Payouts</h2><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);"><div><div style="font-weight:600;">Salt &amp; Static</div><div class="sub">0x7a41…9c2e · 고정 333,300 · 선택 499,800 · dust 300</div></div><div style="text-align:right;white-space:nowrap;"><span class="mono" style="font-weight:600;">₩833,400</span> <span class="badge ok">Received</span></div></div><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);"><div><div style="font-weight:600;">Room 302</div><div class="sub">0x2b90…41af</div></div><div style="text-align:right;white-space:nowrap;"><span class="mono" style="font-weight:600;">₩633,300</span> <span class="badge ok">Received</span></div></div><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);"><div><div style="font-weight:600;">Neon Alley</div><div class="sub">0xd10c…77b5</div></div><div style="text-align:right;white-space:nowrap;"><span class="mono" style="font-weight:600;">₩533,300</span> <span class="badge ok">Received</span></div></div></div><div class="card" style="padding:15px;display:flex;flex-direction:column;gap:8px;"><div class="eyebrow">Recompute in your browser</div><div class="sub">잠긴 비율·온체인 카운터·총 매출로 이 화면에서 다시 계산합니다.</div><div class="card" style="padding:13px;background:var(--ground);display:flex;justify-content:space-between;"><span>재계산 합계</span><span class="mono" style="font-weight:600;">₩2,000,000</span></div><div><span class="badge ok">서버 표시값과 1원도 다르지 않음</span></div></div><div class="card" style="padding:15px;display:flex;flex-direction:column;gap:8px;"><div class="eyebrow">Invariants</div><div style="display:flex;justify-content:space-between;padding:7px 0;"><span class="mono sub">01</span><span class="badge ok">Balanced</span></div><div style="display:flex;justify-content:space-between;padding:7px 0;"><span class="mono sub">02</span><span class="badge ok">Balanced</span></div><div style="display:flex;justify-content:space-between;padding:7px 0;"><span class="mono sub">03</span><span class="badge ok">Balanced</span></div><div style="display:flex;justify-content:space-between;padding:7px 0;"><span class="mono sub">04</span><span class="badge ok">Balanced</span></div></div></div></div></div>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,118 @@
+# 모니터링 스택 — 서버 ~/monitoring/ 에 두고 여기서 up 한다(Jenkins 컨트롤러와 같은 방식, 사람이 1회).
+#
+#   cp -r exec/monitoring/* ~/monitoring/ && cd ~/monitoring
+#   cp .env.example .env && vi .env          # GRAFANA_ADMIN_PASSWORD 채움
+#   docker compose -f docker-compose.monitoring.yml up -d
+#
+# 앱 compose(~/app)와 다른 프로젝트다. **백엔드 스크랩만** 앱 네트워크(app_default)에 끼어
+# 컨테이너 이름으로 긁는다 — 호스트에 127.0.0.1 로 퍼블리시된 포트는 컨테이너에서 host-gateway
+# IP 로 갈 수 없어서, 그렇게 두면 backend 잡이 **영영 DOWN 이다**(실측 2026-09-22: 처음부터
+# DOWN 이라 JVM·chain_job 패널이 빈 값이었다. 리뷰 !170 🟡).
+#
+# 대가: 이 스택을 올리기 전에 app_default 네트워크가 있어야 한다(= 앱 compose 가 한 번 떠 있어야
+# 한다). 없으면 up 이 "network app_default not found" 로 즉시 실패한다 — 만들지 말고 앱을 먼저 띄운다.
+name: monitoring
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    # default = 이 스택(alertmanager), app = 백엔드 컨테이너 이름 해석용.
+    networks: [default, app]
+    # 타깃 상태 확인용. 외부 노출 없음: curl -s localhost:9091/api/v1/targets | jq '.data.activeTargets[] | {job: .labels.job, health}'
+    ports:
+      - "127.0.0.1:9091:9090"
+    mem_limit: 512m
+
+  # 알림을 Mattermost 로 보낸다. **죽이지 않는다** — 규칙 파일 머리말에 이유가 있다.
+  # 웹훅 URL 은 저장소에 없다. 서버에서 만든다(exec/monitoring/README.md):
+  #   cd ~/monitoring && umask 077 && echo '<URL>' > secrets/mattermost_url
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    container_name: alertmanager
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      # 디렉토리째 마운트한다. 파일 하나를 마운트하면 그것이 없을 때 도커가 같은 자리에
+      # **디렉토리를 만들고**, Alertmanager 는 그대로 뜬 채 알림만 조용히 실패한다(실측).
+      - ./secrets:/etc/alertmanager/secrets:ro
+      - alertmanager_data:/alertmanager
+    ports:
+      - "127.0.0.1:9093:9093"
+    mem_limit: 128m
+
+  grafana:
+    image: grafana/grafana-oss:12.1.0
+    container_name: grafana
+    restart: unless-stopped
+    depends_on: [prometheus]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD 를 .env 에 넣어라}
+      # 호스트 Nginx /grafana/ 하위 경로. Nginx는 경로를 그대로 넘기고 Grafana가 접두사를 처리한다.
+      GF_SERVER_ROOT_URL: https://j15b204.p.ssafy.io/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      TZ: Asia/Seoul
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "127.0.0.1:3001:3000"
+    mem_limit: 256m
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    container_name: node-exporter
+    restart: unless-stopped
+    pid: host
+    command:
+      - --path.rootfs=/host
+    volumes:
+      - /:/host:ro,rslave
+    mem_limit: 64m
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    container_name: cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    command:
+      - --housekeeping_interval=15s
+      - --docker_only=true
+      - --store_container_labels=false
+    mem_limit: 256m
+
+# 앱 compose 가 만든 네트워크. 이름은 앱의 프로젝트 이름(디렉토리 ~/app)에서 나온다 —
+# 앱을 다른 경로에서 올리면 이름이 바뀌므로 `docker network ls` 로 확인한다.
+networks:
+  app:
+    name: app_default
+    external: true
+
+volumes:
+  alertmanager_data:
+  prometheus_data:
+    name: prometheus_data
+  grafana_data:
+    name: grafana_data

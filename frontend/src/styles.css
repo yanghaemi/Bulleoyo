@@ -1,0 +1,227 @@
+/*
+ * 디자인 토큰.
+ *
+ * 값의 출처 — 신현경(UI/UX·디자인 토큰 담당) 확정 2026-09-08.
+ * Figma 와이어프레임 "Main Page Wireframe Design"(TICKR, 2026-09-08 수정본) 기준이다.
+ *
+ * 기술 스택 v3 §3.1의 amber `@theme`는 **UI/UX 확정값이 아니었다** — 이강륜이 9/3에
+ * `docs/design/mockup/`의 시안에서 그대로 옮겨 둔 임시값이다(본인 확인, 9/8).
+ * 그래서 amber ↔ blue는 정본끼리의 충돌이 아니라, 정본이 없던 자리에 확정값이 들어온 것이다.
+ * amber 목업 32개는 시안으로 보존하며 고치지 않는다.
+ *
+ * 정본은 `docs/design/14_디자인_토큰_v1.md`다(이강륜 작성, 신현경 확정 9/8).
+ * 스택 v3 §3.1의 amber `@theme`는 그 문서로 대체됐고, 이 블록은 그 문서의 §2 표를 따른다.
+ * 표와 이 블록이 어긋나면 **문서가 정본**이다(문서 §4).
+ *
+ * Tailwind v4는 `--color-*`·`--font-*`·`--radius-*`·`--breakpoint-*` 네 네임스페이스에
+ * 있는 변수만 유틸리티로 생성한다(문서 §2). 역할 이름만 쓰고 팔레트 이름(blue-500)은 쓰지 않는다.
+ */
+@import "tailwindcss";
+
+/* 사용자 테마는 라이트 기본 토큰과 브랜드색을 유지한 다크 파생 한 벌만 제공한다. */
+@import "./styles/theme-dark.css";
+@import "./styles/fx-hover.css";
+@import "./styles/fx-backdrop.css";
+@import "./styles/fx-stage.css";
+@import "./styles/fx-hero.css"; /* 히어로 기본 조명(CSS). WebGPU가 없어도 무대가 어둡지 않다. 한 줄 롤백 */
+@import "./styles/fx-ticket.css";
+@import "./styles/fx-balance.css"; /* A-13 잔액 패널 광택·흐름 곡선 그리기·이력 타임라인 등장. 한 줄 롤백 */ /* A-07·A-08 티켓 광택·절취선·등장/회전 연출. 이 줄 삭제 = 연출 없이 즉시 이동 */
+@import "./styles/fx-brand.css"; /* 헤더 로고 반응 + 라우트 로더 Anime.js 시퀀스. 한 줄 롤백 */
+@import "./styles/design-refresh.css";
+@import "./styles/fx-signing.css"; /* 서명 처리 오버레이 펜 애니메이션(app/SigningOverlay). 한 줄 롤백 */
+
+/* Bklit registry가 생성한 차트 컴포넌트의 dark variant. 기존 data-theme 전환도 아래 변수에서 받는다. */
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  /* --- 브랜드 --- */
+  --color-primary: #3129dd;        /* 기본 버튼·브랜드·링크·아이콘 */
+  --color-primary-bright: #5b54ff; /* hover·active — 디자인 토큰 v2 */
+
+  /* --- 선택 상태 (신현경 확정 2026-09-08) ---
+     선택은 테두리가 아니라 배경색으로만 표현한다. Outline·Stroke를 쓰지 않는다
+     (와이어프레임 수정 요청 §14·§291). 브랜드 blue와 구분되는 자홍 계열이다. */
+  --color-sel: #d9468d;       /* 선택한 카드·탭·필터 */
+  --color-sel-soft: #fce8f2;  /* 선택된 카드의 연한 배경 */
+
+  /* --- 키보드 포커스 ---
+     선택 표시에는 링을 쓰지 않지만, 키보드 focus-visible에는 유지한다.
+     v2 확정값은 hover와 같은 #5b54ff지만 역할이 달라 별도 토큰으로 둔다. */
+  --color-focus: #5b54ff;
+
+  /* --- 중립 --- */
+  --color-ink: #17171c;      /* 본문 */
+  --color-muted: #626670;    /* 보조 — 흰 표면에서도 읽히는 대비 */
+  --color-faint: #777b85;    /* placeholder·비활성 */
+  --color-line: #e3e4ea;     /* 경계선 */
+  --color-surface: #ffffff;  /* 카드·패널 */
+  --color-ground: #f6f7f9;   /* 페이지 배경 */
+  --color-ground-2: #eceef2;
+  --color-fill: #d4d4d4;     /* 포스터 placeholder */
+
+  /* --- 상태 --- */
+  --color-danger: #d93025;
+  --color-ok: #2e7d5b;
+  /* 신설(토큰 문서 §2.1). 목업 32개의 옛 amber 브랜드 색을 버리지 않고 "주의·대기"
+     역할로만 남긴 값이다. 문서 §3-4가 버튼·링크·브랜드 요소에 쓰는 것을 금지한다 —
+     결제 대기·확인 대기 같은 배지에만 쓴다(사용 화면 지정은 문서 §6 대기). */
+  --color-warning: #e39b2b;
+
+  /* 영문·숫자는 DM Sans, 한글은 Noto Sans KR이 받는다. 두 벌 다 index.html에서
+     명시적으로 로드해 OS별 system-ui 폴백 차이를 없앤다(신현경 확정).
+     예매번호·티켓번호·금액 등 모노 표현은 DM Mono. */
+  --font-sans: "DM Sans", "Noto Sans KR", system-ui, sans-serif;
+  /* 2026-09-08 강병구: "숫자 글꼴이 못생겼다" → 둘로 나눴다.
+     · --font-num  금액·잔액·가격. Inter의 숫자는 획이 고르고 tabular-nums가 있어 굴러가는 잔액에도 폭이 안 흔들린다
+     · --font-mono 예매번호·티켓번호·시각 같은 식별자. DM Mono → JetBrains Mono(더 또렷하고 0/O 구분)
+     ⚠ 토큰 문서 §2의 "모노 표현은 DM Mono"(신현경 확정)와 어긋난다 — 팀장 결정이므로 문서 개정·신현경 공유 필요 */
+  --font-num: Inter, "DM Sans", "Noto Sans KR", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "DM Mono", ui-monospace, monospace;
+
+  --breakpoint-md: 48rem; /* 768px — 유일한 분기 (화면설계 v6 §1.5) */
+
+  /* 모서리 반경은 역할별 토큰으로 둔다. 값을 컴포넌트에 직접 박지 않는 이유는
+     테마를 바꿀 때(예: pill 형태 디자인) 여기 세 줄만 갈아끼우면 되게 하기 위해서다.
+     `rounded-card` · `rounded-control` · `rounded-chip` 유틸리티가 생성된다. */
+  --radius-card: 12px; /* 카드·패널·모달 */
+  --radius-control: 10px; /* 버튼·입력 */
+  --radius-chip: 4px; /* 배지·칩 */
+}
+
+/* hover·active 채우기와 로고·조명 효과를 분리한다. 테마는 효과용 색만 별도로 덮을 수 있다. */
+:root {
+  --effect-primary-bright: var(--color-primary-bright);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    margin: 0;
+    overflow-x: clip;
+    background-color: var(--color-ground);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 {
+    text-wrap: pretty;
+    overflow-wrap: anywhere;
+  }
+
+  /* 키보드 이동에만 포커스 링을 보인다. 마우스 클릭에는 나타나지 않는다.
+     선택 상태(배경색)와 역할이 겹치지 않게 링만 쓰고 배경은 건드리지 않는다. */
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+/*
+ * 비기능 UX — 사용자 환경설정 3종을 각각 존중한다.
+ *
+ * `prefers-reduced-motion`만 처리하고 나머지 둘을 빼놓고 있었다. 셋은 서로 다른 신호다 —
+ * 모션에 약한 사람, 투명도가 읽기를 방해하는 사람, 대비가 더 필요한 사람은 각각 다르다.
+ * 반투명 헤더처럼 `backdrop-filter`를 쓰는 화면도 있어 두 번째가 실제로 필요하다.
+ */
+
+/* 모션을 줄인다 — 없애는 게 아니라 이동·스프링을 짧은 페이드로 바꾼다 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* 누를 때 줄어드는 효과도 끈다 — 전정기관 자극은 아니지만 예측 가능성을 위해 */
+  *:active {
+    transform: none !important;
+  }
+}
+
+/* 투명도를 줄인다 — 반투명 표면을 불투명하게 만들고 블러를 끈다 */
+@media (prefers-reduced-transparency: reduce) {
+  * {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  header {
+    background-color: var(--color-surface) !important;
+  }
+}
+
+/* 대비를 높인다 — 경계선을 또렷하게 */
+@media (prefers-contrast: more) {
+  :root {
+    --color-line: #8a8a94;
+    --color-muted: #3f4046;
+    --color-faint: #5c5c66;
+  }
+}
+:root {
+  --chart-1: var(--color-primary);
+  --chart-2: var(--color-sel);
+  --chart-3: var(--color-ok);
+  --chart-4: var(--color-muted);
+  --chart-5: var(--color-faint);
+  --chart-background: var(--color-surface);
+  --chart-foreground: var(--color-ink);
+  --chart-foreground-muted: var(--color-muted);
+  --chart-line-primary: var(--chart-1);
+  --chart-line-secondary: var(--chart-2);
+  --chart-crosshair: var(--color-primary);
+  --chart-grid: var(--color-line);
+  --chart-brush-border: var(--chart-grid);
+  --chart-tooltip-background: oklch(0.21 0.006 285 / 0.8);
+  --chart-tooltip-foreground: oklch(0.985 0 0);
+  --chart-tooltip-muted: oklch(0.65 0.01 260);
+  --chart-marker-background: oklch(0.97 0.005 260);
+  --chart-marker-border: oklch(0.85 0.01 260);
+  --chart-marker-foreground: oklch(0.3 0.01 260);
+  --chart-label: var(--color-muted);
+  --chart-scale-01: oklch(0.98 0.003 106);
+  --chart-scale-02: oklch(0.92 0.008 106);
+  --chart-scale-03: oklch(0.82 0.015 106);
+  --chart-scale-04: oklch(0.68 0.02 106);
+  --chart-scale-05: oklch(0.55 0.025 106);
+  --chart-scale-pattern-color: oklch(0.96 0.005 106);
+}
+@theme inline {
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-background: var(--chart-background);
+  --color-chart-foreground: var(--chart-foreground);
+  --color-chart-foreground-muted: var(--chart-foreground-muted);
+  --color-chart-crosshair: var(--chart-crosshair);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-tooltip-background: var(--chart-tooltip-background);
+  --color-chart-tooltip-foreground: var(--chart-tooltip-foreground);
+  --color-chart-tooltip-muted: var(--chart-tooltip-muted);
+  --color-chart-marker-background: var(--chart-marker-background);
+  --color-chart-marker-border: var(--chart-marker-border);
+  --color-chart-marker-foreground: var(--chart-marker-foreground);
+  --color-chart-label: var(--chart-label);
+  --color-chart-scale-01: var(--chart-scale-01);
+  --color-chart-scale-02: var(--chart-scale-02);
+  --color-chart-scale-03: var(--chart-scale-03);
+  --color-chart-scale-04: var(--chart-scale-04);
+  --color-chart-scale-05: var(--chart-scale-05);
+  --color-chart-scale-pattern-color: var(--chart-scale-pattern-color);
+}

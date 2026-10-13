@@ -1,0 +1,78 @@
+.show-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  transition: border-color 160ms ease-out;
+}
+.show-card__poster {
+  min-width: 0;
+  overflow: hidden;
+}
+.show-card__content {
+  min-width: 0;
+  padding: 18px 20px 20px;
+}
+.show-card__content p {
+  margin: 0 0 6px;
+  overflow-wrap: anywhere;
+}
+.show-card__title {
+  font-size: 16px;
+  line-height: 1.45;
+  font-weight: 700;
+}
+.show-card__date,
+.show-card__venue,
+.show-card__teams {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.show-card__date {
+  color: var(--color-ink);
+}
+.show-card__venue,
+.show-card__teams {
+  color: var(--color-muted);
+}
+.show-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .show-card:hover {
+    border-color: var(--color-primary);
+  }
+}
+@media (max-width: 47.999rem) {
+  .show-card {
+    grid-template-columns: 96px minmax(0, 1fr);
+    align-items: start;
+    gap: 14px;
+    padding: 14px;
+  }
+  .show-card__poster {
+    border-radius: 6px;
+  }
+  .show-card__content {
+    padding: 0;
+  }
+  .show-card__title {
+    font-size: 14px;
+  }
+  .show-card__date,
+  .show-card__venue,
+  .show-card__teams {
+    font-size: 11px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .show-card {
+    transition: none;
+  }
+}

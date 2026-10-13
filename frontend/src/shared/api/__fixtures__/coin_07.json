@@ -1,0 +1,1 @@
+{"code":"SUCCESS","data":{"jobId":"chain_1","status":"PENDING","signerType":"OPERATOR","pollAfterMs":1500,"memberId":2,"address":"0xbb4d559476f744f98a26275d2d91e277aa13dd1e","amount":200000,"currency":"KRW","memo":"demo","grantRef":"0xdc6b7c2d04a8b9fa2500bfa7c6283b890531305b937e79bcb1fbb4c437bb8804","requestedAt":"2026-09-16T12:39:56.04595+09:00"},"msg":""}

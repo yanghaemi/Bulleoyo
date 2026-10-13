@@ -1,0 +1,102 @@
+/*
+ * P-05 도움말 예시 애니메이션 — 매출 막대가 고정·관객 선택으로 갈라지고(1),
+ * 팀별 고정 몫이 차오르고(2), 관객 선택 몫이 붙고(3), 합계가 뜬다(4). 4.8초 루프.
+ *
+ * GIF 대신 CSS 인 이유: 저장소에 바이너리를 늘리지 않고, 색이 역할 토큰(`--color-primary`·`--color-sel`)
+ * 이라 다크·라이트를 그대로 따르며, 숫자가 `simulate()` 결과라 공식이 바뀌어도 그림이 낡지 않는다.
+ *
+ * 기본 스타일이 **끝난 상태**다(변형 없음·불투명). 애니메이션은 거기로 가는 길만 정의한다 —
+ * 그래서 `prefers-reduced-motion` 에서 animation 만 끄면 완성된 그림이 정지 상태로 남는다.
+ */
+
+.rule-help-fill {
+  transform-origin: left center;
+  animation-duration: 4.8s;
+  animation-iteration-count: infinite;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.rule-help-fill[data-phase='1'] {
+  animation-name: rule-help-phase-1;
+}
+.rule-help-fill[data-phase='2'] {
+  animation-name: rule-help-phase-2;
+}
+.rule-help-fill[data-phase='3'] {
+  animation-name: rule-help-phase-3;
+}
+
+.rule-help-total {
+  animation: rule-help-total 4.8s ease-out infinite;
+}
+
+@keyframes rule-help-phase-1 {
+  0% {
+    transform: scaleX(0);
+    opacity: 1;
+  }
+  18%,
+  90% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+
+@keyframes rule-help-phase-2 {
+  0%,
+  22% {
+    transform: scaleX(0);
+    opacity: 1;
+  }
+  40%,
+  90% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+
+@keyframes rule-help-phase-3 {
+  0%,
+  44% {
+    transform: scaleX(0);
+    opacity: 1;
+  }
+  62%,
+  90% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+
+@keyframes rule-help-total {
+  0%,
+  64% {
+    opacity: 0;
+  }
+  72%,
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rule-help-fill,
+  .rule-help-total {
+    animation: none;
+  }
+}

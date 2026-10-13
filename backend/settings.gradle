@@ -1,0 +1,7 @@
+// Java 17 툴체인 자동 프로비저닝. Jenkins 컨트롤러 JVM이 21이라 이 플러그인이 없으면
+// 툴체인 17을 찾지 못해 빌드가 실패한다(Jenkinsfile Test/backend 스테이지가 존재를 grep으로 검사).
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.9.0'
+}
+
+rootProject.name = 'b204'

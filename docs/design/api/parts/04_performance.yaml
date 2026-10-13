@@ -1,0 +1,1831 @@
+# 2026-09-08: 코인 개명 KRWS -> YoYo (name·symbol "YoYo", 로직 불변)
+paths:
+  /api/v1/performances:
+    post:
+      operationId: performance_01
+      tags: [performance]
+      summary: 공연 생성
+      description: >
+        팀 리더가 공연 기본 정보(제목·소개·일시·장소)와 단독/공동 여부를 등록한다. 생성자 팀은 자동으로 참여팀 1번이 되고,
+        생성 직후 상태는 DRAFT·보증금 상태는 UNPAID다. 취소 마감(D-3 00:00)·판매 마감(공연 시작 1분 전)은 서버가
+        startAt에서 자동 계산해 응답으로만 내려주며, 생성 시점에 리더 지갑 연결(LINKED)을 확인한다.
+        생성과 동시에 검표 페이지 링크(서명 토큰)가 자동 발급된다.
+      x-priority: P0
+      x-role: 리더
+      x-screens: [P-03]
+      x-features: [F-performance-01]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PerformanceCreateRequest'
+            examples:
+              default:
+                value:
+                  hostTeamId: 7
+                  title: 합정 3밴드 합동공연
+                  description: 인디록 3팀 합동 무대
+                  posterUploadId: 3f2b7c41-9a5e-4c8d-b2a1-70e6d9c4f815
+                  ticketArtworkUploadId: 8c1d5e60-2f7a-4b93-ae14-6d0b3c9f7a25
+                  venueName: 합정 언플러그드
+                  venueAddress: 서울 마포구 양화로 000
+                  startAt: '2026-09-19T19:00:00+09:00'
+                  endAt: '2026-09-19T22:00:00+09:00'
+                  jointPerformance: true
+      responses:
+        '201':
+          description: 공연이 DRAFT 상태로 생성됨
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PerformanceCreated'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      performanceId: 12
+                      title: 합정 3밴드 합동공연
+                      status: DRAFT
+                      hostTeamId: 7
+                      startAt: '2026-09-19T19:00:00+09:00'
+                      endAt: '2026-09-19T22:00:00+09:00'
+                      saleCloseAt: '2026-09-19T18:00:00+09:00'
+                      cancelDeadlineAt: '2026-09-16T00:00:00+09:00'
+                      deposit:
+                        status: UNPAID
+                        amount: 50000
+                        currency: KRW
+                        display: { currency: USD, approx: 37.04, rate: 1350.0, asOf: '2026-09-02T09:00:00+09:00' }
+                        leaderBalance: 120000
+                        sufficient: true
+                      nextAction: PAY_DEPOSIT
+                    msg: 공연이 생성되었습니다. 보증금을 납부해 주세요.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 형식 위반, saleCloseAt·cancelDeadlineAt·depositAmount 전달(서버 결정 필드)
+            PERFORMANCE_DATE_INVALID — 과거 일시, endAt ≤ startAt
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_FORBIDDEN — hostTeamId 팀의 리더가 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            TEAM_NOT_FOUND — 존재하지 않는 hostTeamId
+            WALLET_NOT_FOUND — 리더 지갑 미연결
+    get:
+      operationId: performance_02
+      tags: [performance]
+      summary: 공연 목록(공개)
+      description: >
+        비로그인 방문자도 볼 수 있는 공개 목록이다. ON_SALE·SALE_CLOSED 공연만 노출하며 검색어(제목·팀명)·날짜 범위로
+        필터한다. 기본 정렬은 공연 시작 일시 오름차순이고, 금액은 §0.5 축약형(data.rate + 항목 minPriceAmount)으로
+        내려간다. 목록 응답은 30초 캐시하며 환율이 바뀌면 캐시를 무효화한다.
+      x-priority: P0
+      x-role: GUEST
+      x-screens: [A-01, A-15]
+      x-features: [F-performance-02]
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: keyword
+          in: query
+          required: false
+          schema: { type: string, maxLength: 50 }
+          description: 제목·참여팀명 부분 일치
+        - name: fromDate
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: toDate
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [ON_SALE, SALE_CLOSED] }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, enum: ['startAt,asc', 'startAt,desc', 'createdAt,desc'], default: 'startAt,asc' }
+      responses:
+        '200':
+          description: 공개 공연 목록
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PerformanceListResponseData'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      rate: { currency: USD, rate: 1350.0, asOf: '2026-09-02T09:00:00+09:00' }
+                      items:
+                        - performanceId: 12
+                          title: 합정 3밴드 합동공연
+                          posterImageUrl: https://j15b204.p.ssafy.io/uploads/p/202609/3a9c1f80-52db-4b2e-9f71-0c6d8a4e2b13.png
+                          ticketImageUrl: https://j15b204.p.ssafy.io/uploads/p/202609/7b2e4c11-9d38-4a6f-8c05-1e9a7f3d6b40.png
+                          venueName: 합정 언플러그드
+                          startAt: '2026-09-19T19:00:00+09:00'
+                          status: ON_SALE
+                          minPriceAmount: 25000
+                          currency: KRW
+                          soldOut: false
+                          teamNames: [블루노트, 새벽세시, 노이즈캔슬]
+                      pageInfo: { page: 0, size: 20, totalElements: 37, hasNext: true }
+                    msg: ''
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — size 100 초과, 날짜 역전, 허용되지 않는 status·sort
+        '429':
+          $ref: '#/components/responses/Error'
+
+  /api/v1/performances/me:
+    get:
+      operationId: performance_06
+      tags: [performance]
+      summary: 내 팀 참여 공연 목록
+      description: >
+        로그인 회원이 리더인 팀이 주최하거나 참여 중인 공연을 DRAFT부터 CANCELLED까지 전부 준다. 각 행에
+        depositStatus·myTeamAgreementStatus(PENDING/SIGNING/AGREED)·pendingSignature(DEPOSIT/AGREE/TREASURY_IN 또는 null)를
+        담아 대시보드가 "지금 서명할 일"을 뽑게 한다. 초대받았지만 미수락인 공연은 participationStatus=INVITED로 함께 준다.
+        myTeamSettlementApproved(선택)는 내 팀의 정산 조기 동의(API-settlement-08) 여부이며, 정산 행이나 내 팀 몫이
+        아직 없으면 생략한다. 팀 단위 동의는 myParticipatingTeams[].settlementApproved다.
+      x-priority: P0
+      x-role: PERFORMER
+      x-screens: [P-01]
+      x-features: [F-performance-06]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [DRAFT, PENDING_AGREEMENT, ON_SALE, SALE_CLOSED, ENDED, CANCELLED] }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, enum: ['startAt,desc', 'startAt,asc'], default: 'startAt,desc' }
+      responses:
+        '200':
+          description: 내 팀 참여 공연 목록
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MyPerformanceListResponseData'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      items:
+                        - performanceId: 12
+                          title: 합정 3밴드 합동공연
+                          startAt: '2026-09-19T19:00:00+09:00'
+                          status: PENDING_AGREEMENT
+                          settlementStatus: NONE
+                          depositStatus: PAID
+                          teamId: 7
+                          host: true
+                          participationStatus: ACCEPTED
+                          myTeamAgreementStatus: PENDING
+                          pendingSignature: AGREE
+                          myParticipatingTeams:
+                            - teamId: 7
+                              teamName: 블루노트
+                              host: true
+                              participationStatus: ACCEPTED
+                              agreementStatus: PENDING
+                              pendingSignature: AGREE
+                        - performanceId: 9
+                          title: 망원 어쿠스틱 나이트
+                          startAt: '2026-09-12T19:00:00+09:00'
+                          status: ENDED
+                          settlementStatus: LOCKED
+                          depositStatus: RETURNED
+                          teamId: 7
+                          host: false
+                          participationStatus: ACCEPTED
+                          myTeamAgreementStatus: AGREED
+                          myTeamSettlementApproved: false
+                          myParticipatingTeams:
+                            - teamId: 7
+                              teamName: 블루노트
+                              host: false
+                              participationStatus: ACCEPTED
+                              agreementStatus: AGREED
+                              settlementApproved: false
+                      pageInfo: { page: 0, size: 20, totalElements: 4, hasNext: false }
+                    msg: ''
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 허용되지 않는 status·sort, size 100 초과
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_FORBIDDEN — 리더인 팀이 없는 계정(PERFORMER 아님)
+
+  /api/v1/performances/{performanceId}:
+    get:
+      operationId: performance_03
+      tags: [performance]
+      summary: 공연 상세(공개)
+      description: >
+        출연팀·일시·장소·티켓 옵션(잔여 수량)과 공개 검증 페이지 링크를 준다. 가격은 원 값 + display 환산을 함께
+        담고, 지갑 주소·해시·컨트랙트 용어는 담지 않는다(참여팀 지갑 주소는 API-verify-01에서만 제공). 취소 마감 시각과
+        환불 고지(refundPolicyNotice)를 함께 내려준다. DRAFT·PENDING_AGREEMENT 공연은 생성자·참여팀 리더에게만
+        보이고 그 외에는 PERFORMANCE_NOT_FOUND로 존재를 숨긴다.
+      x-priority: P0
+      x-role: GUEST
+      x-screens: [A-02]
+      x-features: [F-performance-03]
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: 공연 상세
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PerformanceDetail'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      performanceId: 12
+                      title: 합정 3밴드 합동공연
+                      description: 인디록 3팀 합동 무대
+                      posterImageUrl: https://j15b204.p.ssafy.io/uploads/p/202609/3a9c1f80-52db-4b2e-9f71-0c6d8a4e2b13.png
+                      ticketImageUrl: https://j15b204.p.ssafy.io/uploads/p/202609/7b2e4c11-9d38-4a6f-8c05-1e9a7f3d6b40.png
+                      venueName: 합정 언플러그드
+                      venueAddress: 서울 마포구 양화로 000
+                      startAt: '2026-09-19T19:00:00+09:00'
+                      endAt: '2026-09-19T22:00:00+09:00'
+                      saleCloseAt: '2026-09-19T18:00:00+09:00'
+                      cancelDeadlineAt: '2026-09-16T00:00:00+09:00'
+                      status: ON_SALE
+                      jointPerformance: true
+                      purchaseLimitPerMember: 4
+                      rate: { currency: USD, rate: 1350.0, asOf: '2026-09-02T09:00:00+09:00' }
+                      participants:
+                        - { teamId: 7, teamName: 블루노트, host: true }
+                        - { teamId: 9, teamName: 새벽세시, host: false }
+                        - { teamId: 11, teamName: 노이즈캔슬, host: false }
+                      ticketTypes:
+                        - ticketTypeId: 31
+                          name: 일반
+                          price: { amount: 25000, currency: KRW, display: { currency: USD, approx: 18.52, rate: 1350.0, asOf: '2026-09-02T09:00:00+09:00' } }
+                          totalQuantity: 80
+                          remainingQuantity: 41
+                        - ticketTypeId: 32
+                          name: 응원
+                          price: { amount: 35000, currency: KRW, display: { currency: USD, approx: 25.93, rate: 1350.0, asOf: '2026-09-02T09:00:00+09:00' } }
+                          totalQuantity: 20
+                          remainingQuantity: 12
+                      refundPolicyNotice: Refunds are returned to your balance in Korean won.
+                      verificationUrl: https://b204.ssafy.io/verify/12
+                    msg: ''
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않거나 비공개 상태를 비관계자가 조회
+    patch:
+      operationId: performance_04
+      tags: [performance]
+      summary: 공연 수정(잠금 전)
+      description: >
+        DRAFT·PENDING_AGREEMENT에서만 수정 가능하며 ON_SALE 이후는 PERFORMANCE_ALREADY_ON_SALE이다. 생성자 팀
+        리더만 수정한다. 일시를 바꾸면 cancelDeadlineAt·saleCloseAt을 재계산하고, 규칙이 이미 설정된 상태에서
+        일시·공동 여부를 바꾸면 기존 팀별 동의를 전부 PENDING으로 초기화하며 진행 중 SIGNING job은 FAILED로 닫는다.
+        이미 납부된 보증금(deposit_status=PAID)은 초기화 대상이 아니다.
+      x-priority: P0
+      x-role: 생성자
+      x-screens: [P-03]
+      x-features: [F-performance-04]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PerformanceUpdateRequest'
+            examples:
+              default:
+                value:
+                  venueName: 합정 언플러그드 B홀
+                  startAt: '2026-09-19T19:30:00+09:00'
+                  endAt: '2026-09-19T22:30:00+09:00'
+      responses:
+        '200':
+          description: 수정 완료
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PerformanceUpdated'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      performanceId: 12
+                      status: PENDING_AGREEMENT
+                      startAt: '2026-09-19T19:30:00+09:00'
+                      saleCloseAt: '2026-09-19T18:30:00+09:00'
+                      cancelDeadlineAt: '2026-09-16T00:00:00+09:00'
+                      agreementsReset: true
+                      depositStatus: PAID
+                    msg: 공연 정보가 수정되었습니다. 참여팀 동의를 다시 받아야 합니다.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 형식 위반
+            PERFORMANCE_DATE_INVALID — 과거 일시, 일시 역전
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_OWNER — 생성자 팀 리더가 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_ALREADY_ON_SALE — 상태가 ON_SALE 이후
+            PERFORMANCE_INVALID_STATUS — 상태가 CANCELLED·ENDED
+
+  /api/v1/performances/{performanceId}/media/{kind}:
+    post:
+      operationId: performance_16
+      tags: [performance]
+      summary: 공연 포스터·티켓 아트워크 저장
+      description: >
+        생성자 팀 리더가 DRAFT·PENDING_AGREEMENT 공연의 포스터 또는 티켓 아트워크를 저장한다.
+        JPEG·PNG·WebP 5MB 이하만 허용하며 poster를 저장하면 공연의 posterImageUrl도 같이 갱신한다.
+      x-priority: P0
+      x-role: 리더
+      x-screens: [P-03]
+      x-features: [F-performance-01]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: kind
+          in: path
+          required: true
+          schema: { type: string, enum: [poster, ticket-artwork] }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: 미디어 저장 완료
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [imageUrl]
+                        properties:
+                          imageUrl: { type: string }
+        '400':
+          $ref: '#/components/responses/Error'
+          description: COMMON_VALIDATION_FAILED — 지원하지 않는 kind·파일 형식, 빈 파일, 5MB 초과
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+          description: PERFORMANCE_NOT_OWNER — 생성자 팀 리더가 아님
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+          description: PERFORMANCE_ALREADY_ON_SALE 또는 PERFORMANCE_INVALID_STATUS
+    get:
+      operationId: performance_17
+      tags: [performance]
+      summary: 공연 포스터·티켓 아트워크 조회
+      description: 공개 공연·티켓 화면이 사용할 저장 이미지 바이트를 반환한다.
+      x-priority: P0
+      x-role: GUEST
+      x-screens: [A-01, A-02, A-03]
+      x-features: [F-performance-02]
+      security: []
+      parameters:
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: kind
+          in: path
+          required: true
+          schema: { type: string, enum: [poster, ticket-artwork] }
+      responses:
+        '200':
+          description: 저장된 이미지
+          headers:
+            Cache-Control:
+              schema: { type: string, example: no-cache }
+          content:
+            image/jpeg:
+              schema: { type: string, format: binary }
+            image/png:
+              schema: { type: string, format: binary }
+            image/webp:
+              schema: { type: string, format: binary }
+        '400':
+          $ref: '#/components/responses/Error'
+          description: COMMON_VALIDATION_FAILED — 지원하지 않는 kind
+        '404':
+          $ref: '#/components/responses/Error'
+          description: PERFORMANCE_NOT_FOUND — 저장된 해당 이미지가 없음
+
+  /api/v1/performances/{performanceId}/ticket-types:
+    get:
+      operationId: performance_15
+      tags: [performance]
+      summary: 티켓 옵션 조회
+      description: >
+        생성자 팀 리더가 P-03 수정 화면에서 티켓 옵션만 다시 읽는다. 응답 shape는 performance_05(전체 교체)의
+        200과 같아 화면이 저장 전후로 같은 값을 쓴다. 옵션이 하나도 없으면 빈 배열이며 404가 아니다
+        (공연 생성 직후가 그렇다). 관객용 목록은 performance_03의 ticketTypes다.
+      x-priority: P0
+      x-role: 생성자
+      x-screens: [P-03]
+      x-features: [F-performance-05]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: 티켓 옵션 목록
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TicketTypeSetResponseData'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      performanceId: 12
+                      rate: { currency: USD, rate: 1350.0, asOf: '2026-09-02T09:00:00+09:00' }
+                      ticketTypes:
+                        - { ticketTypeId: 31, name: 일반, priceAmount: 25000, currency: KRW, totalQuantity: 80, remainingQuantity: 41 }
+                        - { ticketTypeId: 33, name: 응원, priceAmount: 35000, currency: KRW, totalQuantity: 20, remainingQuantity: 12 }
+                    msg: null
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 토큰 없음·만료
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_OWNER — 생성자 팀 리더가 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+    put:
+      operationId: performance_05
+      tags: [performance]
+      summary: 티켓 옵션 설정(잠금 전)
+      description: >
+        티켓 타입 1~10개(이름·가격·수량)를 전체 교체한다(좌석 없는 스탠딩). ON_SALE 이후는
+        PERFORMANCE_ALREADY_ON_SALE이다. 가격 단위는 YoYo 정수(decimals=0)이며 소수·문자열 금액은
+        COMMON_VALIDATION_FAILED다. 이미 판매된 수량보다 totalQuantity를 적게 줄일 수 없다.
+      x-priority: P0
+      x-role: 생성자
+      x-screens: [P-03]
+      x-features: [F-performance-05]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketTypeSetRequest'
+            examples:
+              default:
+                value:
+                  ticketTypes:
+                    - { ticketTypeId: 31, name: 일반, price: 25000, totalQuantity: 80 }
+                    - { name: 응원, price: 35000, totalQuantity: 20 }
+      responses:
+        '200':
+          description: 저장된 티켓 옵션
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TicketTypeSetResponseData'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      performanceId: 12
+                      rate: { currency: USD, rate: 1350.0, asOf: '2026-09-02T09:00:00+09:00' }
+                      ticketTypes:
+                        - { ticketTypeId: 31, name: 일반, priceAmount: 25000, currency: KRW, totalQuantity: 80, remainingQuantity: 80 }
+                        - { ticketTypeId: 33, name: 응원, priceAmount: 35000, currency: KRW, totalQuantity: 20, remainingQuantity: 20 }
+                    msg: 티켓 옵션이 저장되었습니다.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 이름 중복, 금액 소수·범위 위반, 수량 위반, 배열 크기 위반
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_OWNER — 생성자 팀 리더가 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+            TICKET_OPTION_NOT_FOUND — 지정한 ticketTypeId가 이 공연 소속이 아님
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_ALREADY_ON_SALE — 상태가 ON_SALE 이후
+
+  /api/v1/performances/{performanceId}/participants:
+    get:
+      operationId: performance_19
+      tags: [performance]
+      summary: 공연 참여팀 조회
+      description: >
+        주최팀 리더 또는 참여팀 리더가 이 공연의 참여팀 현황을 본다. 아직 수락하지 않은 INVITED 팀까지 함께 주는 것이
+        API-performance-03의 participants(관객용, 수락 완료 팀만)와 다른 점이다 — 이 화면이 초대를 관리하는 자리다.
+        제외된 팀(status=REMOVED)은 주지 않는다. 정렬은 주최팀 우선, 그다음 등록 순서다. invitedAt = registered_at,
+        acceptedAt 은 V9에서 더한 accepted_at(표시용. 수락 판정은 wallet_address 유무 그대로).
+        [2026-09-22] 신설 — 문서 개정 대상.
+      x-priority: P0
+      x-role: PERFORMER (주최팀 또는 참여팀 리더)
+      x-screens: [P-04]
+      x-features: [F-performance-16]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: 참여팀 목록
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ParticipantListResponseData'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      performanceId: 12
+                      items:
+                        - teamId: 7
+                          teamName: 블루노트
+                          host: true
+                          participationStatus: ACCEPTED
+                          invitedAt: '2026-09-02T14:40:00+09:00'
+                          acceptedAt: '2026-09-02T14:40:00+09:00'
+                        - teamId: 9
+                          teamName: 새벽세시
+                          host: false
+                          participationStatus: INVITED
+                          invitedAt: '2026-09-02T16:10:00+09:00'
+                    msg: ''
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 인증 헤더 없음
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_FORBIDDEN — 주최팀·참여팀 리더가 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+
+    post:
+      operationId: performance_07
+      tags: [performance]
+      summary: 참여팀 초대
+      description: >
+        생성자 팀 리더가 다른 팀을 공동 공연 참여팀으로 초대한다(INVITED 저장, 상대 리더 수락으로 확정).
+        ON_SALE 이후는 초대할 수 없고, 규칙이 설정된 PENDING_AGREEMENT에서 초대하면 기존 동의를 초기화한다.
+        초대 대상 팀 리더 지갑 미연결은 WALLET_NOT_FOUND이며, 참여팀 상한은 8팀이다.
+      x-priority: P0
+      x-role: 생성자
+      x-screens: [P-04]
+      x-features: [F-performance-07]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipantInviteRequest'
+            examples:
+              default:
+                value: { teamId: 9 }
+      responses:
+        '201':
+          description: 초대 완료
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ParticipantInvited'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data: { performanceId: 12, teamId: 9, teamName: 새벽세시, participationStatus: INVITED, leaderWalletLinked: true, invitedAt: '2026-09-02T16:10:00+09:00' }
+                    msg: 참여 초대를 보냈습니다.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — teamId 누락, 참여팀 상한 8팀 초과
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_OWNER — 생성자 팀 리더가 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+            TEAM_NOT_FOUND — 존재하지 않는 teamId
+            WALLET_NOT_FOUND — 대상 팀 리더 지갑 미연결
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            TEAM_ALREADY_JOINED — 이미 참여·초대 중인 팀
+            PERFORMANCE_ALREADY_ON_SALE — 상태가 ON_SALE 이후
+
+  /api/v1/performances/{performanceId}/participants/{teamId}/accept:
+    post:
+      operationId: performance_08
+      tags: [performance]
+      summary: 참여 수락
+      description: >
+        초대받은 팀의 리더만 수락한다. 수락 즉시 ACCEPTED가 되고 검표 링크·입장 현황을 볼 수 있게 된다. 응답에
+        리더 지갑 주소를 담아 "규칙 동의 서명이 필요합니다"를 안내한다. ON_SALE 이후는 수락할 수 없다.
+      x-priority: P0
+      x-role: 초대팀 리더
+      x-screens: [P-04]
+      x-features: [F-performance-08]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: teamId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: 수락하는 팀 PK. 요청자가 이 팀의 리더여야 함
+      responses:
+        '200':
+          description: 참여 확정
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ParticipantAccepted'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      performanceId: 12
+                      teamId: 9
+                      participationStatus: ACCEPTED
+                      walletAddress: '0x3c8a1f2b4d6e8091a2b3c4d5e6f708192a3b4c5d'
+                      walletProvider: WEB3AUTH
+                      nextAction: AGREE_RULES
+                      acceptedAt: '2026-09-02T16:22:00+09:00'
+                    msg: 참여가 확정되었습니다. 정산 규칙 동의 서명을 진행해 주세요.
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_FORBIDDEN — 해당 팀 리더가 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+            TEAM_NOT_FOUND — 초대 기록이 없는 teamId
+            WALLET_NOT_FOUND — 리더 지갑 미연결
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            TEAM_ALREADY_JOINED — 이미 수락 완료
+            PERFORMANCE_ALREADY_ON_SALE — 상태가 ON_SALE 이후
+
+  /api/v1/performances/{performanceId}/participants/{teamId}:
+    delete:
+      operationId: performance_09
+      tags: [performance]
+      summary: 참여팀 제외(잠금 전)
+      description: >
+        생성자가 초대 취소 또는 수락한 팀 제외를 한다. ON_SALE 이후는 불가하며, 생성자(주최) 팀 자신은 제외할
+        수 없다. 제외 후 공동 공연인데 참여팀이 2팀 미만이면 판매 시작에서 TEAM_MIN_COUNT_NOT_MET으로 막히지만
+        제외 자체는 허용한다. 규칙 설정 이후라면 기존 팀별 동의를 전부 초기화한다.
+      x-priority: P0
+      x-role: 생성자
+      x-screens: [P-04]
+      x-features: [F-performance-09]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: teamId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+          description: 제외할 팀 PK
+      responses:
+        '200':
+          description: 제외 완료
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ParticipantRemoved'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data: { performanceId: 12, teamId: 11, remainingParticipantCount: 2, agreementsReset: true }
+                    msg: 참여팀에서 제외했습니다.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 주최 팀 제외 시도
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_OWNER — 생성자 팀 리더가 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+            TEAM_NOT_FOUND — 참여 기록이 없는 teamId
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_ALREADY_ON_SALE — 상태가 ON_SALE 이후
+
+  /api/v1/performances/{performanceId}/entry-link:
+    get:
+      operationId: performance_10
+      tags: [performance]
+      summary: 검표 페이지 링크 조회
+      description: >
+        공연별 서명 토큰이 박힌 검표 페이지 링크를 조회한다(공연 생성 시 자동 발급). 조회 권한은 참여팀 소속이고,
+        토큰 유효기간은 공연 종료 + 2시간이며 생성자는 rotate=true로 재발급해 이전 링크를 즉시 무효화할 수 있다.
+        응답의 X-Entry-Token 원본 토큰은 API-entry-01·02 인증 수단이며, 검표는 온체인·코인과 무관하다.
+      x-priority: P0
+      x-role: PERFORMER(참여팀)
+      x-screens: [P-04, P-01]
+      x-features: [F-performance-10]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: rotate
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+          description: true면 재발급하고 이전 링크를 폐기. 공연 생성자만 가능
+      responses:
+        '200':
+          description: 검표 링크
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/EntryLinkData'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      performanceId: 12
+                      performanceTitle: 합정 3밴드 합동공연
+                      entryUrl: https://b204.ssafy.io/entry/12?token=eyJhbGciOi...
+                      entryToken: eyJhbGciOi...
+                      expiresAt: '2026-09-20T00:00:00+09:00'
+                      entryWindow: { opensAt: '2026-09-19T18:00:00+09:00', closesAt: '2026-09-19T22:00:00+09:00' }
+                      issuedAt: '2026-09-02T15:40:00+09:00'
+                      rotated: false
+                    msg: ''
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_FORBIDDEN — 참여팀 소속이 아님
+            PERFORMANCE_NOT_OWNER — 생성자가 아닌 참여팀이 rotate=true 호출
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_INVALID_STATUS — 공연이 CANCELLED
+
+  /api/v1/performances/{performanceId}/sales:
+    get:
+      operationId: performance_11
+      tags: [performance]
+      summary: 판매·선택 현황
+      description: >
+        매출·판매 수량·잔여와 관람 목적 팀 선택 집계를 준다. 서버 DB 집계와 온체인 카운터(choiceCountOf)·에스크로
+        잔액(escrowOf)을 나란히 담아 화면에서 대조하게 한다. 불일치가 있으면 counterMatched: false와 팀별 차이를
+        표시하며, 이 상태에서는 집계 확정(API-settlement-02)이 막힌다. 온체인 조회 결과는 30초 캐시한다.
+      x-priority: P0
+      x-role: PERFORMER(참여팀)
+      x-screens: [P-07]
+      x-features: [F-performance-11]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: 판매·선택 현황
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SalesStatusData'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      performanceId: 12
+                      status: ON_SALE
+                      rate: { currency: USD, rate: 1350.0, asOf: '2026-09-02T09:00:00+09:00' }
+                      grossRevenueAmount: 1600000
+                      refundedAmount: 75000
+                      escrowBalanceAmount: 1525000
+                      currency: KRW
+                      paidTicketCount: 64
+                      cancelledTicketCount: 3
+                      ticketTypes:
+                        - { ticketTypeId: 31, name: 일반, priceAmount: 25000, soldQuantity: 52, remainingQuantity: 28 }
+                        - { ticketTypeId: 32, name: 응원, priceAmount: 35000, soldQuantity: 12, remainingQuantity: 8 }
+                      teamChoices:
+                        - { teamId: 7, teamName: 블루노트, teamIndex: 0, dbCount: 30, onchainCount: 30, matched: true }
+                        - { teamId: 9, teamName: 새벽세시, teamIndex: 1, dbCount: 21, onchainCount: 21, matched: true }
+                        - { teamId: 11, teamName: 노이즈캔슬, teamIndex: 2, dbCount: 13, onchainCount: 13, matched: true }
+                      counterMatched: true
+                      escrowMatched: true
+                      onchainAvailable: true
+                      splitterAddress: '0xa1b2c3d4e5f60718293a4b5c6d7e8f9012345678'
+                      refreshedAt: '2026-09-18T11:00:00+09:00'
+                    msg: ''
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            SETTLEMENT_NOT_PARTICIPANT — 참여팀 소속이 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_INVALID_STATUS — 아직 DRAFT·PENDING_AGREEMENT라 판매 데이터가 없음
+
+  /api/v1/performances/{performanceId}/cancel:
+    post:
+      operationId: performance_12
+      tags: [performance]
+      summary: 공연 취소(일괄 환불)
+      description: >
+        판매 중 취소 시 전 티켓을 수수료 없이 일괄 환불하고 컨트랙트에 halt(showId)를 걸어 이후 refund만
+        허용한다. 정산 잠금 이후에도 release 전까지는 가능하다. 환불은 온체인 코인 이동뿐이며(에스크로 →
+        관객 지갑), 전 건 완료 후 운영자가 returnDeposit(showId)로 보증금을 생성팀 리더 지갑에 반환한다.
+        대량 작업이라 202 + jobId이며 건별 부분 성공을 허용한다. release가 이미 실행된 공연은 취소할 수 없다.
+        [2026-09-18 — S15P21B204-140] 판매 전(DRAFT·PENDING_AGREEMENT) 공연도 deposit_status=PAID면 받는다.
+        보증금 50,000이 온체인 에스크로에 남는데 회수 경로가 이 엔드포인트뿐이기 때문이다. 그때 환불 대상은
+        0건이고 targetTicketCount=0·totalRefundAmount=0으로 halt → returnDeposit 두 tx만 나간다 —
+        returnDeposit이 stage ∈ {RELEASED, HALTED}를 요구하므로(컨트랙트 인터페이스 v1 §4.1 11행) 판매 전에도
+        halt를 건너뛸 수 없다. 보증금을 내지 않은 판매 전 공연은 되돌릴 돈이 없어 그대로 409다.
+      x-priority: P0
+      x-role: 생성자
+      x-screens: [P-10]
+      x-features: [F-performance-12]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PerformanceCancelRequest'
+            examples:
+              default:
+                value: { reason: 공연장 사정으로 부득이하게 취소되었습니다. }
+      responses:
+        '202':
+          description: >
+            운영자 tx(halt → 건별 refund → returnDeposit) 접수. §0.3 비동기 트랜잭션 규약을 따르며 jobId로
+            GET /api/v1/chain/jobs/{jobId}를 폴링한다.
+            [2026-09-16 — S15P21B204-92] 공용 ChainJobAccepted(jobId/status/pollAfterMs) 를 참조하던 것을
+            CancelPerformanceResponse 실제 9필드로 바꿨다.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [jobId, status, pollAfterMs, performanceId, targetTicketCount, totalRefundAmount, currency, depositReturnPlanned]
+                        properties:
+                          jobId: { type: string, description: HALT job. 이 흐름의 대표 job 이다 }
+                          status: { type: string, enum: [PENDING, SUBMITTED, CONFIRMED, FAILED] }
+                          pollAfterMs: { type: integer, default: 2000 }
+                          performanceId: { type: integer, format: int64 }
+                          targetTicketCount: { type: integer }
+                          totalRefundAmount: { $ref: '#/components/schemas/Money' }
+                          currency: { type: string, enum: [KRW] }
+                          depositReturnPlanned: { type: boolean }
+                          depositAmount:
+                            allOf: [{ $ref: '#/components/schemas/Money' }]
+                            description: >
+                              보증금이 없는 공연이면 서버가 null 을 담고 전역 non_null 직렬화가 키를 지운다.
+                              그래서 required 가 아니다 — 0 과 구분해야 한다.
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      jobId: chain_01J8ZC4P7Q
+                      status: PENDING
+                      pollAfterMs: 2000
+                      performanceId: 12
+                      targetTicketCount: 64
+                      totalRefundAmount: 1600000
+                      currency: KRW
+                      depositReturnPlanned: true
+                      depositAmount: 50000
+                    msg: 공연 취소를 접수했습니다. 환불이 순차적으로 처리됩니다.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — reason 누락, Idempotency-Key 헤더 없음
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_OWNER — 생성자 팀 리더가 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_CONFLICT — 같은 멱등키에 다른 본문, 이미 취소 처리 진행 중
+            COMMON_CONFLICT — 정산 실행(release)이 진행 중이라 공연을 취소할 수 없음
+            PERFORMANCE_INVALID_STATUS — 이미 CANCELLED, 또는 판매 전(DRAFT·PENDING_AGREEMENT)인데 deposit_status ≠ PAID [2026-09-18 S15P21B204-140 — 보증금을 낸 판매 전 공연은 202]
+            SETTLEMENT_ALREADY_RELEASED — release 완료 후 취소 시도
+            COIN_ESCROW_INSUFFICIENT — 에스크로 잔액 < 환불 총액(대사 점검 대상)
+        '500':
+          $ref: '#/components/responses/Error'
+          description: |
+            CHAIN_GAS_INSUFFICIENT — 운영지갑 가스 부족 — 관리자 알림 대상
+
+  /api/v1/performances/{performanceId}/deposit/prepare:
+    post:
+      operationId: performance_13
+      tags: [performance]
+      summary: 보증금 서명 파라미터
+      description: >
+        생성팀 리더가 보증금 50,000 YoYo를 RevenueSplitter.deposit(showId)에 납부하기 위해 서명할 tx를
+        받는다(§0.4). signRequests는 최대 2건(APPROVE + DEPOSIT)이며 서명 주체는 리더 본인이다. 선행 조건은
+        생성팀 리더·deposit_status=UNPAID·공연 DRAFT·리더 지갑 LINKED·잔액 ≥ 50,000·정산 규칙 저장이며, 잔액
+        부족은 WALLET_BALANCE_INSUFFICIENT(409)로 막고 msg로 부족액만 안내한다. 정산 규칙이 없으면 createShow를 만들 수
+        없으므로(ZeroRulesHash) 서명을 내려주지 않고 PERFORMANCE_RULES_REQUIRED(409)로 막는다[2026-09-17 S15P21B204-89,
+        코드 분리 2026-09-20 S15P21B204-151]. 이 API의 COMMON_CONFLICT는 "이미 낸 보증금(PAID·RETURNED)" 하나만 뜻한다.
+        createShow가 아직이면 운영자 job을 먼저 걸고 prerequisiteJobId를 함께 내려준다 — 프론트는 그 job이
+        CONFIRMED가 된 뒤 서명한다. 가스 관련 필드는 없다(수수료는 운영지갑이 대납).
+      x-priority: P0
+      x-role: 생성자(팀 리더)
+      x-screens: [P-03]
+      x-features: [F-performance-10]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+            examples:
+              default:
+                value: {}
+      responses:
+        '200':
+          description: 보증금 서명 파라미터
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        allOf:
+                          - $ref: '#/components/schemas/PrepareResponse'
+                          - type: object
+                            properties:
+                              performanceId: { type: integer, format: int64 }
+                              depositAmount: { type: integer }
+                              currency: { type: string }
+                              display:
+                                $ref: '#/components/schemas/Display'
+                              prerequisiteJobId:
+                                type: [string, 'null']
+                              stepUpRequired:
+                                type: boolean
+                                description: "[2026-09-24] 본인 확인 스위치(STEP_UP_ENABLED)가 켜졌을 때만 true. 꺼져 있으면 키가 없다(전역 non_null). 화면은 이 값으로 보증금 서명 직전에 본인 확인 단계를 넣는다(범위 DEPOSIT·공연)"
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      performanceId: 12
+                      depositAmount: 50000
+                      currency: KRW
+                      display: { currency: USD, approx: 37.04, rate: 1350.0, asOf: '2026-09-02T09:00:00+09:00' }
+                      prerequisiteJobId: null
+                      signRequests:
+                        - kind: APPROVE
+                          required: true
+                          to: '0x5f1e2d3c4b5a69788796a5b4c3d2e1f009182736'
+                          data: '0x095ea7b3...'
+                          value: '0x0'
+                          chainId: '0x3e9'
+                          gas: '0x11170'
+                          txType: FEE_DELEGATED_SMART_CONTRACT_EXECUTION
+                          feePayer: '0x9f8e7d6c5b4a39281706f5e4d3c2b1a098765432'
+                          summary: { title: 'Allow deposit of ₩50,000', amount: 50000, currency: KRW, spender: RevenueSplitter, spenderAddress: '0xa1b2c3d4e5f60718293a4b5c6d7e8f9012345678' }
+                        - kind: DEPOSIT
+                          required: true
+                          to: '0xa1b2c3d4e5f60718293a4b5c6d7e8f9012345678'
+                          data: '0xb6b55f25...'
+                          value: '0x0'
+                          chainId: '0x3e9'
+                          gas: '0x1d4c0'
+                          txType: FEE_DELEGATED_SMART_CONTRACT_EXECUTION
+                          feePayer: '0x9f8e7d6c5b4a39281706f5e4d3c2b1a098765432'
+                          summary: { title: 'Pay ₩50,000 show deposit', amount: 50000, currency: KRW, performanceId: 12 }
+                      expiresAt: '2026-09-02T16:35:00+09:00'
+                    msg: ''
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_OWNER — 생성팀 리더가 아님
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+            WALLET_NOT_FOUND — 리더 지갑 미연결
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_CONFLICT — deposit_status가 이미 PAID·RETURNED, 리더 지갑 YoYo 잔액 < 보증금, 또는 정산 규칙 미저장
+            TEAM_MIN_COUNT_NOT_MET — 공동 공연인데 수락 완료 참여팀 2팀 미만(생성팀 포함)
+            PERFORMANCE_INVALID_STATUS — 공연 상태가 DRAFT가 아님(CANCELLED 등)
+        '502':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_EXTERNAL_SERVICE_ERROR — 잔액·allowance 조회 실패(서명 파라미터를 만들 수 없음)
+
+  /api/v1/performances/{performanceId}/deposit/signed-tx:
+    post:
+      operationId: performance_14
+      tags: [performance]
+      summary: 보증금 tx 해시 보고
+      description: >
+        리더가 만든 발신자 서명 RLP를 보고한다. 서버가 대납 서명 후 전송하고 202 + jobId(signerType=USER,
+        feeDelegated=true)를 준 뒤 receipt와 DepositPaid 이벤트를 검증해 상태를 전이한다. kind=DEPOSIT의
+        receipt가 확정되면 deposit_status가 UNPAID → PAID가 되고 nextAction이 SET_RULES로 넘어간다. 같은
+        senderSignedRlp 재보고는 최초 jobId를 재생한다. 온체인 공연이 등록되지 않았으면(createShow job이
+        CONFIRMED가 아니면) 브로드캐스트하지 않고 409로 막는다 — 보내도 ShowNotFound로 revert하고 대납
+        가스만 든다[2026-09-17 S15P21B204-89]. 그 409는 원인에 따라 갈린다[2026-09-20 S15P21B204-151]:
+        정산 규칙이 없어 createShow를 만들 수조차 없으면 PERFORMANCE_RULES_REQUIRED(performance_13과 같은
+        코드 · 화면은 규칙 저장으로 보낸다)이고, 그 밖의 미확정(PENDING·SUBMITTED·FAILED)은
+        COMMON_CONFLICT다 — FAILED는 기다려도 확정되지 않으므로 msg는 보증금 납부를 다시 시작하라고
+        말한다. createShow job이 아예 없으면(= prepare를 건너뛴 순서 위반) 409가 아니라 404
+        COMMON_NOT_FOUND다 — 시작한 적이 없다는 뜻이라 화면이 할 일이 다르다.
+      x-priority: P0
+      x-role: 생성자(팀 리더)
+      x-screens: [P-03]
+      x-features: [F-performance-10, F-wallet-06]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: X-Step-Up-Token
+          in: header
+          required: false
+          schema: { type: string, maxLength: 128 }
+          description: "[2026-09-24] 본인 확인 토큰(webauthn_04, 범위 DEPOSIT·공연). 서버 스위치 STEP_UP_ENABLED 가 켜져 있으면 필수 — 없거나 만료·소비·다른 동작/대상/회원의 토큰이면 403 WEBAUTHN_STEP_UP_REQUIRED. 권한·소유 검사가 먼저 돈다. APPROVE → DEPOSIT 두 보고는 같은 토큰으로 통과한다. 꺼져 있으면 읽지 않는다"
+        - name: performanceId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignedTxRequest'
+            examples:
+              default:
+                value: { kind: DEPOSIT, senderSignedRlp: '0x31f8a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182934a5b6c7d' }
+      responses:
+        '202':
+          description: >
+            대납 서명·전송 접수. receipt 검증(§0.4) 후 CONFIRMED 시 deposit_status=PAID로 전이한다.
+            [2026-09-16 — S15P21B204-92] 공용 ChainJobAccepted 를 참조하던 것을 DepositSignedTxResponse
+            실제 10필드로 바꿨다.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [jobId, status, signerType, pollAfterMs, performanceId, kind, feeDelegated, nextDepositStatus]
+                        properties:
+                          jobId: { type: string }
+                          status: { type: string, enum: [PENDING, SUBMITTED, CONFIRMED, FAILED] }
+                          signerType: { type: string, enum: [OPERATOR, USER] }
+                          pollAfterMs: { type: integer, default: 1500 }
+                          performanceId: { type: integer, format: int64 }
+                          kind: { type: string, enum: [APPROVE, DEPOSIT], description: 보고한 서명의 종류 }
+                          feeDelegated: { type: boolean }
+                          txHash:
+                            allOf: [{ $ref: '#/components/schemas/TxHash' }]
+                            description: >
+                              전송 전(PENDING)이면 서버가 아직 해시를 모른다. null 을 담으면 non_null
+                              직렬화가 키를 지우므로 required 가 아니다.
+                          explorerUrl:
+                            type: string
+                            format: uri
+                            description: txHash 가 없으면 이 키도 없다(같은 자리에서 파생한다).
+                          nextDepositStatus:
+                            type: string
+                            enum: [UNPAID, PAID, RETURNED, FORFEITED]
+                            description: 확정 시 보증금 상태. DEPOSIT 보고면 PAID, APPROVE 보고면 현재 값 그대로다.
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      jobId: chain_01J9GA1B2C
+                      status: SUBMITTED
+                      signerType: USER
+                      pollAfterMs: 1500
+                      performanceId: 12
+                      kind: DEPOSIT
+                      feeDelegated: true
+                      txHash: '0x6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5'
+                      explorerUrl: https://kairos.kaiascan.io/tx/0x6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5
+                      nextDepositStatus: PAID
+                    msg: 보증금 트랜잭션을 확인하고 있습니다.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — RLP 형식 위반·디코드 실패, 허용되지 않는 kind
+        '403':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_OWNER — 생성팀 리더가 아님
+            WEBAUTHN_STEP_UP_REQUIRED — [2026-09-24] 스위치 켜짐 + X-Step-Up-Token 없음·만료·소비·범위(DEPOSIT·공연) 불일치
+        '404':
+          $ref: '#/components/responses/Error'
+          description: |
+            PERFORMANCE_NOT_FOUND — 존재하지 않는 performanceId
+            COMMON_NOT_FOUND — prepare 발의 기록(그 공연의 CREATE_SHOW chain_job)이 없음(순서 위반). 규칙 미저장이 먼저 걸리므로 이 줄은 규칙이 있는 경우다
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_CONFLICT — 이미 deposit_status=PAID, 온체인 공연 미등록(createShow job이 PENDING·SUBMITTED·FAILED), 또는 같은 RLP가 다른 공연·다른 회원으로 보고됨
+            PERFORMANCE_RULES_REQUIRED — 정산 규칙 미저장(performance_13과 같은 코드)
+            PAYMENT_AMOUNT_MISMATCH — RLP에서 복구한 발신자 ≠ 리더 지갑, to·data가 prepare 발급값과 다름, 또는 receipt·이벤트 검증 실패(to·from·showId·amount·이벤트 부재)
+        '500':
+          $ref: '#/components/responses/Error'
+          description: |
+            CHAIN_GAS_INSUFFICIENT — 운영지갑(fee payer) 잔액 부족으로 대납 전송 불가 — 운영자 알림 대상
+        '504':
+          $ref: '#/components/responses/Error'
+          description: |
+            CHAIN_TX_TIMEOUT — 제출은 됐으나 확정이 120초를 넘김 — jobId로 계속 폴링
+
+components:
+  schemas:
+    PerformanceStatus:
+      type: string
+      enum: [DRAFT, PENDING_AGREEMENT, ON_SALE, SALE_CLOSED, ENDED, CANCELLED]
+    PerformanceDepositStatus:
+      type: string
+      enum: [UNPAID, PAID, RETURNED]
+    ParticipationStatus:
+      type: string
+      enum: [INVITED, ACCEPTED]
+    RateBrief:
+      type: object
+      description: 목록·요약 응답에 반복되는 §0.5 축약형 표시 환율
+      properties:
+        currency: { type: string, example: USD }
+        rate: { type: number, example: 1350.0 }
+        asOf: { type: string, format: date-time }
+    PerformanceCreateRequest:
+      type: object
+      required: [hostTeamId, title, venueName, venueAddress, startAt, endAt, jointPerformance]
+      properties:
+        hostTeamId: { type: integer, format: int64, description: 요청자가 리더인 팀. 주최(생성자) 팀 }
+        title: { type: string, minLength: 1, maxLength: 100 }
+        description: { type: string, maxLength: 2000 }
+        posterUploadId:
+          type: string
+          format: uuid
+          maxLength: 36
+          description: >-
+            POST /api/v1/files 가 준 uploadId(purpose=POSTER). [2026-09-22 파괴적 변경] 이전 필드
+            posterImageUrl 은 제거됐다 — 보내면 알 수 없는 필드 거부로 COMMON_VALIDATION_FAILED(400).
+        ticketArtworkUploadId:
+          type: string
+          format: uuid
+          maxLength: 36
+          description: POST /api/v1/files 가 준 uploadId(purpose=TICKET_ARTWORK).
+        venueName: { type: string, minLength: 1, maxLength: 100 }
+        venueAddress: { type: string, minLength: 1, maxLength: 200 }
+        startAt: { type: string, format: date-time, description: 현재 이후 }
+        endAt: { type: string, format: date-time, description: startAt 이후. ENDED 전이 기준 }
+        jointPerformance: { type: boolean, description: '공동 공연 여부. true면 참여팀 2팀 이상 필수. 화면설계 v7 P-03 — 참여팀 초대가 생성 이후 단계라 생성 시점엔 2팀을 채울 수 없어 화면은 이 필드를 입력받지 않고 false로 고정해 보낸다(TEAM_MIN_COUNT_NOT_MET 회피). 데모 범위는 단독 공연만' }
+    PerformanceDeposit:
+      type: object
+      required: [sufficient]
+      properties:
+        status:
+          $ref: '#/components/schemas/PerformanceDepositStatus'
+        amount: { type: integer, example: 50000 }
+        currency: { type: string, example: KRW }
+        display:
+          $ref: '#/components/schemas/Display'
+        leaderBalance: { type: integer, description: 리더 지갑 현재 잔액(참고용) }
+        sufficient: { type: boolean }
+    PerformanceCreated:
+      type: object
+      properties:
+        performanceId: { type: integer, format: int64 }
+        title: { type: string }
+        status:
+          $ref: '#/components/schemas/PerformanceStatus'
+        hostTeamId: { type: integer, format: int64 }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        saleCloseAt: { type: string, format: date-time, description: 서버 계산값. startAt - 1분 }
+        cancelDeadlineAt: { type: string, format: date-time, description: 서버 계산값. startAt 기준 D-3 00:00 }
+        deposit:
+          $ref: '#/components/schemas/PerformanceDeposit'
+        nextAction:
+          type: string
+          enum: [PAY_DEPOSIT, SET_RULES, COLLECT_AGREEMENTS, START_SALE]
+    PerformanceListItem:
+      type: object
+      required: [soldOut]
+      properties:
+        performanceId: { type: integer, format: int64 }
+        title: { type: string }
+        posterImageUrl:
+          type: string
+          format: uri
+          description: >-
+            서버가 완성한 절대 URL({APP_BASE_URL}/uploads/{상대경로}). 업로드 이전에 만들어진 공연은
+            공연자가 입력한 외부 절대 URL 이 그대로 나온다.
+        ticketImageUrl: { type: string, format: uri }
+        venueName: { type: string }
+        startAt: { type: string, format: date-time }
+        status:
+          $ref: '#/components/schemas/PerformanceStatus'
+        minPriceAmount: { type: integer }
+        currency: { type: string }
+        soldOut: { type: boolean }
+        teamNames:
+          type: array
+          items: { type: string }
+    PerformanceListResponseData:
+      type: object
+      properties:
+        rate:
+          $ref: '#/components/schemas/RateBrief'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PerformanceListItem'
+        pageInfo:
+          $ref: '#/components/schemas/PageMeta'
+    ParticipantSummary:
+      type: object
+      required: [host]
+      properties:
+        teamId: { type: integer, format: int64 }
+        teamName: { type: string }
+        host: { type: boolean }
+    TicketTypePublic:
+      type: object
+      properties:
+        ticketTypeId: { type: integer, format: int64 }
+        name: { type: string }
+        price:
+          type: object
+          properties:
+            amount:
+              $ref: '#/components/schemas/Money'
+            currency: { type: string, enum: [KRW] }
+            display:
+              $ref: '#/components/schemas/Display'
+        totalQuantity: { type: integer }
+        remainingQuantity: { type: integer }
+    PerformanceDetail:
+      type: object
+      required: [jointPerformance]
+      properties:
+        performanceId: { type: integer, format: int64 }
+        title: { type: string }
+        description: { type: string }
+        posterImageUrl: { type: string, format: uri }
+        ticketImageUrl:
+          type: string
+          format: uri
+          description: 발급 티켓 렌더의 배경(V10 performance.ticket_image_path). 없으면 키 자체가 없다.
+        venueName: { type: string }
+        venueAddress: { type: string }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        saleCloseAt: { type: string, format: date-time }
+        cancelDeadlineAt: { type: string, format: date-time }
+        status:
+          $ref: '#/components/schemas/PerformanceStatus'
+        jointPerformance: { type: boolean }
+        purchaseLimitPerMember: { type: integer, example: 4 }
+        rate:
+          $ref: '#/components/schemas/RateBrief'
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParticipantSummary'
+        ticketTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketTypePublic'
+        refundPolicyNotice: { type: string }
+        verificationUrl: { type: string, format: uri }
+    PerformanceUpdateRequest:
+      type: object
+      description: 전 필드 선택(N). saleCloseAt·cancelDeadlineAt·depositAmount는 요청 필드가 아니다. jointPerformance도 없다 — 생성 후 공동 공연 여부를 바꿀 수단이 없으므로, 되살릴 때 이 필드가 필요하면 명세 개정 대상이다(화면설계 v7 P-03).
+      properties:
+        title: { type: string, minLength: 1, maxLength: 100 }
+        description: { type: string, maxLength: 2000 }
+        posterUploadId:
+          type: string
+          format: uuid
+          maxLength: 36
+          description: >-
+            [2026-09-22 파괴적 변경] posterImageUrl 제거. 같은 공연에 같은 uploadId 를 다시 보내는
+            것(수정 저장 재시도)은 허용되고, 다른 공연에 매인 값이면 FILE_ALREADY_BOUND(409).
+        ticketArtworkUploadId: { type: string, format: uuid, maxLength: 36 }
+        venueName: { type: string, minLength: 1, maxLength: 100 }
+        venueAddress: { type: string, minLength: 1, maxLength: 200 }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+    PerformanceUpdated:
+      type: object
+      required: [agreementsReset]
+      properties:
+        performanceId: { type: integer, format: int64 }
+        status:
+          $ref: '#/components/schemas/PerformanceStatus'
+        startAt: { type: string, format: date-time }
+        saleCloseAt: { type: string, format: date-time }
+        cancelDeadlineAt: { type: string, format: date-time }
+        agreementsReset: { type: boolean }
+        depositStatus:
+          $ref: '#/components/schemas/PerformanceDepositStatus'
+    TicketTypeInput:
+      type: object
+      required: [name, price, totalQuantity]
+      properties:
+        ticketTypeId: { type: integer, format: int64, description: 기존 항목 유지 시 지정. 없으면 신규 생성 }
+        name: { type: string, minLength: 1, maxLength: 30, description: 공연 내 유니크 }
+        price: { type: integer, minimum: 0, maximum: 1000000, description: 판매가. YoYo 정수 }
+        totalQuantity: { type: integer, minimum: 1, maximum: 5000 }
+    TicketTypeSetRequest:
+      type: object
+      required: [ticketTypes]
+      properties:
+        ticketTypes:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/TicketTypeInput'
+    TicketTypeResult:
+      type: object
+      properties:
+        ticketTypeId: { type: integer, format: int64 }
+        name: { type: string }
+        priceAmount: { type: integer }
+        currency: { type: string }
+        totalQuantity: { type: integer }
+        remainingQuantity: { type: integer }
+    TicketTypeSetResponseData:
+      type: object
+      properties:
+        performanceId: { type: integer, format: int64 }
+        rate:
+          $ref: '#/components/schemas/RateBrief'
+        ticketTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketTypeResult'
+    MyPerformanceListItem:
+      type: object
+      required: [host]
+      properties:
+        performanceId: { type: integer, format: int64 }
+        title: { type: string }
+        posterImageUrl: { type: string, format: uri }
+        ticketImageUrl: { type: string, format: uri }
+        startAt: { type: string, format: date-time }
+        status:
+          $ref: '#/components/schemas/PerformanceStatus'
+        settlementStatus: { type: string, example: NONE }
+        depositStatus:
+          $ref: '#/components/schemas/PerformanceDepositStatus'
+        teamId: { type: integer, format: int64 }
+        host: { type: boolean }
+        participationStatus:
+          $ref: '#/components/schemas/ParticipationStatus'
+        myTeamAgreementStatus:
+          type: string
+          enum: [PENDING, SIGNING, AGREED]
+        pendingSignature:
+          type: [string, 'null']
+          enum: [DEPOSIT, AGREE, TREASURY_IN, null]
+          description: >
+            이 회원이 지금 서명해야 하는 작업, 또는 null. myParticipatingTeams[0]의 값과 같다.
+        myTeamSettlementApproved:
+          type: boolean
+          description: >
+            내 팀(teamId)의 정산 조기 동의(API-settlement-08) 여부. 정산 행이나 내 팀 몫(settlement_share)이
+            아직 없으면 키를 생략한다 — 모르는 값을 미동의로 단정하지 않는다. myParticipatingTeams[0].settlementApproved와 같다.
+        myParticipatingTeams:
+          type: array
+          description: >
+            이 공연에 엮인, 요청자가 리더인 팀 전부. 한 회원이 두 팀을 이끌고 둘 다 같은 공연에 참여하면
+            행이 갈리지 않고 이 배열이 2개가 된다. 정렬은 주최팀 우선 → teamId 오름차순이며, 위 평면 필드
+            (teamId·host·participationStatus·myTeamAgreementStatus·pendingSignature·myTeamSettlementApproved)는
+            이 배열의 첫 항목과 같다.
+          items:
+            $ref: '#/components/schemas/MyParticipatingTeam'
+    MyParticipatingTeam:
+      type: object
+      required: [host]
+      properties:
+        teamId: { type: integer, format: int64 }
+        teamName: { type: string }
+        host: { type: boolean }
+        participationStatus:
+          $ref: '#/components/schemas/ParticipationStatus'
+        agreementStatus:
+          type: string
+          enum: [PENDING, SIGNING, AGREED]
+        pendingSignature:
+          type: [string, 'null']
+          enum: [DEPOSIT, AGREE, TREASURY_IN, null]
+          description: >
+            팀 단위 판정이다 — DEPOSIT 은 그 팀이 주최팀일 때만, AGREE 는 그 팀의 동의가 PENDING 일 때만.
+        settlementApproved:
+          type: boolean
+          description: >
+            그 팀의 정산 조기 동의(API-settlement-08) 여부. 정산 행이나 그 팀 몫(settlement_share)이 없으면 생략한다.
+    MyPerformanceListResponseData:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MyPerformanceListItem'
+        pageInfo:
+          $ref: '#/components/schemas/PageMeta'
+    ParticipantListItem:
+      type: object
+      required: [host]
+      properties:
+        teamId: { type: integer, format: int64 }
+        teamName: { type: string }
+        host: { type: boolean }
+        participationStatus:
+          $ref: '#/components/schemas/ParticipationStatus'
+        invitedAt: { type: string, format: date-time }
+        acceptedAt:
+          type: string
+          format: date-time
+          description: 수락 전(INVITED)이면 키가 없다. 표시용이며 수락 판정에는 쓰지 않는다.
+    ParticipantListResponseData:
+      type: object
+      properties:
+        performanceId: { type: integer, format: int64 }
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParticipantListItem'
+    ParticipantInviteRequest:
+      type: object
+      required: [teamId]
+      properties:
+        teamId: { type: integer, format: int64, description: 초대할 팀. 존재하는 팀 }
+    ParticipantInvited:
+      type: object
+      required: [leaderWalletLinked]
+      properties:
+        performanceId: { type: integer, format: int64 }
+        teamId: { type: integer, format: int64 }
+        teamName: { type: string }
+        participationStatus:
+          $ref: '#/components/schemas/ParticipationStatus'
+        leaderWalletLinked: { type: boolean }
+        invitedAt: { type: string, format: date-time }
+    ParticipantAccepted:
+      type: object
+      properties:
+        performanceId: { type: integer, format: int64 }
+        teamId: { type: integer, format: int64 }
+        participationStatus:
+          $ref: '#/components/schemas/ParticipationStatus'
+        walletAddress:
+          $ref: '#/components/schemas/Address'
+        walletProvider: { type: string, example: WEB3AUTH }
+        nextAction: { type: string, example: AGREE_RULES }
+        acceptedAt: { type: string, format: date-time }
+    ParticipantRemoved:
+      type: object
+      required: [agreementsReset]
+      properties:
+        performanceId: { type: integer, format: int64 }
+        teamId: { type: integer, format: int64 }
+        remainingParticipantCount: { type: integer }
+        agreementsReset: { type: boolean }
+    EntryWindow:
+      type: object
+      properties:
+        opensAt: { type: string, format: date-time }
+        closesAt: { type: string, format: date-time }
+    EntryLinkData:
+      type: object
+      required: [rotated]
+      properties:
+        performanceId: { type: integer, format: int64 }
+        performanceTitle: { type: string }
+        entryUrl: { type: string, format: uri }
+        entryToken: { type: string }
+        expiresAt: { type: string, format: date-time }
+        entryWindow:
+          $ref: '#/components/schemas/EntryWindow'
+        issuedAt: { type: string, format: date-time }
+        rotated: { type: boolean }
+    SalesTicketTypeStat:
+      type: object
+      properties:
+        ticketTypeId: { type: integer, format: int64 }
+        name: { type: string }
+        priceAmount: { type: integer }
+        soldQuantity: { type: integer }
+        remainingQuantity: { type: integer }
+    TeamChoice:
+      type: object
+      properties:
+        teamId: { type: integer, format: int64 }
+        teamName: { type: string }
+        teamIndex: { type: integer, description: 'purchase(showId, orderRef, teamIndex, amount)의 인자이자 온체인 선택 카운터의 키' }
+        dbCount: { type: integer }
+        onchainCount: { type: integer }
+        matched: { type: boolean }
+    SalesStatusData:
+      type: object
+      required: [onchainAvailable]
+      properties:
+        performanceId: { type: integer, format: int64 }
+        status:
+          $ref: '#/components/schemas/PerformanceStatus'
+        rate:
+          $ref: '#/components/schemas/RateBrief'
+        grossRevenueAmount: { type: integer }
+        refundedAmount: { type: integer }
+        escrowBalanceAmount: { type: integer }
+        currency: { type: string }
+        paidTicketCount: { type: integer }
+        cancelledTicketCount: { type: integer }
+        ticketTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesTicketTypeStat'
+        teamChoices:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamChoice'
+        counterMatched: { type: boolean }
+        escrowMatched: { type: boolean }
+        onchainAvailable: { type: boolean }
+        splitterAddress:
+          $ref: '#/components/schemas/Address'
+        refreshedAt: { type: string, format: date-time }
+    PerformanceCancelRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 200, description: 취소 사유. 관객 안내 문구로 그대로 노출 }

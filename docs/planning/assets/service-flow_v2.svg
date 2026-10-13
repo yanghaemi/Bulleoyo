@@ -1,0 +1,220 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <style>
+      @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+      text {
+        font-family: 'Pretendard', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', -apple-system, BlinkMacSystemFont, sans-serif;
+        text-rendering: geometricPrecision;
+      }
+      .phase-badge-text { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; fill: #FFFFFF; }
+      .node-num { font-size: 15px; font-weight: 800; }
+      .node-title { font-size: 34px; font-weight: 800; letter-spacing: -0.5px; fill: #0F172A; }
+      .node-sub { font-size: 22px; font-weight: 600; letter-spacing: -0.4px; fill: #475569; }
+      .branch-title { font-size: 34px; font-weight: 800; letter-spacing: -0.5px; fill: #0F172A; }
+      .branch-sub { font-size: 22px; font-weight: 600; letter-spacing: -0.4px; fill: #475569; }
+      .ext-title { font-size: 34px; font-weight: 800; letter-spacing: -0.5px; fill: #64748B; }
+      .ext-sub { font-size: 22px; font-weight: 600; letter-spacing: -0.4px; fill: #94A3B8; }
+    </style>
+
+    <filter id="card-shadow" x="-5%" y="-10%" width="110%" height="125%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#0F172A" flood-opacity="0.06"/>
+    </filter>
+    <filter id="branch-shadow" x="-5%" y="-10%" width="110%" height="125%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#0F172A" flood-opacity="0.05"/>
+    </filter>
+
+    <marker id="arrow-p1" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <path d="M 1 1 L 11 6 L 1 11 Z" fill="#4F46E5"/>
+    </marker>
+    <marker id="arrow-p2" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <path d="M 1 1 L 11 6 L 1 11 Z" fill="#0284C7"/>
+    </marker>
+    <marker id="arrow-p3" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <path d="M 1 1 L 11 6 L 1 11 Z" fill="#059669"/>
+    </marker>
+    <marker id="arrow-trans" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <path d="M 1 1 L 11 6 L 1 11 Z" fill="#64748B"/>
+    </marker>
+    <marker id="arrow-branch-in" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#EA580C"/>
+    </marker>
+    <marker id="arrow-branch-out" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#0284C7"/>
+    </marker>
+    <marker id="arrow-dashed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#94A3B8"/>
+    </marker>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="1920" height="1080" fill="#FFFFFF"/>
+
+  <!-- ======================================================== -->
+  <!-- PHASE 01: 공연 개설·합의                                    -->
+  <!-- ======================================================== -->
+  <g id="phase-01">
+    <!-- Background Band -->
+    <rect x="40" y="35" width="1840" height="230" rx="20" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.5"/>
+    
+    <!-- Phase Badge -->
+    <rect x="70" y="55" width="280" height="34" rx="17" fill="#3730A3"/>
+    <text x="210" y="78" text-anchor="middle" class="phase-badge-text">PHASE 01  공연 개설·합의</text>
+
+    <!-- Node 1 -->
+    <g id="node-1">
+      <rect x="70" y="105" width="406" height="140" rx="16" fill="#FFFFFF" stroke="#C7D2FE" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <rect x="92" y="121" width="42" height="24" rx="6" fill="#EEF2FF"/>
+      <text x="113" y="138" text-anchor="middle" fill="#4F46E5" class="node-num">01</text>
+      <text x="92" y="182" class="node-title">공연 생성·팀 등록</text>
+      <text x="92" y="222" class="node-sub">공연자 팀별 지갑 자동 생성</text>
+    </g>
+
+    <!-- Arrow 1 -> 2 -->
+    <line x1="482" y1="175" x2="522" y2="175" stroke="#4F46E5" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow-p1)"/>
+
+    <!-- Node 2 -->
+    <g id="node-2">
+      <rect x="528" y="105" width="406" height="140" rx="16" fill="#FFFFFF" stroke="#C7D2FE" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <rect x="550" y="121" width="42" height="24" rx="6" fill="#EEF2FF"/>
+      <text x="571" y="138" text-anchor="middle" fill="#4F46E5" class="node-num">02</text>
+      <text x="550" y="182" class="node-title">정산 규칙 잠금</text>
+      <text x="550" y="222" class="node-sub">팀별 동의 트랜잭션 → 컨트랙트 잠금</text>
+    </g>
+
+    <!-- Phase 1 to Phase 2 Transition Flow Line -->
+    <path d="M 934 175 H 965 C 980 175, 980 275, 965 275 H 45 C 30 275, 30 425, 45 425 H 64" fill="none" stroke="#64748B" stroke-width="3" stroke-linecap="round" marker-end="url(#arrow-trans)"/>
+  </g>
+
+  <!-- ======================================================== -->
+  <!-- PHASE 02: 예매·티켓                                         -->
+  <!-- ======================================================== -->
+  <g id="phase-02">
+    <!-- Background Band -->
+    <rect x="40" y="285" width="1840" height="475" rx="20" fill="#F0F9FF" stroke="#BAE6FD" stroke-width="1.5"/>
+    
+    <!-- Phase Badge -->
+    <rect x="70" y="305" width="230" height="34" rx="17" fill="#0369A1"/>
+    <text x="185" y="328" text-anchor="middle" class="phase-badge-text">PHASE 02  예매·티켓</text>
+
+    <!-- Node 3 -->
+    <g id="node-3">
+      <rect x="70" y="355" width="406" height="140" rx="16" fill="#FFFFFF" stroke="#BAE6FD" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <rect x="92" y="371" width="42" height="24" rx="6" fill="#E0F2FE"/>
+      <text x="113" y="388" text-anchor="middle" fill="#0284C7" class="node-num">03</text>
+      <text x="92" y="432" class="node-title">티켓 예매</text>
+      <text x="92" y="472" class="node-sub">관람 목적 팀 선택 → 온체인 기록</text>
+    </g>
+
+    <!-- Arrow 3 -> 4 -->
+    <line x1="482" y1="425" x2="522" y2="425" stroke="#0284C7" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow-p2)"/>
+
+    <!-- Node 4 -->
+    <g id="node-4">
+      <rect x="528" y="355" width="406" height="140" rx="16" fill="#FFFFFF" stroke="#BAE6FD" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <rect x="550" y="371" width="42" height="24" rx="6" fill="#E0F2FE"/>
+      <text x="571" y="388" text-anchor="middle" fill="#0284C7" class="node-num">04</text>
+      <text x="550" y="432" class="node-title">금융망 결제</text>
+      <text x="550" y="472" class="node-sub">SSAFY 교육용 금융망 API</text>
+    </g>
+
+    <!-- Arrow 4 -> 5 -->
+    <line x1="940" y1="425" x2="980" y2="425" stroke="#0284C7" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow-p2)"/>
+
+    <!-- Node 5 -->
+    <g id="node-5">
+      <rect x="986" y="355" width="406" height="140" rx="16" fill="#FFFFFF" stroke="#BAE6FD" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <rect x="1008" y="371" width="42" height="24" rx="6" fill="#E0F2FE"/>
+      <text x="1029" y="388" text-anchor="middle" fill="#0284C7" class="node-num">05</text>
+      <text x="1008" y="432" class="node-title">티켓 발급</text>
+      <text x="1008" y="472" class="node-sub">동적 QR + 구글 월렛 패스</text>
+    </g>
+
+    <!-- Arrow 5 -> 6 (Main Path) -->
+    <line x1="1398" y1="425" x2="1438" y2="425" stroke="#0284C7" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow-p2)"/>
+
+    <!-- Branch Node (under Node 5) -->
+    <g id="branch-node">
+      <rect x="986" y="535" width="406" height="140" rx="16" fill="#FFFFFF" stroke="#FED7AA" stroke-width="1.5" filter="url(#branch-shadow)"/>
+      <rect x="1008" y="551" width="52" height="24" rx="6" fill="#FFEDD5"/>
+      <text x="1034" y="568" text-anchor="middle" fill="#C2410C" font-size="14" font-weight="800">분기</text>
+      <text x="1008" y="612" class="branch-title">취소·양도·교환</text>
+      <text x="1008" y="652" class="branch-sub">환불·소유권 이전·QR 재발급</text>
+    </g>
+
+    <!-- Branch Flow Lines -->
+    <!-- From Node 5 down to Branch Node -->
+    <path d="M 986 460 H 962 C 946 460, 946 605, 962 605 H 978" fill="none" stroke="#EA580C" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arrow-branch-in)"/>
+    
+    <!-- From Branch Node merging into Node 6 -->
+    <path d="M 1392 605 C 1420 605, 1415 460, 1436 460" fill="none" stroke="#0284C7" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arrow-branch-out)"/>
+
+    <!-- Node 6 -->
+    <g id="node-6">
+      <rect x="1444" y="355" width="406" height="140" rx="16" fill="#FFFFFF" stroke="#BAE6FD" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <rect x="1466" y="371" width="42" height="24" rx="6" fill="#E0F2FE"/>
+      <text x="1487" y="388" text-anchor="middle" fill="#0284C7" class="node-num">06</text>
+      <text x="1466" y="432" class="node-title">QR 입장</text>
+      <text x="1466" y="472" class="node-sub">서명 QR 검증·재사용 차단</text>
+    </g>
+
+    <!-- Phase 2 to Phase 3 Transition Flow Line -->
+    <path d="M 1850 425 H 1875 C 1890 425, 1890 770, 1875 770 H 45 C 30 770, 30 920, 45 920 H 64" fill="none" stroke="#64748B" stroke-width="3" stroke-linecap="round" marker-end="url(#arrow-trans)"/>
+  </g>
+
+  <!-- ======================================================== -->
+  <!-- PHASE 03: 정산·검증                                         -->
+  <!-- ======================================================== -->
+  <g id="phase-03">
+    <!-- Background Band -->
+    <rect x="40" y="780" width="1840" height="265" rx="20" fill="#F0FDF4" stroke="#BBF7D0" stroke-width="1.5"/>
+    
+    <!-- Phase Badge -->
+    <rect x="70" y="800" width="230" height="34" rx="17" fill="#047857"/>
+    <text x="185" y="823" text-anchor="middle" class="phase-badge-text">PHASE 03  정산·검증</text>
+
+    <!-- Node 7 -->
+    <g id="node-7">
+      <rect x="70" y="850" width="406" height="140" rx="16" fill="#FFFFFF" stroke="#A7F3D0" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <rect x="92" y="866" width="42" height="24" rx="6" fill="#DCFCE7"/>
+      <text x="113" y="883" text-anchor="middle" fill="#059669" class="node-num">07</text>
+      <text x="92" y="927" class="node-title">관객 선택 집계</text>
+      <text x="92" y="967" class="node-sub">온체인 카운터</text>
+    </g>
+
+    <!-- Arrow 7 -> 8 -->
+    <line x1="482" y1="920" x2="522" y2="920" stroke="#059669" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow-p3)"/>
+
+    <!-- Node 8 -->
+    <g id="node-8">
+      <rect x="528" y="850" width="406" height="140" rx="16" fill="#FFFFFF" stroke="#A7F3D0" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <rect x="550" y="866" width="42" height="24" rx="6" fill="#DCFCE7"/>
+      <text x="571" y="883" text-anchor="middle" fill="#059669" class="node-num">08</text>
+      <text x="550" y="927" class="node-title">자동 정산</text>
+      <text x="550" y="967" class="node-sub">컨트랙트 분배 산출 → 금융망 이체</text>
+    </g>
+
+    <!-- Arrow 8 -> 9 -->
+    <line x1="940" y1="920" x2="980" y2="920" stroke="#059669" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow-p3)"/>
+
+    <!-- Node 9 -->
+    <g id="node-9">
+      <rect x="986" y="850" width="406" height="140" rx="16" fill="#FFFFFF" stroke="#A7F3D0" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <rect x="1008" y="866" width="42" height="24" rx="6" fill="#DCFCE7"/>
+      <text x="1029" y="883" text-anchor="middle" fill="#059669" class="node-num">09</text>
+      <text x="1008" y="927" class="node-title">공개 검증 페이지</text>
+      <text x="1008" y="967" class="node-sub">누구나 재계산·검증 + 공연 기록</text>
+    </g>
+
+    <!-- Dashed Future Extension Arrow -->
+    <line x1="1398" y1="920" x2="1438" y2="920" stroke="#94A3B8" stroke-width="2.5" stroke-dasharray="6 4" marker-end="url(#arrow-dashed)"/>
+
+    <!-- Expansion Box (우하단 점선 1개) -->
+    <g id="node-ext">
+      <rect x="1444" y="850" width="406" height="140" rx="16" fill="#F8FAFC" stroke="#94A3B8" stroke-width="2" stroke-dasharray="8 6"/>
+      <rect x="1466" y="866" width="96" height="24" rx="6" fill="#E2E8F0"/>
+      <text x="1514" y="883" text-anchor="middle" fill="#475569" font-size="13" font-weight="700">확장 (Future)</text>
+      <text x="1466" y="927" class="ext-title">확장 기능</text>
+      <text x="1466" y="967" class="ext-sub">NFT 티켓 · 유료 재판매 · NFC 입장</text>
+    </g>
+  </g>
+</svg>

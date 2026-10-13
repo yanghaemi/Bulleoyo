@@ -1,0 +1,276 @@
+.cancel-main {
+  width: min(100%, 1040px);
+  margin-inline: auto;
+  padding: 24px 16px 176px;
+}
+.cancel-heading {
+  margin-bottom: 20px;
+}
+.cancel-eyebrow {
+  margin: 0;
+  color: var(--color-sel);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.cancel-heading h1 {
+  margin: 6px 0 10px;
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  line-height: 1.2;
+}
+.cancel-heading > p:last-child {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-muted);
+}
+.cancel-preview-note {
+  margin: 0 0 24px;
+  padding: 12px 14px;
+  border-left: 2px solid var(--color-sel);
+  background: var(--color-sel-soft);
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.cancel-context {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding: 20px;
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  background: var(--color-surface);
+}
+.cancel-context-icon {
+  display: grid;
+  flex: 0 0 42px;
+  place-items: center;
+  width: 42px;
+  height: 48px;
+  border-radius: 10px;
+  color: var(--color-sel);
+  background: var(--color-sel-soft);
+  font-size: 25px;
+}
+.cancel-context .cancel-eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  color: var(--color-muted);
+}
+.cancel-context h2 {
+  margin: 7px 0;
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.cancel-context-date {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-muted);
+}
+.cancel-review-layout {
+  display: grid;
+  gap: 20px;
+  align-items: start;
+}
+.cancel-primary-panel {
+  min-width: 0;
+  border: 1px solid var(--color-line);
+  border-top: 3px solid var(--color-sel);
+  border-radius: 18px;
+  background: var(--color-surface);
+}
+.cancel-calculation {
+  padding: 22px 18px;
+}
+.cancel-calculation h2,
+.cancel-policy h2 {
+  margin: 0 0 18px;
+  font-size: 16px;
+  font-weight: 650;
+}
+.cancel-calculation dl,
+.cancel-policy dl {
+  margin: 0;
+}
+.cancel-money-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--color-line);
+}
+.cancel-money-row dt {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+.cancel-money-row dd {
+  margin: 0;
+  font-size: 18px;
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.cancel-money-total {
+  border-bottom: 0;
+  border-top: 1px dashed var(--color-line);
+  margin-top: -1px;
+  padding-top: 24px;
+}
+.cancel-money-total dt {
+  color: var(--color-ink);
+  font-weight: 650;
+}
+.cancel-money-total dd {
+  color: var(--color-sel);
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 750;
+}
+.cancel-money-total small {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.cancel-bracket {
+  margin: 6px 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.cancel-policy {
+  padding: 22px 18px;
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  background: var(--color-surface);
+}
+.cancel-policy .cancel-eyebrow {
+  margin-bottom: 9px;
+}
+.cancel-policy dl > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 14px;
+  padding: 14px 0;
+  border-top: 1px solid var(--color-line);
+  font-size: 12px;
+}
+.cancel-policy dt {
+  flex: 1 1 140px;
+  color: var(--color-muted);
+}
+.cancel-policy dd {
+  margin: 0;
+  font-weight: 650;
+}
+.cancel-policy-note,
+.cancel-policy-warning {
+  margin: 18px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.cancel-policy-note {
+  color: var(--color-muted);
+}
+.cancel-policy-warning {
+  color: var(--color-danger);
+}
+.cancel-phase {
+  min-height: 310px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 20px;
+  text-align: center;
+}
+.cancel-phase h2 {
+  margin: 18px 0 8px;
+  font-size: 19px;
+  line-height: 1.5;
+  font-weight: 650;
+}
+.cancel-phase > p {
+  margin: 0;
+  max-width: 340px;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
+.cancel-phase-symbol {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  width: 44px;
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  color: var(--color-sel);
+  font-size: 24px;
+}
+.cancel-blocked .cancel-phase-symbol,
+.cancel-blocked h2 {
+  color: var(--color-danger);
+}
+.cancel-result-amount {
+  display: block;
+  margin-top: 20px;
+  font-size: 30px;
+  color: var(--color-sel);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+.cancel-actions {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 10;
+  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-line);
+  background: var(--color-surface);
+}
+.cancel-actions > p {
+  margin: 0 0 10px;
+  color: var(--color-muted);
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.cancel-actions button {
+  min-height: 44px;
+}
+.cancel-done-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+@media (min-width: 48rem) {
+  .cancel-main {
+    padding: 48px 24px 64px;
+  }
+  .cancel-review-layout {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    gap: 24px;
+  }
+  .cancel-calculation,
+  .cancel-policy {
+    padding: 26px;
+  }
+  .cancel-actions {
+    position: static;
+    min-height: 112px;
+    padding: 20px 26px;
+    border-radius: 0 0 18px 18px;
+  }
+}

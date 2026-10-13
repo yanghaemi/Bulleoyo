@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="90 95 660 260" role="img" aria-label="불러요">
+  <defs>
+    <linearGradient id="indigo-soft" x1="0" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#3E35E2" />
+      <stop offset="0.55" stop-color="#3129DD" />
+      <stop offset="1" stop-color="#4138E3" />
+    </linearGradient>
+    <linearGradient id="pink-soft" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#D9468D" />
+      <stop offset="1" stop-color="#C83D82" />
+    </linearGradient>
+    <filter id="soft-lift" x="-12%" y="-12%" width="124%" height="128%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="1.7" flood-color="#20199B" flood-opacity="0.13" />
+    </filter>
+  </defs>
+
+  <path
+    fill="url(#indigo-soft)"
+    fill-rule="evenodd"
+    stroke="url(#indigo-soft)"
+    stroke-width="3.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    filter="url(#soft-lift)"
+    d="M 105 222 L 103 226 L 103 238 L 106 243 L 111 245 L 181 245 L 182 246 L 182 252 L 181 253 L 118 253 L 113 256 L 112 258 L 112 271 L 116 275 L 119 276 L 253 276 L 254 277 L 254 283 L 253 284 L 118 284 L 112 290 L 112 331 L 115 336 L 119 338 L 305 338 L 310 335 L 312 330 L 312 321 L 311 318 L 305 313 L 164 313 L 162 311 L 162 307 L 164 305 L 301 305 L 306 301 L 308 296 L 308 262 L 306 257 L 303 254 L 300 253 L 233 253 L 232 252 L 232 246 L 233 245 L 310 245 L 313 244 L 317 239 L 317 225 L 313 220 L 310 219 L 110 219 Z M 339 144 L 335 150 L 335 173 L 336 175 L 342 180 L 402 180 L 403 181 L 403 214 L 402 215 L 346 215 L 340 217 L 337 220 L 335 224 L 335 317 L 336 320 L 341 325 L 344 326 L 449 326 L 452 325 L 457 319 L 457 295 L 456 293 L 450 289 L 382 289 L 381 288 L 381 253 L 382 252 L 446 252 L 452 247 L 453 245 L 453 148 L 446 142 L 344 142 Z M 494 140 L 490 142 L 487 147 L 487 210 L 486 211 L 466 211 L 463 212 L 458 218 L 458 245 L 460 249 L 465 252 L 486 252 L 487 253 L 487 331 L 489 335 L 494 338 L 527 338 L 531 336 L 534 331 L 534 147 L 532 143 L 527 140 Z M 112 145 L 112 206 L 118 212 L 300 212 L 305 209 L 308 202 L 308 148 L 306 143 L 301 139 L 262 139 L 256 144 L 254 154 L 163 154 L 161 144 L 155 139 L 119 139 L 115 141 Z M 162 179 L 163 178 L 254 178 L 255 179 L 255 187 L 254 188 L 163 188 L 162 187 Z"
+  />
+  <path
+    fill="url(#indigo-soft)"
+    filter="url(#soft-lift)"
+    d="M 638 109 C 603 109 580 132 580 166 L 580 207 C 580 241 603 260 638 260 C 673 260 696 241 696 207 L 696 166 C 696 132 673 109 638 109 Z"
+  />
+  <rect x="605" y="178" width="66" height="14" rx="7" fill="#fff" />
+  <g fill="none" stroke="url(#pink-soft)" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" filter="url(#soft-lift)">
+    <path d="M 584 250 C 588 271 604 288 638 299" />
+    <path d="M 692 250 C 688 271 672 288 638 299" />
+  </g>
+  <rect x="627" y="292" width="22" height="34" rx="11" fill="url(#pink-soft)" />
+  <rect x="553" y="318" width="170" height="24" rx="12" fill="url(#pink-soft)" filter="url(#soft-lift)" />
+</svg>

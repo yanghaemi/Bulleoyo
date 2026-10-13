@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <style>
+    :root{--ink:#17141f;--ink2:#3a3548;--muted:#6f6880;--line:#e3dfe9;--ground:#f5f3f7;--surface:#fff;
+      --amber:#e39b2b;--amber-soft:#fbf1de;--amber-line:#efdcb8;--amber-deep:#8a5510;
+      --ok:#2e7d5b;--ok-soft:#e4f1ea;--crit:#b3243c;--crit-soft:#fbe7ea;
+      --ease-out:cubic-bezier(.23,1,.32,1);}
+    *{box-sizing:border-box;}
+    body{margin:0;background:var(--ground);color:var(--ink);
+      font-family:Archivo,"Noto Sans KR",system-ui,sans-serif;font-size:14px;line-height:1.5;
+      -webkit-font-smoothing:antialiased;}
+    a{color:var(--amber-deep);text-decoration:none;} a:hover{color:#6b4009;}
+    h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:balance;}
+    .mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;}
+    .eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;}
+    .tap{transition:transform 160ms var(--ease-out);}
+    .tap:active{transform:scale(.985);}
+    .btn{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:8px;
+      border:1px solid var(--ink);background:var(--ink);color:#fff;
+      font:600 15px Archivo,"Noto Sans KR",sans-serif;transition:transform 160ms var(--ease-out);}
+    .btn:active{transform:scale(.97);}
+    .btn.ghost{background:var(--surface);color:var(--ink);}
+    .btn.amber{background:var(--amber);border-color:var(--amber);color:#2a1b04;}
+    .btn.off{background:var(--line);border-color:var(--line);color:#9b95a6;}
+    .btn.off:active{transform:none;}
+    @media (hover:hover) and (pointer:fine){
+      .btn.ghost:hover{background:var(--ground);}
+      .card.tap:hover{border-color:#cfc8da;}
+    }
+    @media (prefers-reduced-motion:reduce){ .tap,.btn{transition:none;} .tap:active,.btn:active{transform:none;} }
+    .badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:600;
+      background:var(--amber-soft);color:var(--amber-deep);}
+    .badge.ok{background:var(--ok-soft);color:var(--ok);}
+    .badge.crit{background:var(--crit-soft);color:var(--crit);}
+    .badge.plain{background:var(--ground);color:var(--muted);}
+    .sub{color:var(--muted);font-size:12px;}
+    .rule{height:1px;background:var(--line);}
+    .poster{background:linear-gradient(160deg,#2c2540,#5d4a2e 70%,#8a6a2c);border-radius:8px;}
+  </style>
+</helmet>
+<div style="min-height:100%;background:var(--ground);"><div style="background:var(--surface);border-bottom:1px solid var(--line);"><div style="max-width:1200px;margin:0 auto;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;"><div><div class="eyebrow">Studio</div><h1 style="font-size:20px;margin-top:3px;">New show</h1></div></div></div><div style="max-width:960px;margin:0 auto;padding:24px;display:flex;flex-direction:column;gap:20px;"><div class="card" style="padding:16px 20px;display:flex;align-items:center;gap:14px;"><span class="badge ok">1 Details</span><div style="flex:1;height:1px;background:var(--line);"></div><span class="badge ok">2 Tickets</span><div style="flex:1;height:1px;background:var(--line);"></div><span class="badge">3 Deposit</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;"><div style="display:flex;flex-direction:column;gap:6px;"><div class="eyebrow">Title</div><div class="card" style="padding:12px 14px;display:flex;justify-content:space-between;align-items:center;"><span>Hongdae Night Vol.7</span><span class="sub">▾</span></div></div><div style="display:flex;flex-direction:column;gap:6px;"><div class="eyebrow">Venue</div><div class="card" style="padding:12px 14px;display:flex;justify-content:space-between;align-items:center;"><span>Club FF, Mapo-gu</span><span class="sub">▾</span></div></div><div style="display:flex;flex-direction:column;gap:6px;"><div class="eyebrow">Show time</div><div class="card" style="padding:12px 14px;display:flex;justify-content:space-between;align-items:center;"><span>Sep 20, 2026 19:00 KST</span><span class="sub">▾</span></div></div><div style="display:flex;flex-direction:column;gap:6px;"><div class="eyebrow">Booking closes</div><div class="card" style="padding:12px 14px;display:flex;justify-content:space-between;align-items:center;"><span>Sep 20, 2026 18:00 KST</span><span class="sub">▾</span></div></div></div><div class="card" style="padding:20px 22px;"><h2 style="font-size:16px;margin-bottom:8px;">Ticket options</h2><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);"><div><div style="font-weight:600;">Early bird</div></div><div style="text-align:right;white-space:nowrap;"><span class="mono">₩12,000 · 20</span></div></div><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);"><div><div style="font-weight:600;">Standard</div></div><div style="text-align:right;white-space:nowrap;"><span class="mono">₩15,000 · 80</span></div></div></div><div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:10px;background:var(--amber-soft);border-color:var(--amber-line);"><div style="display:flex;justify-content:space-between;align-items:center;"><div><div class="eyebrow">Deposit</div><div class="mono" style="font-size:22px;font-weight:600;margin-top:4px;">₩50,000</div></div><span class="badge plain">Unpaid</span></div><div class="sub" style="line-height:1.6;">보증금은 정산이 완료되거나 공연 취소 후 일괄 환불이 끝나면 리더 지갑으로 돌아옵니다. 리더 지갑 잔액 ₩412,300.</div><div class="card" style="padding:13px;background:var(--surface);"><div style="font-weight:600;margin-bottom:3px;">₩50,000을 보증금으로 예치합니다</div><div class="sub">Hongdae Night Vol.7 · <span class="mono">0x9c02…5d31</span></div></div><div style="display:flex;gap:10px;justify-content:flex-end;"><div class="btn ghost" style="min-height:42px;padding:0 18px;">Save draft</div><div class="btn amber" style="min-height:42px;padding:0 18px;">Pay deposit</div></div></div></div></div>
+</x-dc>
+</body>
+</html>

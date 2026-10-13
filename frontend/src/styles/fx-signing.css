@@ -1,0 +1,182 @@
+/*
+ * 서명 처리 오버레이(app/SigningOverlay) — 펜이 종이에 사인을 그리는 stroke 애니메이션.
+ * 화면설계 v8 §5 공통 컴포넌트(서명 단계). 색은 역할 토큰만 쓴다(다크는 theme-dark.css가 값을 바꾼다).
+ *
+ * z-index 60: 화면 자체의 처리 오버레이·모달(z-50)보다 위, 지갑 확인 창(Web3Auth 99999)보다 아래.
+ */
+.signing-overlay {
+  --signing-ink: var(--color-primary);
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: color-mix(in srgb, var(--color-ground) 78%, transparent);
+  backdrop-filter: blur(6px);
+  animation: signing-overlay-in 180ms ease-out both;
+}
+:root[data-theme='dark'] .signing-overlay {
+  --signing-ink: var(--dark-primary-ink, var(--color-primary));
+}
+
+/* 지갑 확인 구간 — 비차단·반투명. 클릭은 아래(지갑 창·화면)로 통과시킨다. */
+.signing-overlay[data-wallet-prompt] {
+  pointer-events: none;
+  background: transparent;
+  backdrop-filter: none;
+  align-items: flex-end;
+}
+.signing-overlay[data-wallet-prompt] .signing-overlay__card {
+  opacity: 0.85;
+  padding: 14px 20px;
+}
+.signing-overlay[data-wallet-prompt] .signing-overlay__art {
+  display: none;
+}
+
+.signing-overlay__card {
+  width: min(100%, 360px);
+  padding: 28px 24px 24px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: 0 12px 40px #17171c1a;
+  text-align: center;
+  color: var(--color-ink);
+}
+
+.signing-overlay__art {
+  display: block;
+  margin: 0 auto 12px;
+  overflow: visible;
+}
+.signing-overlay__baseline {
+  stroke: var(--color-line);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-dasharray: 4 5;
+}
+.signing-overlay__stroke {
+  fill: none;
+  stroke: var(--signing-ink);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: signing-overlay-draw 2.4s cubic-bezier(0.45, 0.05, 0.4, 1) infinite;
+}
+.signing-overlay__pen {
+  fill: var(--color-ink);
+  animation: signing-overlay-pen 2.4s cubic-bezier(0.45, 0.05, 0.4, 1) infinite;
+}
+.signing-overlay__nib {
+  fill: var(--signing-ink);
+}
+
+.signing-overlay__label {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.5;
+}
+.signing-overlay__hint {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-muted);
+}
+.signing-overlay__dots span {
+  display: inline-block;
+  animation: signing-overlay-dot 1.2s ease-in-out infinite;
+}
+.signing-overlay__dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.signing-overlay__dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.signing-overlay__ellipsis {
+  display: none;
+}
+
+@keyframes signing-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes signing-overlay-draw {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 1;
+  }
+  70% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  88% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+@keyframes signing-overlay-pen {
+  0% {
+    transform: translate(8px, 44px);
+  }
+  70% {
+    transform: translate(152px, 34px);
+  }
+  88% {
+    transform: translate(152px, 30px);
+  }
+  100% {
+    transform: translate(8px, 44px);
+  }
+}
+@keyframes signing-overlay-dot {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 움직임 줄이기 — 완성된 서명 한 장(정지 아이콘) + 점 3개 대신 정적 말줄임 */
+@media (prefers-reduced-motion: reduce) {
+  .signing-overlay,
+  .signing-overlay__stroke,
+  .signing-overlay__pen,
+  .signing-overlay__dots span {
+    animation: none;
+  }
+  .signing-overlay__stroke {
+    stroke-dashoffset: 0;
+  }
+  .signing-overlay__pen {
+    transform: translate(152px, 34px);
+  }
+  .signing-overlay__dots {
+    display: none;
+  }
+  .signing-overlay__ellipsis {
+    display: inline;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .signing-overlay:not([data-wallet-prompt]) {
+    background: var(--color-ground);
+    backdrop-filter: none;
+  }
+}

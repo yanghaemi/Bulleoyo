@@ -1,0 +1,913 @@
+paths:
+  /api/v1/auth/web3auth:
+    post:
+      operationId: member_01
+      tags: [member]
+      summary: Web3Auth 로그인/가입
+      description: >-
+        프론트가 Web3Auth SDK로 소셜 로그인(구글·페이스북·카카오)을 마치고 얻은 idToken과 MPC 지갑 주소를
+        보낸다. 서버는 idToken을 JWKS로 검증하고 기존 회원이면 가입 정보를 다시 요구하지 않고 세션 JWT(access 30분/refresh
+        14일)를 발급한다. 신규 회원이 countryCode·termsAgreed·privacyAgreed를 모두 생략(null)하면
+        409 AUTH_SIGNUP_REQUIRED로 가입 입력을 안내하며 회원·세션을 만들지 않는다.
+        신규 회원의 유효한 국가와 두 약관 동의(true)가 갖춰지면 가입·로그인한다. 이 API는 신원만 만들고 지갑 등록·기본 지급은 하지 않는다 —
+        wallet은 nullable이며 등록은 POST /api/v1/wallets가 별도로 담당한다.
+        서버는 사용자 개인키·니모닉·MPC 샤드를 받지도 저장하지도 않는다.
+        IP당 60회/분 호출 제한 대상이다.
+      x-priority: P0
+      x-role: GUEST
+      x-screens: [C-01]
+      x-features: [F-member-01]
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberWeb3AuthLoginRequest'
+            examples:
+              default:
+                value:
+                  idToken: eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9...
+                  address: '0x6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a'
+                  provider: GOOGLE
+                  countryCode: US
+                  locale: en
+                  displayCurrency: USD
+                  timezone: America/Los_Angeles
+                  termsAgreed: true
+                  privacyAgreed: true
+      responses:
+        '200':
+          description: 로그인/가입 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MemberWeb3AuthLoginResponse'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      memberId: 1024
+                      isNewMember: true
+                      name: Alex Kim
+                      email: alex@example.com
+                      roles: [AUDIENCE]
+                      authProvider: GOOGLE
+                      countryCode: US
+                      locale: en
+                      displayCurrency: USD
+                      timezone: America/Los_Angeles
+                      profileCompletionRequired: false
+                      wallet: null
+                      accessToken: eyJhbGciOi...
+                      accessTokenExpiresAt: '2026-09-02T14:30:00+09:00'
+                      refreshToken: eyJhbGciOi...
+                      refreshTokenExpiresAt: '2026-09-16T14:00:00+09:00'
+                    msg: Signed in.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 주소·국가·통화 형식 위반, 신규 회원 가입 정보의 부분 누락 또는 약관 미동의(false), 허용되지 않는 provider, 개인키·니모닉류 필드 전달
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            AUTH_TOKEN_INVALID — idToken 서명·aud·exp·nonce 검증 실패, 토큰 지갑 클레임 ≠ address
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            AUTH_SIGNUP_REQUIRED — 인증된 소셜 계정이 신규이며 countryCode·termsAgreed·privacyAgreed가 모두 null(생략)이면 가입 입력 필요. 회원·세션은 생성하지 않음
+            COMMON_CONFLICT — 이미 지갑을 등록한 회원인데 요청 address가 등록된 주소와 불일치(verifier 교체 의심)
+        '429':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_TOO_MANY_REQUESTS — IP당 60회/분 초과
+        '502':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_EXTERNAL_SERVICE_ERROR — Web3Auth JWKS 조회 실패이며 캐시도 없음
+
+  /api/v1/auth/login:
+    post:
+      operationId: member_02
+      tags: [member]
+      summary: 자체 이메일 로그인(보조)
+      description: >-
+        이메일·비밀번호를 검증하고 access token(30분)·refresh token(14일)을 발급한다. 이메일 없음과
+        비밀번호 불일치를 구분하지 않고 같은 코드로 응답한다. 소셜 회원(authProvider != LOCAL)의 비밀번호 로그인
+        시도는 거부한다. 지갑이 없는 회원은 wallet이 null이며 지갑 등록 온보딩(C-05)으로 보낸다.
+      x-priority: P1
+      x-role: GUEST
+      x-screens: [C-01]
+      x-features: [F-member-02]
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberLoginRequest'
+            examples:
+              default:
+                value:
+                  email: audience@ssafy.io
+                  password: b204!Pass
+      responses:
+        '200':
+          description: 로그인 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MemberLoginResponse'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      memberId: 1030
+                      name: 김관객
+                      roles: [AUDIENCE]
+                      authProvider: LOCAL
+                      locale: ko
+                      displayCurrency: KRW
+                      timezone: Asia/Seoul
+                      wallet: null
+                      walletLinkRequired: true
+                      accessToken: eyJhbGciOi...
+                      accessTokenExpiresAt: '2026-09-02T14:30:00+09:00'
+                      refreshToken: eyJhbGciOi...
+                      refreshTokenExpiresAt: '2026-09-16T14:00:00+09:00'
+                    msg: ''
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 이메일 형식 오류, 필드 누락
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            AUTH_INVALID_CREDENTIALS — 계정 없음, 비밀번호 불일치, 소셜 전용 회원의 비밀번호 로그인
+        '429':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_TOO_MANY_REQUESTS — IP당 60회/분 초과
+
+  /api/v1/auth/refresh:
+    post:
+      operationId: member_03
+      tags: [member]
+      summary: 토큰 재발급
+      description: >-
+        refresh token으로 access token을 재발급하고 refresh token을 회전한다. 이전 refresh token은
+        즉시 폐기한다. 클라이언트는 AUTH_TOKEN_EXPIRED(401)를 받은 경우에만 호출한다. 이미 폐기·회전된
+        refresh token 재사용은 탈취 신호로 보고 해당 회원의 refresh token을 전량 폐기한다.
+      x-priority: P0
+      x-role: MEMBER
+      x-screens: [공통]
+      x-features: [F-member-03]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberTokenRefreshRequest'
+            examples:
+              default:
+                value:
+                  refreshToken: eyJhbGciOi...
+      responses:
+        '200':
+          description: 재발급 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MemberTokenRefreshResponse'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      accessToken: eyJhbGciOi...
+                      accessTokenExpiresAt: '2026-09-02T15:00:00+09:00'
+                      refreshToken: eyJhbGciOi...
+                      refreshTokenExpiresAt: '2026-09-16T14:30:00+09:00'
+                    msg: ''
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — refreshToken 누락
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            AUTH_TOKEN_EXPIRED — refresh token 만료 → 재로그인 필요
+            AUTH_TOKEN_INVALID — 서명 불일치, 폐기·회전된 토큰 재사용(전량 폐기 처리)
+
+  /api/v1/auth/logout:
+    post:
+      operationId: member_04
+      tags: [member]
+      summary: 로그아웃
+      description: >-
+        서버에 저장된 해당 디바이스의 refresh token을 폐기한다. access token은 만료까지 유효하므로
+        클라이언트가 즉시 파기한다. allDevices가 true면 회원의 refresh token을 전량 폐기한다. 로그아웃은
+        서버 세션만 끊으며 Web3Auth 세션·사용자 지갑은 서버가 건드리지 않는다.
+      x-priority: P0
+      x-role: MEMBER
+      x-screens: [C-03]
+      x-features: [F-member-04]
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberLogoutRequest'
+            examples:
+              default:
+                value:
+                  refreshToken: eyJhbGciOi...
+                  allDevices: false
+      responses:
+        '200':
+          description: 로그아웃 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MemberLogoutResponse'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      loggedOut: true
+                      revokedCount: 1
+                      clientAction: CLEAR_WEB3AUTH_SESSION
+                    msg: 로그아웃되었습니다.
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 인증 헤더 없음
+            AUTH_TOKEN_EXPIRED — access token 만료
+
+  /api/v1/members/me:
+    get:
+      operationId: member_05
+      tags: [member]
+      summary: 내 정보 조회
+      description: >-
+        프로필·역할·로케일·표시 통화·시간대·국가·지갑 요약·소속 팀 요약·선호 장르를 한 번에 준다. 아직 지갑을
+        등록하지 않은 회원은 wallet: null + walletLinkRequired: true다. 지갑 잔액은 Redis
+        wallet:balance 캐시값을 쓰고 노드를 조회하지 않는다.
+      x-priority: P0
+      x-role: MEMBER
+      x-screens: [C-03, C-04]
+      x-features: [F-member-05]
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MemberMe'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      memberId: 1024
+                      email: alex@example.com
+                      name: Alex Kim
+                      roles: [AUDIENCE, PERFORMER]
+                      authProvider: GOOGLE
+                      countryCode: US
+                      locale: en
+                      displayCurrency: USD
+                      timezone: America/Los_Angeles
+                      wallet:
+                        provider: WEB3AUTH
+                        address: '0x6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c4b3a'
+                        status: LINKED
+                        balance:
+                          amount: 35000
+                          currency: KRW
+                          display:
+                            currency: USD
+                            approx: 25.93
+                            rate: 1350.0
+                            asOf: '2026-09-02T09:00:00+09:00'
+                        cachedAt: '2026-09-02T13:59:40+09:00'
+                      walletLinkRequired: false
+                      teams:
+                        - teamId: 7
+                          teamName: 블루노트
+                          leader: true
+                      preferredGenres: [ROCK, INDIE]
+                      createdAt: '2026-08-20T10:11:00+09:00'
+                    msg: ''
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_UNAUTHORIZED — 인증 헤더 없음
+            AUTH_TOKEN_EXPIRED — access token 만료 → API-member-03으로 재발급
+
+    patch:
+      operationId: member_06
+      tags: [member]
+      summary: 내 정보 수정
+      description: >-
+        이름·연락처와 countryCode·locale·displayCurrency·timezone·preferredGenres를 부분 수정한다.
+        전달된 필드만 바꾼다. preferredGenres는 전달 시 전체 교체(빈 배열 = 모두 삭제)다. displayCurrency는
+        표시 전용이며 바꿔도 원본 amount는 달라지지 않는다. 비밀번호 변경은 authProvider=LOCAL 회원만
+        가능하며 성공 시 해당 회원의 refresh token을 전부 폐기한다.
+      x-priority: P0
+      x-role: MEMBER
+      x-screens: [C-03, C-04]
+      x-features: [F-member-06, F-member-09]
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberUpdateRequest'
+            examples:
+              default:
+                value:
+                  locale: ko
+                  displayCurrency: JPY
+                  timezone: Asia/Tokyo
+                  preferredGenres: [ROCK, INDIE]
+      responses:
+        '200':
+          description: 수정 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MemberUpdateResponse'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      memberId: 1024
+                      name: Alex Kim
+                      countryCode: JP
+                      locale: ko
+                      displayCurrency: JPY
+                      displaySupported: true
+                      timezone: Asia/Tokyo
+                      appliedRate:
+                        currency: JPY
+                        rate: 9.12
+                        asOf: '2026-09-02T09:00:00+09:00'
+                      preferredGenres: [ROCK, INDIE]
+                    msg: 설정이 저장되었습니다.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 형식 위반, newPassword 단독 전달, 소셜 회원의 비밀번호 변경 시도, 허용되지 않는 locale·countryCode·timezone, preferredGenres 4개 이상·허용값 밖·중복
+        '401':
+          $ref: '#/components/responses/Error'
+          description: |
+            AUTH_INVALID_CREDENTIALS — currentPassword 불일치
+            COMMON_UNAUTHORIZED — 인증 헤더 없음
+
+  /api/v1/auth/signup:
+    post:
+      operationId: member_08
+      tags: [member]
+      summary: 자체 이메일 가입(보조)
+      description: >-
+        이메일·비밀번호·이름과 countryCode·locale·displayCurrency·timezone, 약관 동의로 계정을
+        만든다. 이메일은 계정 식별자이며 중복될 수 없다. 지갑을 만들지 않으며 다른 회원과 동일하게 지갑 등록
+        단계(POST /api/v1/wallets)를 지난다. 가입만으로 로그인시키지 않는다.
+      x-priority: P1
+      x-role: GUEST
+      x-screens: [C-02]
+      x-features: [F-member-10]
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberSignupRequest'
+            examples:
+              default:
+                value:
+                  email: audience@ssafy.io
+                  password: b204!Pass
+                  name: 김관객
+                  countryCode: KR
+                  locale: ko
+                  displayCurrency: KRW
+                  timezone: Asia/Seoul
+                  termsAgreed: true
+                  privacyAgreed: true
+      responses:
+        '201':
+          description: 가입 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MemberSignupResponse'
+              examples:
+                default:
+                  value:
+                    code: SUCCESS
+                    data:
+                      memberId: 1030
+                      email: audience@ssafy.io
+                      name: 김관객
+                      authProvider: LOCAL
+                      locale: ko
+                      walletLinkRequired: true
+                    msg: 가입이 완료되었습니다. 로그인 후 지갑을 연결해 주세요.
+        '400':
+          $ref: '#/components/responses/Error'
+          description: |
+            COMMON_VALIDATION_FAILED — 형식 위반, 약관 미동의, countryCode 누락
+        '409':
+          $ref: '#/components/responses/Error'
+          description: |
+            AUTH_EMAIL_DUPLICATED — 동일 이메일 계정 존재
+
+components:
+  schemas:
+    MemberWalletBrief:
+      type: object
+      description: 로그인 응답에 담기는 지갑 요약(등록 전이면 null).
+      properties:
+        provider:
+          type: string
+          enum: [WEB3AUTH, EXTERNAL]
+        address:
+          $ref: '#/components/schemas/Address'
+        status:
+          type: string
+          enum: [LINKED, SUSPENDED]
+        explorerUrl:
+          type: string
+          format: uri
+
+    MemberBalance:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          $ref: '#/components/schemas/Money'
+        currency:
+          type: string
+          enum: [KRW]
+        display:
+          $ref: '#/components/schemas/Display'
+
+    MemberWalletSummary:
+      type: object
+      description: 내 정보 조회(member_05)에 담기는 지갑 요약. 상세 잔액·거래 이력은 wallet 도메인이 담당.
+      properties:
+        provider:
+          type: string
+          enum: [WEB3AUTH, EXTERNAL]
+        address:
+          $ref: '#/components/schemas/Address'
+        status:
+          type: string
+          enum: [LINKED, SUSPENDED]
+        balance:
+          $ref: '#/components/schemas/MemberBalance'
+        cachedAt:
+          type: string
+          format: date-time
+
+    MemberTeamSummary:
+      type: object
+      required: [leader]
+      properties:
+        teamId:
+          type: integer
+          format: int64
+        teamName:
+          type: string
+        leader:
+          type: boolean
+
+    MemberWeb3AuthLoginRequest:
+      type: object
+      required: [idToken, address, provider]
+      description: >-
+        countryCode·termsAgreed·privacyAgreed는 신규 회원만 필수(조건부 필수)다.
+        [2026-09-18 · v6 계약 정정 추록 v1] 소셜 인증 후 셋을 생략하여 기존 회원 여부를 확인할 수 있다.
+        기존 회원은 이 셋 없이 로그인하며 가입 폼을 다시 요구하지 않는다(회원 정보 변경은 member_06).
+        신규 회원이며 셋이 모두 null(생략)이면 AUTH_SIGNUP_REQUIRED(409)로 가입 폼 입력을 요청하고
+        회원·세션을 만들지 않는다. 하나 이상 입력한 신규 요청의 나머지 필드 누락, false 동의 또는
+        형식 위반은 COMMON_VALIDATION_FAILED(400)다. 유효한 countryCode와 두 동의 true가 있어야 가입한다.
+      properties:
+        idToken:
+          type: string
+          maxLength: 4096
+          description: Web3Auth가 발급한 idToken. 서버가 JWKS로 검증.
+        address:
+          $ref: '#/components/schemas/Address'
+        provider:
+          type: string
+          enum: [GOOGLE, FACEBOOK, KAKAO]
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+        locale:
+          type: string
+          enum: [en, ko]
+          default: en
+        displayCurrency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          default: USD
+        timezone:
+          type: string
+          default: UTC
+        termsAgreed:
+          type: boolean
+        privacyAgreed:
+          type: boolean
+
+    MemberWeb3AuthLoginResponse:
+      type: object
+      required: [isNewMember, profileCompletionRequired]
+      properties:
+        memberId:
+          type: integer
+          format: int64
+        isNewMember:
+          type: boolean
+        name:
+          type: string
+        email:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [AUDIENCE, PERFORMER]
+        authProvider:
+          type: string
+          enum: [GOOGLE, FACEBOOK, KAKAO, LOCAL]
+        countryCode:
+          type: string
+        locale:
+          type: string
+          enum: [en, ko]
+        displayCurrency:
+          type: string
+        timezone:
+          type: string
+        profileCompletionRequired:
+          type: boolean
+          description: >-
+            항상 false. 국가·약관 동의는 신규 회원의 가입 완료 전에 받으므로
+            "국가 없이 가입시키고 나중에 보조 폼으로 채운다"는 경로가 없다. 응답 required 필드라
+            지우지 않고 예약값으로 남긴다.
+        wallet:
+          oneOf:
+            - $ref: '#/components/schemas/MemberWalletBrief'
+            - type: "null"
+        accessToken:
+          type: string
+        accessTokenExpiresAt:
+          type: string
+          format: date-time
+        refreshToken:
+          type: string
+        refreshTokenExpiresAt:
+          type: string
+          format: date-time
+
+    MemberLoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 64
+
+    MemberLoginResponse:
+      type: object
+      required: [walletLinkRequired]
+      properties:
+        memberId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [AUDIENCE, PERFORMER]
+        authProvider:
+          type: string
+          enum: [GOOGLE, FACEBOOK, KAKAO, LOCAL]
+        locale:
+          type: string
+          enum: [en, ko]
+        displayCurrency:
+          type: string
+        timezone:
+          type: string
+        wallet:
+          oneOf:
+            - $ref: '#/components/schemas/MemberWalletBrief'
+            - type: "null"
+        walletLinkRequired:
+          type: boolean
+        accessToken:
+          type: string
+        accessTokenExpiresAt:
+          type: string
+          format: date-time
+        refreshToken:
+          type: string
+        refreshTokenExpiresAt:
+          type: string
+          format: date-time
+
+    MemberTokenRefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    MemberTokenRefreshResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        accessTokenExpiresAt:
+          type: string
+          format: date-time
+        refreshToken:
+          type: string
+        refreshTokenExpiresAt:
+          type: string
+          format: date-time
+
+    MemberLogoutRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          description: 폐기할 디바이스 토큰. 생략 시 현재 access token의 세션.
+        allDevices:
+          type: boolean
+          default: false
+
+    MemberLogoutResponse:
+      type: object
+      required: [loggedOut, revokedCount]
+      properties:
+        loggedOut:
+          type: boolean
+        revokedCount:
+          type: integer
+        clientAction:
+          type: string
+          description: 프론트가 수행해야 할 후속 조치(예 Web3Auth 세션 정리).
+
+    MemberMe:
+      type: object
+      required: [walletLinkRequired]
+      properties:
+        memberId:
+          type: integer
+          format: int64
+        email:
+          type: string
+        name:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [AUDIENCE, PERFORMER]
+        authProvider:
+          type: string
+          enum: [GOOGLE, FACEBOOK, KAKAO, LOCAL]
+        countryCode:
+          type: string
+        locale:
+          type: string
+          enum: [en, ko]
+        displayCurrency:
+          type: string
+        timezone:
+          type: string
+        wallet:
+          oneOf:
+            - $ref: '#/components/schemas/MemberWalletSummary'
+            - type: "null"
+        walletLinkRequired:
+          type: boolean
+        teams:
+          type: array
+          items:
+            $ref: '#/components/schemas/MemberTeamSummary'
+        preferredGenres:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Genre'
+          description: 선호 장르(v7 신설). 선택 안 함은 빈 배열.
+        createdAt:
+          type: string
+          format: date-time
+
+    MemberUpdateRequest:
+      type: object
+      description: >-
+        currentPassword·newPassword는 함께 있어야 하며 authProvider=LOCAL 회원만 사용할 수 있다.
+        preferredGenres는 전달 시 전체 교체(빈 배열 = 모두 삭제)다. 그 외 필드는 전달된 것만 부분
+        수정된다.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 40
+        phone:
+          type: string
+          maxLength: 20
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+        locale:
+          type: string
+          enum: [en, ko]
+        displayCurrency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        timezone:
+          type: string
+        preferredGenres:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Genre'
+          description: 선호 장르 전체 교체(v7 신설). 빈 배열 = 모두 삭제.
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+          minLength: 8
+          maxLength: 64
+
+    MemberAppliedRate:
+      type: object
+      properties:
+        currency:
+          type: string
+        rate:
+          type: number
+        asOf:
+          type: string
+          format: date-time
+
+    MemberUpdateResponse:
+      type: object
+      required: [displaySupported]
+      properties:
+        memberId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        countryCode:
+          type: string
+        locale:
+          type: string
+          enum: [en, ko]
+        displayCurrency:
+          type: string
+        displaySupported:
+          type: boolean
+          description: 등록된 exchange_rate가 없는 통화면 false(오류 아님, 원 값만 표시).
+        timezone:
+          type: string
+        appliedRate:
+          $ref: '#/components/schemas/MemberAppliedRate'
+        preferredGenres:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Genre'
+          description: 반영된 선호 장르(v7 신설). preferredGenres를 전달하지 않은 요청에도 현재 값을 되돌려준다.
+
+    MemberSignupRequest:
+      type: object
+      required: [email, password, name, countryCode, termsAgreed, privacyAgreed]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 8
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 40
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+        locale:
+          type: string
+          enum: [en, ko]
+          default: en
+        displayCurrency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          default: USD
+        timezone:
+          type: string
+          default: UTC
+        phone:
+          type: string
+          maxLength: 20
+        termsAgreed:
+          type: boolean
+          enum: [true]
+        privacyAgreed:
+          type: boolean
+          enum: [true]
+
+    MemberSignupResponse:
+      type: object
+      required: [walletLinkRequired]
+      properties:
+        memberId:
+          type: integer
+          format: int64
+        email:
+          type: string
+        name:
+          type: string
+        authProvider:
+          type: string
+          enum: [LOCAL]
+        locale:
+          type: string
+          enum: [en, ko]
+        walletLinkRequired:
+          type: boolean

@@ -1,0 +1,82 @@
+# ===== OS / IDE =====
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# ===== 환경변수 / 비밀키 (절대 커밋 금지) =====
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+**/secrets/
+application-secret.yml
+application-*.properties
+!application.properties
+
+# ===== Backend (Spring Boot / Gradle) =====
+backend/build/
+backend/.gradle/
+backend/out/
+# Eclipse·STS 계열 IDE 의 컴파일 출력. `./gradlew` 는 build/ 를 쓰지만 IDE 는 여기에 쌓는다.
+# 없으면 `git add backend/` 한 번에 .class 800여 개가 딸려 들어간다(2026-09-16 실제로 겪었다).
+backend/bin/
+backend/logs/
+backend/*.log
+backend/src/main/resources/application-*.yml
+!backend/src/main/resources/application.yml
+!backend/src/main/resources/application-example.yml
+
+# ===== Frontend (Node / React) =====
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/coverage/
+frontend/*.local
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===== Blockchain (Hardhat) =====
+blockchain/node_modules/
+blockchain/artifacts/
+blockchain/cache/
+blockchain/typechain-types/
+blockchain/coverage/
+blockchain/coverage.json
+blockchain/deployments/localhost/
+
+# ===== Docker / 인프라 =====
+docker-compose.override.yml
+*.tar
+
+# ===== 기타 =====
+*.tmp
+*.bak
+.worktrees/
+.superpowers/
+
+# ===== Claude Code 하네스 =====
+_workspace/
+CLAUDE.local.md
+
+# 서드파티 에이전트 스킬(개인 도구). `npx skills add`로 각자 설치한다.
+# 팀 저장소에 22개 지시문 파일을 넣지 않는다 — CLAUDE.local.md와 같은 원칙.
+# 설치: npx skills add anthropics/claude-code --skill frontend-design
+#       npx skills add addyosmani/agent-skills --skill frontend-ui-engineering
+.agents/
+.claude/skills/*
+!.claude/skills/b204-*
+skills-lock.json
+
+# 프론트 하위에 설치된 서드파티 스킬(vgpu 등) — 루트 규칙과 동일하게 제외
+frontend/.claude/
+
+# 로컬 업로드 저장소. 앞에 `/`를 붙이지 않는 이유는 저장 위치가 두 군데라서다 —
+# compose 바인드 마운트는 저장소 루트 `uploads/`, `./gradlew bootRun`은 cwd가 `backend/`라
+# `backend/uploads/`에 쌓인다(b204.upload.dir 기본값 `./uploads`).
+uploads/

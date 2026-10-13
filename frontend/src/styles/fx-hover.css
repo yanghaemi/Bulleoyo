@@ -1,0 +1,214 @@
+/*
+ * 카드 호버 마이크로 인터랙션.
+ *
+ * ── 컨셉: 조명을 받는 카드는 하나뿐이다 (2026-09-08 정제) ──────────────
+ * 효과가 어디에나 있으면 어디에도 없다. 그래서 두 등급으로 나눴다.
+ *
+ *   ① `data-fx="lift"`  — 그리드의 공연 카드(ShowCard). **뜨기(−4px)+그림자만.**
+ *   ② `data-fx="tilt"`  — 캐러셀 **중앙 카드 하나.** 뜨기 + 틸트(±6°) + 광택.
+ *
+ * 지운 것 — 그리드 카드의 틸트·광택.
+ *   왜: 한 화면에 카드가 8~24장이다. 전부 기울고 번쩍이면 목록이 물결처럼 흔들려서
+ *   "무대 위 주인공"이 사라진다. 마우스를 지나가기만 해도 광택이 연달아 터져 산만했다.
+ *   포스터 글자 위에 흰 빛이 지나가 대비도 흔들렸다. 뜨기만 남기면 "누를 수 있다"는
+ *   정보는 그대로 전하면서 시선은 캐러셀에 남는다.
+ * 남긴 것 — 틸트·광택은 조명을 받는 카드(캐러셀 중앙) 하나에만. 희소해서 특별해진다.
+ *
+ * ── 롤백은 한 줄이다 ────────────────────────────────────────────────
+ * `styles.css`의 `@import "./styles/fx-hover.css";` 한 줄을 지우면 효과가 전부 사라진다.
+ * 컴포넌트에는 `data-fx` 속성과 포인터 좌표를 CSS 변수로 넘기는 핸들러만 있어서,
+ * 이 파일이 없으면 속성은 아무 의미 없는 표식이고 핸들러는 아무도 읽지 않는 변수를 쓴다.
+ * 그래서 시각 결정(각도·시간·알파)이 전부 여기 한 파일에 모여 있다 — JS는 좌표만 넘긴다.
+ *
+ * ── 왜 CSS가 계산하나 ──────────────────────────────────────────────
+ * JS가 transform 문자열을 만들면 각도를 바꿀 때마다 컴포넌트를 고쳐야 하고, 롤백하려면
+ * 코드를 되돌려야 한다. JS는 `--mx`/`--my`(0~1 비율)만 갱신하고 각도·이징·광택은
+ * 전부 이 파일이 정한다.
+ *
+ * ── 그림자는 조명 방향을 따른다 ─────────────────────────────────────
+ * 빛이 위에서 내려오므로 그림자는 **아래로만** 진다(x 오프셋 0). 캐러셀 중앙 카드가
+ * `0 24px 48px / primary 18%`로 가장 깊고, 그리드 카드는 `0 12px 28px / 12%`로 얕다.
+ * 뜨는 높이가 같아도(−4px) 그림자 깊이로 "무대 위"와 "객석"을 나눈다.
+ *
+ * ── 적용 범위 ─────────────────────────────────────────────────────
+ * 마우스가 있는 환경에서만 켠다. 터치에서는 `:hover`가 탭 후 눌어붙어(sticky hover)
+ * 카드가 기울어진 채 남는다. `prefers-reduced-motion`에서는 틸트·이동만 끄고
+ * 광택·그림자는 남긴다 — 전정기관을 자극하는 건 움직임 쪽이다.
+ */
+
+@media (hover: hover) and (pointer: fine) {
+  /* ── ① 뜨기만 — 그리드 카드 ───────────────────────────────────────
+     포인터 좌표를 읽지 않는다. 그래서 ShowCard에는 핸들러도 없다(속성 한 줄이 전부). */
+  [data-fx='lift'] {
+    transition:
+      transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 320ms ease;
+  }
+
+  [data-fx='lift']:hover,
+  [data-fx='lift']:focus-visible,
+  [data-fx='lift']:has(:focus-visible) {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px color-mix(in srgb, var(--color-primary) 12%, transparent);
+  }
+
+  /* ── ② 틸트 + 광택 — 캐러셀 중앙 카드 하나 ─────────────────────── */
+  [data-fx='tilt'] {
+    /* 포인터가 들어오기 전 기본값 = 정중앙 → 회전각 0. 핸들러가 못 돌아도 안전하다 */
+    --mx: 0.5;
+    --my: 0.5;
+
+    /* ::after 광택의 기준 상자 */
+    position: relative;
+    transform: none;
+    /* 나갈 때 되돌아오는 곡선. 캐러셀 전환(480ms cubic-bezier(.22,1,.36,1))과 같은 값이라
+       한 화면에서 두 종류의 감속이 섞이지 않는다 */
+    transition:
+      transform 480ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 320ms ease;
+  }
+
+  /* 키보드 사용자 — 틸트는 포인터 정보가 없어 의미가 없으니 '뜨기'만 준다.
+     전역 :focus-visible 링은 그대로 유지된다(styles.css @layer base).
+     `:has(:focus-visible)`가 필요한 이유 — 캐러셀에서는 틸트 대상이 링크를 감싼
+     겉면이라 포커스는 안쪽 링크가 받는다. */
+  [data-fx='tilt']:focus-visible,
+  [data-fx='tilt']:has(:focus-visible) {
+    transform: translateY(-4px);
+    box-shadow: 0 24px 48px color-mix(in srgb, var(--color-primary) 18%, transparent);
+  }
+
+  /* 마우스 호버 — 포인터를 1:1로 따라간다.
+     transform에 transition을 걸면 커서보다 늦게 따라와 '고무줄'이 되므로 여기서만 끈다.
+     대신 그림자는 계속 전환한다(호버 진입에 팝이 생기지 않게).
+     각도는 (0.5 - 비율) * 12deg → 최대 ±6°. 더 주면 포스터 글자가 읽히지 않는다.
+     translateY를 회전보다 먼저 둬 '뜨기'는 화면 좌표 그대로, 회전은 뜬 위치에서 일어난다. */
+  [data-fx='tilt']:hover {
+    transition: box-shadow 320ms ease;
+    transform: perspective(900px) translateY(-4px) rotateX(calc((0.5 - var(--my)) * 12deg))
+      rotateY(calc((var(--mx) - 0.5) * 12deg));
+    box-shadow: 0 24px 48px color-mix(in srgb, var(--color-primary) 18%, transparent);
+    /* 호버 중에만 승격한다. 항상 켜 두면 카드 수만큼 레이어가 남아 목록에서 메모리를 먹는다 */
+    will-change: transform;
+  }
+
+  /* ── 광택 ─────────────────────────────────────────────────────────
+     포인터를 중심으로 한 흰 빛 번짐 — 조명이 포스터 표면을 스치는 반사다.
+     흰색 알파는 0.18이 상한이고 soft-light로 섞어 밝은 포스터에서 하얗게 날아가지 않게 한다.
+     pointer-events는 반드시 none이다(카드 전체가 링크다).
+     흰색을 토큰으로 바꾸지 않는 이유 — 이건 색이 아니라 **반사광**이라 테마를 타지 않는다.
+     `--color-surface`로 바꾸면 테마별 표면색이 광택에 섞여 탁해질 수 있다. */
+  [data-fx='tilt']::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+    background: radial-gradient(
+      260px circle at calc(var(--mx) * 100%) calc(var(--my) * 100%),
+      rgb(255 255 255 / 0.18),
+      rgb(255 255 255 / 0) 60%
+    );
+    mix-blend-mode: soft-light;
+    opacity: 0;
+    transition: opacity 240ms ease;
+  }
+
+  [data-fx='tilt']:hover::after {
+    opacity: 1;
+  }
+
+  /* 포스터가 상자를 가득 채우는 카드(캐러셀 중앙) —
+     바깥 칸(data-fx="frame")의 클리핑을 풀었으므로 둥근 모서리는 스스로 자른다.
+     inherit이라 칸의 반경(6px)이 바뀌어도 따라온다.
+     ※ 옛 `[data-fx-variant='card']`(ShowCard PC 세로형 상단 3:2만 덮던 광택)는 지웠다 —
+        그리드 카드에 광택이 없어졌으니 덮을 영역도 없다. */
+  [data-fx='tilt'][data-fx-variant='poster'] {
+    border-radius: inherit;
+    overflow: hidden;
+  }
+
+  [data-fx='tilt'][data-fx-variant='poster']::after {
+    inset: 0;
+    border-radius: inherit;
+  }
+
+  /* 캐러셀 칸 — 평소엔 포스터를 자르려고 overflow-hidden이지만, 그대로 두면 기울어지고
+     4px 떠오른 카드의 가장자리가 잘려 나간다. 클리핑 책임을 안쪽 카드로 넘긴다.
+     이 속성은 중앙 카드일 때만 붙는다(옆 카드는 기존 클리핑 유지). */
+  [data-fx='frame'] {
+    overflow: visible;
+  }
+
+  /* ── 끄는 조건 ─────────────────────────────────────────────────── */
+
+  /* 드래그 중에는 손가락(커서)에 1:1로 붙어 움직이는 게 유일한 피드백이다.
+     여기에 틸트가 겹치면 카드가 흔들려 어디를 잡고 있는지 알 수 없다. */
+  [data-fx='tilt'][data-dragging]:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  [data-fx='tilt'][data-dragging]:hover::after {
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    /* 움직임만 끈다. 광택·그림자는 위치 변화가 없어 그대로 둔다 */
+    [data-fx='lift']:hover,
+    [data-fx='lift']:focus-visible,
+    [data-fx='lift']:has(:focus-visible),
+    [data-fx='tilt']:hover,
+    [data-fx='tilt']:focus-visible,
+    [data-fx='tilt']:has(:focus-visible) {
+      transform: none;
+    }
+  }
+}
+
+/*
+ * ── 다크 테마: 그림자가 아니라 빛으로 띄운다 ──────────────────────
+ *
+ * 위 그림자는 `color-mix(--color-primary 12~18%, transparent)`다. 밝은 테마에서는
+ * 흰 바탕 위에 진한 파랑이 12%만 깔려도 "떠 있음"이 읽힌다. 다크에서는 그 계산이 통째로 깨진다 —
+ * 바닥이 #0b0b12이고 그림자색은 #3129dd(바닥 대비 2.33:1)라, **바닥보다 어두운 그림자를
+ * 바닥 위에 그리는** 셈이 되어 아무것도 보이지 않는다. 검정 기반 그림자면 더 심하다.
+ *
+ * 어두운 무대에서 물체가 떠 있다는 신호는 그림자가 아니라 **빛을 더 받는다**는 것이다.
+ * 그래서 같은 자리에 primary-bright(#7b75ff) 저알파 글로우를 깐다. 색은 조명 콘(fx-backdrop)의
+ * 좌·중앙 램프와 같은 토큰이라 "위에서 내려온 그 빛을 카드가 받은 것"으로 읽힌다.
+ *
+ * 두 번째 그림자(`0 0 0 1px`)는 장식이 아니라 **윤곽선**이다. 다크에서 surface(#14141c)와
+ * ground(#0b0b12)는 1.07:1이라 카드 가장자리가 사실상 없다 — 글로우만 깔면 카드가 아니라
+ * 바닥의 보라 얼룩으로 보인다. 1px 링이 뜬 카드의 경계를 잡아 준다(호버할 때만 생긴다).
+ *
+ * y 오프셋은 그대로 둔다. "빛이 위에서 내려오므로 그림자는 아래로만"이라는 이 파일의
+ * 규칙은 다크에서도 같고, 글로우도 아래로 흘러야 조명 방향과 어긋나지 않는다.
+ *
+ * 특이도 — `:root[data-theme='dark'] [data-fx='lift']:hover`는 (0,3,1)로 위 (0,2,0)을 이긴다.
+ * 롤백은 이 블록만 지우면 된다(팔레트는 theme-dark.css에 그대로 남는다).
+ *
+ * 미디어 쿼리를 다시 여는 이유 — 위 규칙 전체가 `(hover: hover) and (pointer: fine)` 안에 있다.
+ * 밖에서 덮으면 터치 기기에서 눌어붙은 :hover에 글로우만 남는다.
+ */
+@media (hover: hover) and (pointer: fine) {
+  :root[data-theme='dark'] [data-fx='lift']:hover,
+  :root[data-theme='dark'] [data-fx='lift']:focus-visible,
+  :root[data-theme='dark'] [data-fx='lift']:has(:focus-visible) {
+    box-shadow:
+      0 12px 28px color-mix(in srgb, var(--effect-primary-bright) 22%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--effect-primary-bright) 18%, transparent);
+  }
+
+  /* 캐러셀 중앙 카드 — 밝은 테마에서 12%:18%로 벌려 둔 "객석 : 무대" 차이를 그대로 유지한다 */
+  :root[data-theme='dark'] [data-fx='tilt']:hover,
+  :root[data-theme='dark'] [data-fx='tilt']:focus-visible,
+  :root[data-theme='dark'] [data-fx='tilt']:has(:focus-visible) {
+    box-shadow:
+      0 24px 48px color-mix(in srgb, var(--effect-primary-bright) 32%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--effect-primary-bright) 26%, transparent);
+  }
+
+  /* 드래그 중에는 위(0,2,1)와 같은 이유로 전부 끈다. 특이도를 맞춰 다시 적는다 */
+  :root[data-theme='dark'] [data-fx='tilt'][data-dragging]:hover {
+    box-shadow: none;
+  }
+}

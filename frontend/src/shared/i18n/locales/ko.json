@@ -1,0 +1,22 @@
+{
+  "common": {
+    "loading": "불러오는 중…",
+    "error": "문제가 발생했습니다.",
+    "retry": "다시 시도",
+    "close": "닫기",
+    "cancel": "취소",
+    "confirm": "확인",
+    "back": "뒤로",
+    "next": "다음",
+    "empty": "아직 아무것도 없습니다.",
+    "notFound": "페이지를 찾을 수 없습니다.",
+    "goHome": "홈으로"
+  },
+  "chain": {
+    "notConfigured": "배포 설정이 들어오기 전까지 체인 기능을 사용할 수 없습니다."
+  },
+  "placeholder": {
+    "title": "구현 예정",
+    "body": "프로젝트 골격의 플레이스홀더 화면입니다."
+  }
+}

@@ -1,0 +1,89 @@
+@font-face {
+  font-family: 'Social Google Sans';
+  src: url('/brands/google-sans-medium.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+/* Provider colors are prescribed brand values, independent of app theme tokens. */
+.auth-providers .social-login-button {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: normal;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.auth-providers .social-login-button--google {
+  border-color: #747775;
+  background: #fff;
+  color: #1f1f1f;
+  font-family: 'Social Google Sans', Arial, sans-serif;
+}
+
+.auth-providers .social-login-button--facebook {
+  background: #0866ff;
+  color: #fff;
+  font-family: Helvetica, Arial, sans-serif;
+}
+
+.auth-providers .social-login-button--kakao {
+  background: #fee500;
+  color: rgb(0 0 0 / 85%);
+}
+
+.auth-providers .social-login-button__icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.auth-providers .social-login-button__label {
+  min-width: 0;
+}
+
+.auth-providers .social-login-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.auth-providers .social-login-button:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 3px;
+  transition: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .auth-providers .social-login-button:enabled:hover {
+    box-shadow: 0 2px 6px rgb(0 0 0 / 12%);
+  }
+}
+
+.auth-providers .social-login-button:enabled:active:not(:focus-visible) {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-providers .social-login-button {
+    transition: none;
+  }
+
+  .auth-providers .social-login-button:enabled:active {
+    transform: none;
+  }
+}

@@ -1,0 +1,9 @@
+# JVM 기본 시각대를 저장 기준(Asia/Seoul)으로 고정한다 — StorageTimeZoneInitializer Javadoc 참고.
+# 컨텍스트 생성 전에 돌아야 하므로 자동 구성(AutoConfiguration.imports)이 아니라 이 파일이다.
+#
+# **현재 버전(Spring Boot 3.5.6)에서 실제로 읽히는 등록은 이 파일이다.** 바이트코드 근거는
+# META-INF/spring/org.springframework.boot.env.EnvironmentPostProcessor.imports 주석에 적었다.
+# 그쪽 파일은 Boot 4.x 대비 보험이고 지금은 아무도 읽지 않는다. 두 파일을 함께 유지한다 —
+# StorageTimeZoneBootstrapTest 가 둘 다 있는지, 그리고 등록이 실제로 동작하는지 지킨다.
+org.springframework.boot.env.EnvironmentPostProcessor=\
+com.ssafy.b204.common.config.StorageTimeZoneInitializer

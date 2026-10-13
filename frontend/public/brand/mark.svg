@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none" role="img" aria-label="불러요">
+  <title>불러요</title>
+  <path d="M12 6h40a6 6 0 0 1 6 6v10a6 6 0 0 0 0 12v18a6 6 0 0 1-6 6H12a6 6 0 0 1-6-6V34a6 6 0 0 0 0-12V12a6 6 0 0 1 6-6Z" fill="#D9468D"/>
+  <text x="32" y="44" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="800" font-size="30" fill="#F7F7FB">요</text>
+</svg>

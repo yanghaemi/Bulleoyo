@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <style>
+    :root{--ink:#17141f;--ink2:#3a3548;--muted:#6f6880;--line:#e3dfe9;--ground:#f5f3f7;--surface:#fff;
+      --amber:#e39b2b;--amber-soft:#fbf1de;--amber-line:#efdcb8;--amber-deep:#8a5510;
+      --ok:#2e7d5b;--ok-soft:#e4f1ea;--crit:#b3243c;--crit-soft:#fbe7ea;
+      --ease-out:cubic-bezier(.23,1,.32,1);}
+    *{box-sizing:border-box;}
+    body{margin:0;background:var(--ground);color:var(--ink);
+      font-family:Archivo,"Noto Sans KR",system-ui,sans-serif;font-size:14px;line-height:1.5;
+      -webkit-font-smoothing:antialiased;}
+    a{color:var(--amber-deep);text-decoration:none;} a:hover{color:#6b4009;}
+    h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:balance;}
+    .mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;}
+    .eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;}
+    .tap{transition:transform 160ms var(--ease-out);}
+    .tap:active{transform:scale(.985);}
+    .btn{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:8px;
+      border:1px solid var(--ink);background:var(--ink);color:#fff;
+      font:600 15px Archivo,"Noto Sans KR",sans-serif;transition:transform 160ms var(--ease-out);}
+    .btn:active{transform:scale(.97);}
+    .btn.ghost{background:var(--surface);color:var(--ink);}
+    .btn.amber{background:var(--amber);border-color:var(--amber);color:#2a1b04;}
+    .btn.off{background:var(--line);border-color:var(--line);color:#9b95a6;}
+    .btn.off:active{transform:none;}
+    @media (hover:hover) and (pointer:fine){
+      .btn.ghost:hover{background:var(--ground);}
+      .card.tap:hover{border-color:#cfc8da;}
+    }
+    @media (prefers-reduced-motion:reduce){ .tap,.btn{transition:none;} .tap:active,.btn:active{transform:none;} }
+    .badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:600;
+      background:var(--amber-soft);color:var(--amber-deep);}
+    .badge.ok{background:var(--ok-soft);color:var(--ok);}
+    .badge.crit{background:var(--crit-soft);color:var(--crit);}
+    .badge.plain{background:var(--ground);color:var(--muted);}
+    .sub{color:var(--muted);font-size:12px;}
+    .rule{height:1px;background:var(--line);}
+    .poster{background:linear-gradient(160deg,#2c2540,#5d4a2e 70%,#8a6a2c);border-radius:8px;}
+  </style>
+</helmet>
+<div style="min-height:100%;background:var(--ground);"><div style="background:var(--surface);border-bottom:1px solid var(--line);"><div style="max-width:1200px;margin:0 auto;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;"><div><div class="eyebrow">Split rules</div><h1 style="font-size:20px;margin-top:3px;">Hongdae Night Vol.7</h1></div></div></div><div style="max-width:1200px;margin:0 auto;padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start;"><div style="display:flex;flex-direction:column;gap:20px;"><div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:14px;"><h2 style="font-size:16px;">Step 1 · Fixed vs audience pick</h2><div style="display:flex;gap:16px;"><div style="flex:1;"><div style="display:flex;flex-direction:column;gap:6px;"><div class="eyebrow">Fixed</div><div class="card" style="padding:12px 14px;display:flex;justify-content:space-between;align-items:center;"><span>50% (5000 bp)</span><span class="sub">▾</span></div></div></div><div style="flex:1;"><div style="display:flex;flex-direction:column;gap:6px;"><div class="eyebrow">Audience pick</div><div class="card" style="padding:12px 14px;display:flex;justify-content:space-between;align-items:center;"><span>50% (5000 bp)</span><span class="sub">▾</span></div></div></div></div><div class="sub">합계 10000 bp · 일치</div></div><div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:12px;"><h2 style="font-size:16px;">Step 2 · Fixed share per band</h2><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);"><div><div style="font-weight:600;">Room 302</div></div><div style="text-align:right;white-space:nowrap;"><span class="mono">3334 bp</span></div></div><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);"><div><div style="font-weight:600;">Salt &amp; Static</div></div><div style="text-align:right;white-space:nowrap;"><span class="mono">3333 bp</span></div></div><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);"><div><div style="font-weight:600;">Neon Alley</div></div><div style="text-align:right;white-space:nowrap;"><span class="mono">3333 bp</span></div></div><div class="sub">합계 10000 bp · 일치</div></div><div class="sub" style="line-height:1.7;">나눗셈에서 남는 1원 단위 잔액은 공연을 만든 팀에 귀속됩니다.<br>보증금 ₩50,000은 분배 대상이 아니며 정산 완료 시 별도로 반환됩니다.</div></div><div class="card" style="padding:20px 22px;"><h2 style="font-size:16px;margin-bottom:10px;">Simulation · ₩2,000,000 sales</h2><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);"><div><div style="font-weight:600;">Room 302</div><div class="sub">고정 ₩333,400 · 선택 ₩299,900</div></div><div style="text-align:right;white-space:nowrap;"><span class="mono" style="font-weight:600;">₩633,300</span></div></div><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);"><div><div style="font-weight:600;">Salt &amp; Static</div><div class="sub">고정 ₩333,300 · 선택 ₩499,800 · dust ₩300</div></div><div style="text-align:right;white-space:nowrap;"><span class="mono" style="font-weight:600;">₩833,400</span></div></div><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);"><div><div style="font-weight:600;">Neon Alley</div><div class="sub">고정 ₩333,300 · 선택 ₩200,000</div></div><div style="text-align:right;white-space:nowrap;"><span class="mono" style="font-weight:600;">₩533,300</span></div></div><div style="display:flex;justify-content:flex-end;margin-top:16px;"><div class="btn amber" style="min-height:42px;padding:0 20px;">Save rules</div></div></div></div></div>
+</x-dc>
+</body>
+</html>
